@@ -153,7 +153,7 @@ function App() {
       const imagePart = await fileToGenerativePart(file);
       const squadContext = players.map(p => ({ nome: p.name, ruolo: p.position, stats: p.attributes }));
       const prompt = `Sei il Capo Osservatore d'élite del club "${clubName}". Esamina lo screenshot di questo giocatore esterno. Sputa un verdetto in maiuscolo (ACQUISTARE ASSOLUTAMENTE, VALIDO SOLO COME RISERVA, EVITARE/BOCCIATO). Confrontalo con l'organico attuale che controlliamo per evitare doppioni inutili: ${JSON.stringify(squadContext.slice(0, 35))}. Valuta gli attributi chiave in base al Match Engine di FM26.`;
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent([prompt, imagePart]);
       setScoutAnalysisResult(result.response.text());
     } catch (err) {
@@ -170,8 +170,8 @@ function App() {
     setPressAnalysisResult("L'Addetto Stampa sta strutturando la risposta strategica...");
     try {
       const imagePart = await fileToGenerativePart(file);
-      const prompt = `Sei l'Addetto Stampa del club "${clubName}". Analizza questo screenshot di conferenza su FM26. Il Mister ha impostato l'identità mediatica: "${personality.toUpperCase()}". Trascrivi la domanda ed indica esattamente quale pulsante premere nel gioco per interpretare alla perfezione il personaggio scelto senza distruggere la determinazione dei ragazzi o causare rivolte di spogliatoio.`;
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const prompt = `Sei l'Addetto Stampa del club "${clubName}". Analizza questo screenshot di conferenza su FM26. Il Mister ha impostato l'identità mediatica: "${personality.toUpperCase()}". Trascrivi la domanda ed indica esattamente quale pfulsante premere nel gioco per interpretare alla perfezione il personaggio scelto senza distruggere la determinazione dei ragazzi o causare rivolte di spogliatoio.`;
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent([prompt, imagePart]);
       setPressAnalysisResult(result.response.text());
     } catch (err) {
@@ -189,7 +189,7 @@ function App() {
     try {
       const imagePart = await fileToGenerativePart(file);
       const prompt = `Sei il Match Analyst del club "${clubName}". Esamina lo screenshot di dati, tiri o xG di FM26. FASE 1: Estrai i dati di performance (Tiri, possesso, xG totali, errori di reparto). FASE 2: Fornisci istruzioni di squadra algoritmiche da cambiare subito nei pannelli di FM per correggere i blackout.`;
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent([prompt, imagePart]);
       setAnalystAnalysisResult(result.response.text());
     } catch (e) {
@@ -206,8 +206,8 @@ function App() {
     setFinanceAnalysisResult("Il CFO sta decifrando le proiezioni di bilancio societarie...");
     try {
       const imagePart = await fileToGenerativePart(file);
-      const prompt = `Sei il CFO del club "${clubName}". Estrai Cassa, Budget Mercato e Budget Ingaggi da questo screen finanziario di FM26. Rispondi SOLO con JSON puro tra parentesi graffe, senza scritte o markdown: { "balance": numero, "transfer_budget": numero, "wage_budget": numero, "analysis": "analisi moneyball dettagliata su come sviluppare un system economico sostenibile per il club" }`;
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const prompt = `Sei il CFO del club "${clubName}". Estrai Cassa, Budget Mercato e Budget Ingaggi da questo screen finanziario di FM26. Rispondi SOLO con JSON puro tra parentesi graffe, senza scritte o markdown: { "balance": numero, "transfer_budget": numero, "wage_budget": numero, "analysis": "analisi moneyball dettagliata su come sviluppare un sistema economico sostenibile per il club" }`;
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent([prompt, imagePart]);
       const jsonClean = result.response.text().replace(/```json/g, '').replace(/```/g, '').trim();
       const parsed = JSON.parse(jsonClean);
@@ -231,7 +231,7 @@ function App() {
     try {
       const imagePart = await fileToGenerativePart(file);
       const prompt = `Sei il Responsabile Giovanili del club "${clubName}". Esamina lo screenshot profilo Under 20 di FM26. Detta i punti di forza, la personalità, il livello di determinazione e stila il ruolo e focus di allenamento perfetto per massimizzare la crescita nel Match Engine.`;
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent([prompt, imagePart]);
       setYouthAnalysisResult(result.response.text());
     } catch (e) {
@@ -249,7 +249,7 @@ function App() {
     try {
       const imagePart = await fileToGenerativePart(file);
       const prompt = `Estrai i giocatori da questa tabella screenshot di FM. Rispondi SOLO array JSON racchiuso in parentesi quadre: [ { "type": "player", "name": "Nome", "age": num, "position": "Ruolo", "attributes": { "Gol": "num", "Media Voto": "num", "Presenze": "num", "Ingaggio": "txt", "Valore": "txt" } } ]`;
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent([prompt, imagePart]);
       const extractedData = JSON.parse(result.response.text().replace(/```json/g, '').replace(/```/g, '').trim());
       if (Array.isArray(extractedData) && extractedData.length > 0) {
@@ -280,7 +280,7 @@ function App() {
     } catch (err) { setUploadError(`Errore OCR: ${err.message}`); } finally { setIsUploading(false); }
   }
 
-  // CORE ENGINE CHAT: COLLEGAMENTO CORRETTO E SICURO DELLE STANZE SULLA MEMORIA STORICA
+  // CORE ENGINE CHAT: SEGREGRAZIONE DELLE CHAT CON MODELLO CRISTALLINO "GEMINI-2.5-FLASH"
   async function handleSendMessage() {
     if (!chatInput.trim()) return;
     const currentInputText = chatInput;
@@ -346,7 +346,7 @@ function App() {
         `;
       }
 
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(instructionPrompt);
       const aiMessageObj = { sender_role: activeRoom, content: result.response.text() };
       setMessages(prev => [...prev, aiMessageObj]);
@@ -354,9 +354,7 @@ function App() {
     } catch (error) { console.error(error); } finally { setIsTyping(false); }
   }
 
-  // ==========================================
-  // FIX CRITICO: RIMOZIONE DELL'ARRAY DI OGGETTI CHE CAUSAVA L'ERRORE 400 BAD REQUEST
-  // ==========================================
+  // FIXED: ARGOMENTO DEL TEXT PROMPT CORRETTO SU MOTORE DI PUNTA GEMINI-2.5-FLASH
   async function handleAnalyzeExternalTactic() {
     if (!externalTacticInput.trim()) return;
     setIsAnalyzingTactic(true); setTacticAnalysisResult("Incrocio flussi tattici avanzati...");
@@ -364,9 +362,7 @@ function App() {
       const currentSquadContext = players.map(p => ({ nome: p.name, ruolo: p.position, stats: p.attributes }));
       const prompt = `Analizza questa tattica: """${externalTacticInput}""" sulla rosa ${clubName}: ${JSON.stringify(currentSquadContext.slice(0, 40))}. Dividi l'output in FASE 1 (70% analisi modulo nel Match Engine) e FASE 2 (30% screening nomi esatti promossi e bocciati da cedere).`;
       
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      
-      // SOLUZIONE: Invochiamo passando solo la stringa di testo compilata, eliminando il blocco JS puro!
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(prompt);
       setTacticAnalysisResult(result.response.text());
     } catch (error) { 
@@ -390,7 +386,7 @@ function App() {
     try {
       const soraPlayersContext = players.map(p => ({ nome: p.name, ruolo: p.position, stipendio: p.attributes['Ingaggio'] || '-' }));
       const prompt = `CFO Club ${clubName}. Redigi un audit finanziario Moneyball dettagliato e cinico: Cassa: €${finances.balance}. Contratti della rosa: ${JSON.stringify(soraPlayersContext.slice(0, 35))}`;
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(prompt);
       setFinanceAudit(result.response.text());
     } catch (e) {} finally { setIsAuditing(false); }
@@ -590,7 +586,7 @@ function App() {
             {activeRoom === 'analyst' && (
               <>
                 <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#3b82f6', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Match Analysis Center</h3>
-                <input type="file" accept="image/*" ref={analystInputRef} onChange={handleAnalystImageUpload} style={{ display: 'none' }} style={{ display: 'none' }} />
+                <input type="file" accept="image/*" ref={analystInputRef} onChange={handleAnalystImageUpload} style={{ display: 'none' }} />
                 <button onClick={() => analystInputRef.current.click()} disabled={isAnalyzingAnalyst} style={{ width: '100%', backgroundColor: '#3b82f6', color: '#fff', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer' }}>Carica Tabellino Gara</button>
                 {analystAnalysisResult && <div style={{ backgroundColor: '#090710', border: '1px solid #231b3a', padding: '14px', fontSize: '13px', whiteSpace: 'pre-line', color: '#cbd5e1', borderRadius: '6px' }}>{analystAnalysisResult}</div>}
               </>
@@ -726,7 +722,7 @@ function App() {
     <div style={{ display: 'flex', height: '100vh', backgroundColor: '#090710', color: '#cbd5e1', fontFamily: 'system-ui, -apple-system, sans-serif', overflow: 'hidden' }}>
       
       {/* SIDEBAR NAVIGATION COMPLETA AD 8 REPARTI CHIAVE */}
-      <div style={{ width: '90px', backgroundColor: '#140f24', borderRight: '2px solid #231b3a', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '20px', gap: '16px', zIndex: 10, boxShadow: '4px 0 15px rgba(0,0,0,0.5)' }}>
+      <div style={{ width: '90px', backgroundColor: '#140f24', borderRight: '2px solid #231b3a', display: 'flex', flexDirection: 'column', textAlignment: 'center', alignItems: 'center', paddingTop: '20px', gap: '16px', zIndex: 10, boxShadow: '4px 0 15px rgba(0,0,0,0.5)' }}>
         <div style={{ width: '52px', height: '52px', backgroundColor: '#da1b60', display: 'flex', alignItems: 'center', color: '#fff', fontWeight: '900', fontSize: '22px', borderRadius: '10px', justifyContent: 'center' }}>FM</div>
         
         <button onClick={() => setActiveRoom('board')} title="Tavolo Plenaria" style={{ background: activeRoom === 'board' ? '#271e44' : 'none', border: activeRoom === 'board' ? '2px solid #a855f7' : '2px solid transparent', color: activeRoom === 'board' ? '#a855f7' : '#475569', padding: '12px', borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s' }}><Users size={24} /></button>
