@@ -12,6 +12,10 @@ function App() {
   const [activeRoom, setActiveRoom] = useState('board') 
   const [dbSubTab, setDbSubTab] = useState('first_team') 
   
+  // STATO PER L'ORDINAMENTO DEL DATABASE
+  const [sortField, setSortField] = useState('name')
+  const [sortDirection, setSortDirection] = useState('asc')
+  
   // STATO DELL'ORGANICO IDRATATO CON STRUTTURA IBRIDA (LOCAL CACHE + CLOUD)
   const [clubName, setClubName] = useState(() => localStorage.getItem('hq_club_name') || 'Sora')
   const [players, setPlayers] = useState(() => JSON.parse(localStorage.getItem('hq_players')) || [])
@@ -184,7 +188,7 @@ function App() {
     setAnalystAnalysisResult("Il Match Analyst sta elaborando i dati fisici di gara...");
     try {
       const imagePart = await fileToGenerativePart(file);
-      const prompt = `Sei il Match Analyst del club "${clubName}". Esamina questo screenshot di dati, tiri o xG di FM26. FASE 1: Estrai i dati di performance (Tiri, possesso, xG totali, errori di reparto). FASE 2: Fornisci istruzioni di squadra algoritmiche da cambiare subito nei pannelli di FM per correggere i blackout.`;
+      const prompt = `Sei il Match Analyst del club "${clubName}". Esamina lo screenshot di dati, tiri o xG di FM26. FASE 1: Estrai i dati di performance (Tiri, possesso, xG totali, errori di reparto). FASE 2: Fornisci istruzioni di squadra algoritmiche da cambiare subito nei pannelli di FM per correggere i blackout.`;
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent([prompt, imagePart]);
       setAnalystAnalysisResult(result.response.text());
@@ -226,7 +230,7 @@ function App() {
     setYouthAnalysisResult("Il Responsabile delle Giovanili sta tracciando lo sviluppo atletico...");
     try {
       const imagePart = await fileToGenerativePart(file);
-      const prompt = `Sei il Responsabile Giovanili del club "${clubName}". Esamina questo screenshot profilo Under 20 di FM26. Detta i punti di forza, la personalità, il livello di determinazione e stila il ruolo e focus di allenamento perfetto per massimizzare la crescita nel Match Engine.`;
+      const prompt = `Sei il Responsabile Giovanili del club "${clubName}". Esamina lo screenshot profilo Under 20 di FM26. Detta i punti di forza, la personalità, the livello di determinazione e stila il ruolo e focus di allenamento perfetto per massimizzare la crescita nel Match Engine.`;
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent([prompt, imagePart]);
       setYouthAnalysisResult(result.response.text());
@@ -363,7 +367,7 @@ function App() {
     setIsAuditing(true); setFinanceAudit("Generazione audit contabile...");
     try {
       const soraPlayersContext = players.map(p => ({ nome: p.name, ruolo: p.position, stipendio: p.attributes['Ingaggio'] || '-' }));
-      const prompt = `CFO Club ${clubName}. Redigi un audit finanziario Moneyball dettagliato e cinico: Cassa: €${finances.balance}. Contratti della rosa: ${JSON.stringify(soraPlayersContext.slice(0, 35))}`;
+      const prompt = `CFO Club ${clubName}. Redigi un audit finanziario dettagliato e cinico: Cassa: €${finances.balance}. Contratti della rosa: ${JSON.stringify(soraPlayersContext.slice(0, 35))}`;
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(prompt);
       setFinanceAudit(result.response.text());
@@ -375,6 +379,16 @@ function App() {
       setPlayers([]); setStaffList([]); setMessages([{ sender_role: 'system', content: 'Centrale resettata.' }]);
       setFinances({ balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }); setSelectedProfile(null); localStorage.clear();
       try { await supabase.from('players').delete().neq('id', 0); await supabase.from('club_messages').delete().neq('id', 0); } catch(e) {}
+    }
+  }
+
+  // GESTORE ORDINAMENTO COLONNE (NEW)
+  function handleSort(field) {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
     }
   }
 
@@ -471,7 +485,7 @@ function App() {
                 <h3 style={{ fontSize: '11px', textTransform: 'uppercase', color: '#fbbf24', borderBottom: '1px solid #2c2347', paddingBottom: '6px', margin: 0, fontWeight: 'bold' }}>Alert Contratti</h3>
                 <div style={{ backgroundColor: '#161224', border: '1px solid #2c2347', padding: '12px', borderRadius: '4px', fontSize: '11px', lineHeight: '1.4' }}>
                   <span style={{ color: '#fbbf24', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>⚠️ STRUTTURA SALARIALE:</span>
-                  I giocatori contrassegnati come <strong style={{ color: '#ef4444' }}>TOSSICO</strong> bloccato il Sora. Taglia o vendi subito.
+                  I giocatori contrassegnati come <strong style={{ color: '#ef4444' }}>TOSSICO</strong> bloccano il bilancio. Taglia o vendi subito.
                 </div>
               </>
             )}
@@ -565,14 +579,7 @@ function App() {
               <div style={{ marginTop: '8px' }}><label style={{ fontSize: '9px', color: '#64748b' }}>Ingaggio (€/sett)</label><input type="number" value={simWage} onChange={(e) => setSimWage(e.target.value)} style={{ width: '90%', backgroundColor: '#0f0f1c', border: '1px solid #2c2347', padding: '6px', color: '#fff', fontSize: '12px' }} /></div>
               <div style={{ marginTop: '8px' }}><label style={{ fontSize: '9px', color: '#64748b' }}>Anni Contratto</label><input type="number" value={simYears} onChange={(e) => setSimYears(e.target.value)} style={{ width: '90%', backgroundColor: '#0f0f1c', border: '1px solid #2c2347', padding: '6px', color: '#fff', fontSize: '12px' }} /></div>
               <button onClick={handleSimulateTransfer} style={{ backgroundColor: '#10b981', color: '#0f0c1b', border: 'none', padding: '8px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '4px', marginTop: '12px' }}>Calcola Ammortamento</button>
-              {simResult && (
-                <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#0f0c1b', borderLeft: `3px solid ${simResult.color}`, fontSize: '11px' }}>
-                  <span style={{ color: simResult.color }}>DIRETTIVA: {simResult.status}</span><br/>
-                  Ammortamento: <strong>€{simResult.annualAmortization.toLocaleString()}</strong><br/>
-                  Costo Lordo: <strong>€{simResult.annualWageCost.toLocaleString()}</strong>
-                  <p style={{ margin: '4px 0 0 0', color: '#94a3b8', lineHeight: '1.3' }}>{simResult.notes}</p>
-                </div>
-              )}
+              {simResult && <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#0f0c1b', borderLeft: `3px solid ${simResult.color}`, fontSize: '11px' }}><span style={{ color: simResult.color }}>DIRETTIVA: {simResult.status}</span><br/>Ammortamento: <strong>€{simResult.annualAmortization.toLocaleString()}</strong><br/>Costo Lordo: <strong>€{simResult.annualWageCost.toLocaleString()}</strong><p style={{ margin: '4px 0 0 0', color: '#94a3b8', lineHeight: '1.3' }}>{simResult.notes}</p></div>}
             </div>
 
             <button onClick={handleFinanceAudit} disabled={isAuditing} style={{ backgroundColor: '#da1b60', color: '#fff', border: 'none', padding: '10px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '4px', marginTop: '10px', width: '100%' }}>{isAuditing ? 'Elaborazione...' : 'Genera Audit Globale'}</button>
@@ -587,6 +594,19 @@ function App() {
     const firstTeamPlayers = players.filter(p => p.type === 'player' && (p.age >= 20 || !p.age));
     const youthPlayers = players.filter(p => p.type === 'player' && p.age && p.age < 20);
     const visibleList = dbSubTab === 'first_team' ? firstTeamPlayers : youthPlayers;
+
+    // INTEGRAZIONE MOTORE DI ORDINAMENTO SULLA GRIGLIA REALE (NEW)
+    const sortedList = [...visibleList].sort((a, b) => {
+      let valA = a[sortField] || '';
+      let valB = b[sortField] || '';
+      
+      if (typeof valA === 'string') valA = valA.toLowerCase().trim();
+      if (typeof valB === 'string') valB = valB.toLowerCase().trim();
+      
+      if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+      if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
 
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#0f0c1b', height: '100%', overflow: 'hidden' }}>
@@ -603,16 +623,28 @@ function App() {
         </div>
 
         <div style={{ flex: 1, padding: '24px', overflowY: 'auto' }}>
-          {visibleList.length === 0 ? <div style={{ textAlign: 'center', padding: '48px', color: '#64748b', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', border: '1px dashed #2c2347', backgroundColor: '#161224' }}>Nessun calciatore scansionato per il club {clubName.toUpperCase()}. Carica uno screenshot della rosa.</div> : (
+          {visibleList.length === 0 ? <div style={{ textAlignment: 'center', padding: '48px', color: '#64748b', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', border: '1px dashed #2c2347', backgroundColor: '#161224' }}>Nessun calciatore scansionato per il club {clubName.toUpperCase()}. Carica uno screenshot della rosa.</div> : (
             <div style={{ backgroundColor: '#161224', border: '1px solid #2c2347', borderRadius: '6px', overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '750px' }}>
                 <thead>
                   <tr style={{ backgroundColor: '#1f1a3a', borderBottom: '2px solid #0f0c1b' }}>
-                    <th style={{ padding: '12px', color: '#cbd5e1', fontSize: '11px', textTransform: 'uppercase' }}>Nome Calciatore</th><th style={{ padding: '12px', color: '#cbd5e1', fontSize: '11px', textTransform: 'uppercase' }}>Ruolo</th><th style={{ padding: '12px', color: '#cbd5e1', fontSize: '11px', textTransform: 'uppercase', textAlign: 'center' }}>Età</th><th style={{ padding: '12px', color: '#cbd5e1', fontSize: '11px', textTransform: 'uppercase', textAlign: 'center' }}>Pres</th><th style={{ padding: '12px', color: '#cbd5e1', fontSize: '11px', textTransform: 'uppercase', textAlign: 'center' }}>Gol</th><th style={{ padding: '12px', color: '#cbd5e1', fontSize: '11px', textTransform: 'uppercase', textAlign: 'center' }}>M.V.</th><th style={{ padding: '12px', color: '#cbd5e1', fontSize: '11px', textTransform: 'uppercase', textAlign: 'center' }}>Ingaggio</th><th style={{ padding: '12px', color: '#cbd5e1', fontSize: '11px', textTransform: 'uppercase', textAlign: 'right' }}>Valore</th>
+                    {/* AGGIUNTO TRATTAMENTO ONCLICK SULLE INTESTAZIONI PER IL SORTING (NEW) */}
+                    <th onClick={() => handleSort('name')} style={{ padding: '12px', color: '#cbd5e1', fontSize: '11px', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none' }}>
+                      Nome Calciatore {sortField === 'name' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}
+                    </th>
+                    <th onClick={() => handleSort('position')} style={{ padding: '12px', color: '#cbd5e1', fontSize: '11px', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none' }}>
+                      Ruolo / Posizione {sortField === 'position' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}
+                    </th>
+                    <th style={{ padding: '12px', color: '#cbd5e1', fontSize: '11px', textTransform: 'uppercase', textAlign: 'center' }}>Età</th>
+                    <th style={{ padding: '12px', color: '#cbd5e1', fontSize: '11px', textTransform: 'uppercase', textAlign: 'center' }}>Pres</th>
+                    <th style={{ padding: '12px', color: '#cbd5e1', fontSize: '11px', textTransform: 'uppercase', textAlign: 'center' }}>Gol</th>
+                    <th style={{ padding: '12px', color: '#cbd5e1', fontSize: '11px', textTransform: 'uppercase', textAlign: 'center' }}>M.V.</th>
+                    <th style={{ padding: '12px', color: '#cbd5e1', fontSize: '11px', textTransform: 'uppercase', textAlign: 'center' }}>Ingaggio</th>
+                    <th style={{ padding: '12px', color: '#cbd5e1', fontSize: '11px', textTransform: 'uppercase', textAlign: 'right' }}>Valore</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleList.map((p, idx) => {
+                  {sortedList.map((p, idx) => {
                     const wStr = p.attributes?.Ingaggio || p.attributes?.Stip || '0'; const wNum = parseInt(wStr.replace(/\D/g, '')) || 0;
                     const mv = parseFloat(String(p.attributes?.['Media Voto'] || p.attributes?.Mv).replace(',', '.')) || 0;
                     const gol = parseInt(p.attributes?.Gol || p.attributes?.Gls) || 0; const pres = parseInt(p.attributes?.Presenze || p.attributes?.Pres) || 0;
@@ -636,9 +668,9 @@ function App() {
   return (
     <div style={{ display: 'flex', height: '100vh', backgroundColor: '#0f0c1b', color: '#cbd5e1', fontFamily: 'system-ui, -apple-system, sans-serif', overflow: 'hidden' }}>
       
-      {/* SIDEBAR NAVIGATION COMPLETA AD 8 COMPARACHI CHIAVE */}
+      {/* SIDEBAR NAVIGATION COMPLETA AD 8 REPARTI CHIAVE */}
       <div style={{ width: '80px', backgroundColor: '#161224', borderRight: '1px solid #2c2347', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '16px', gap: '14px', zIndex: 10 }}>
-        <div style={{ width: '46px', height: '46px', backgroundColor: '#da1b60', display: 'flex', alignItems: 'center', justifyCenter: 'center', color: '#fff', fontWeight: '900', fontSize: '18px', borderRadius: '8px', justifyContent: 'center' }}>FM</div>
+        <div style={{ width: '46px', height: '46px', backgroundColor: '#da1b60', display: 'flex', alignItems: 'center', color: '#fff', fontWeight: '900', fontSize: '18px', borderRadius: '8px', justifyContent: 'center' }}>FM</div>
         
         <button onClick={() => setActiveRoom('board')} title="Tavolo Plenaria" style={{ background: activeRoom === 'board' ? '#221b36' : 'none', border: activeRoom === 'board' ? '1px solid #a855f7' : '1px solid transparent', color: activeRoom === 'board' ? '#a855f7' : '#475569', padding: '10px', borderRadius: '8px', cursor: 'pointer' }}><Users size={22} /></button>
         <button onClick={() => setActiveRoom('vice')} title="Ufficio Vice Allenatore" style={{ background: activeRoom === 'vice' ? '#221b36' : 'none', border: activeRoom === 'vice' ? '1px solid #22d3ee' : '1px solid transparent', color: activeRoom === 'vice' ? '#22d3ee' : '#475569', padding: '10px', borderRadius: '8px', cursor: 'pointer' }}><Sliders size={22} /></button>
@@ -653,7 +685,7 @@ function App() {
         <button onClick={() => setActiveRoom('database')} title="Plancia Organico Database" style={{ background: activeRoom === 'database' ? '#221b36' : 'none', border: activeRoom === 'database' ? '1px solid #da1b60' : '1px solid transparent', color: activeRoom === 'database' ? '#da1b60' : '#475569', padding: '10px', borderRadius: '8px', cursor: 'pointer' }}><Database size={22} /></button>
       </div>
 
-      {/* VALUTAZIONE IN LINEA PER BLOCCARE LA DISTRUZIONE E RICREAZIONE DEL DOM */}
+      {/* RENDERIZZAZIONE CONTESTUALE DELLE STANZE SULLO SCHERMO */}
       {activeRoom !== 'database' && activeRoom !== 'cfo' && renderChatWindow()}
       {activeRoom === 'cfo' && renderFinanceInterface()}
       {activeRoom === 'database' && renderMasterDatabase()}
