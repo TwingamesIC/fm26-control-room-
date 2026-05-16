@@ -280,14 +280,16 @@ function App() {
     } catch (err) { setUploadError(`Errore OCR: ${err.message}`); } finally { setIsUploading(false); }
   }
 
-  // CORE ENGINE CHAT: COERENZA AZIENDALE CONDIVISA LIVE MEMORY ENGINE
+  // CORE ENGINE CHAT: SEGREGRAZIONE DELLE CHAT CON COERENZA IN BACKGROUND CREATIVE STAMP
   async function handleSendMessage() {
     if (!chatInput.trim()) return;
     const currentInputText = chatInput;
     setChatInput('');
     setIsTyping(true);
 
-    const userMessageObj = { sender_role: 'user', content: currentInputText };
+    // TAGGHIAMO IL MESSAGGIO UTENTE CON LA STANZA CORRENTE PER SEPARARE LA VISUALIZZAZIONE
+    const userRole = `user:${activeRoom}`;
+    const userMessageObj = { sender_role: userRole, content: currentInputText };
     const updatedMessages = [...messages, userMessageObj];
     setMessages(updatedMessages);
 
@@ -296,46 +298,54 @@ function App() {
     try {
       const squadContext = players.map(p => ({ nome: p.name, ruolo: p.position, stats: p.attributes }));
       
-      // ESPANSIONE CRONOLOGICA RADICALE: L'IA LEGGE GLI ULTIMI 60 MESSAGGI PER NON DIMENTICARE NULLA
-      const businessChronology = updatedMessages.slice(-60).map(m => `${m.sender_role.toUpperCase()}: ${m.content}`).join('\n');
+      // ESPANSIONE MEMORIA STRATEGICA: L'IA LEGGE L'INTERO STORICO CRONOLOGICO DELLE STANZE (FINO A 45 MESSAGGI)
+      const businessChronology = updatedMessages.slice(-45).map(m => {
+        let roleLabel = m.sender_role.toUpperCase();
+        if (roleLabel.startsWith('USER:')) {
+          roleLabel = `MISTER (nella stanza ${roleLabel.split(':')[1]})`;
+        } else if (roleLabel === 'USER') {
+          roleLabel = 'MISTER';
+        }
+        return `${roleLabel}: ${m.content}`;
+      }).join('\n');
 
       let instructionPrompt = `
         SEI LO STAFF DIRIGENZIALE ED ESPERTO DEL CLUB "${clubName.toUpperCase()}" SU FOOTBALL MANAGER 2026.
         Il tuo Mister (Omiserez) ti dice: "${currentInputText}"
         
-        CRONOLOGIA COMPLETA E COMPORRE DI MEMORIA INTEGRALE (RICORDA QUESTI DETTAGLI PER SEMPRE):
+        CRONOLOGIA E MEMORIA INTERNA AZIENDALE (RICORDA QUESTI DETTAGLI DI TUTTE LE STANZE):
         ${businessChronology}
         
-        REGISTRO PATRIMONIALE ED ORGANICO:
+        REGISTRO CONTABILE ED ORGANICO SQUADRA:
         - Cassa €${finances.balance} | Budget Mercato €${finances.transfer_budget} | Ingaggi €${finances.wage_budget}/sett.
-        - ROSA REALE ESTRATTA DAGLI SCREENSHOT: ${JSON.stringify(squadContext.slice(0, 35))}
+        - ROSA ESTRATTA DAGLI SCREENSHOT: ${JSON.stringify(squadContext.slice(0, 35))}
       `;
 
       if (activeRoom === 'board') {
         instructionPrompt += `
           REGOLE TAVOLO PLENARIA (IL TAVOLONE COMPLETO):
           Sei l'intero consiglio dello staff convocato in riunione segreta dal Mister. Devi generare tassativamente una risposta complessa in cui TUTTI E 7 i collaboratori prendono la parola uno dopo l'altro esprimendo la propria opinione dal loro specifico angolo di competenza.
-          Sii un esperto cinico e leale del Match Engine. Rispetta fedelmente questo formato di testo ad ampio volume (fai parlare tutti e 7):
+          Rispetta fedelmente questo formato di testo ad ampio volume (fai parlare tutti e 7):
           
-          VICE ALLENATORE: [Opinione di campo, assetto tattico, morale spogliatoio e reattività dei ragazzi in lista]
-          DIRETTORE SPORTIVO: [Opinione commerciale su contratti della rosa, rinnovi strategici e mercato]
-          CHIEF SCOUT: [Opinione tecnica sulla futuribilità ed inserimento di eventuali obiettivi esterni scansionati]
-          CFO FINANZE: [Opinione contabile rigida su ammortamento a bilancio, tasse e sostenibilità delle casse]
-          ADDETTO STAMPA: [Opinione su come reagiranno i media e l'opinione pubblica dei tifosi a questa scelta]
-          RESPONSABILE GIOVANILI: [Opinione sull'inserimento e crescita dei nostri ragazzi Under 20 e sui wonderkids della squadra]
-          MATCH ANALYST: [Opinione fredda basata sui numeri, xG, statistiche di gioco ed efficienza matematica]
+          VICE ALLENATORE: [Opinione di campo, assetto tattico e morale]
+          DIRETTORE SPORTIVO: [Opinione commerciale su contratti e mercato]
+          CHIEF SCOUT: [Opinione tecnica su futuribilità obiettivi]
+          CFO FINANZE: [Opinione contabile rigida su ammortamento e cassa]
+          ADDETTO STAMPA: [Opinione su reazione dei media e tifosi]
+          RESPONSABILE GIOVANILI: [Opinione sulla crescita dei ragazzi Under 20]
+          MATCH ANALYST: [Opinione fredda basata su xG e statistiche Match Engine]
         `;
       } else {
         instructionPrompt += `
-          STANZA SINGOLA ATTIVA: INTERPRETA ESCLUSIVAMENTE IL RUOLO DI: '${activeRoom.toUpperCase()}'.
-          Rispondi in modo esteso, cinico, fedelissimo ed iper-competente di calcio e di FM26:
-          - 'vice': Focus totale su tattica, allenamento, ruoli e campo.
-          - 'ds': Focus totale su rinnovi, acquisti, esuberi da tagliare e scadenze.
-          - 'scout': Focus su obiettivi di mercato esterni e report osservatori.
-          - 'cfo': Focus su bilancio puro, formule di ammortamento e conti societari.
-          - 'press': Focus su gestione dei giornalisti e interpretazione della personalità mediatica "${personality.toUpperCase()}".
+          STANZA SINGOLA ATTIVA: SEI NELL'UFFICIO PRIVATO DI '${activeRoom.toUpperCase()}'.
+          Rispondi al Mister interpretando ESCLUSIVAMENTE questo ruolo specifico in modo diretto, esteso e ultra-competente. Non tirare in ballo gli altri reparti, parla a quattrocchi con lui.
+          - 'vice': Focus su tattiche, allenamento, ruoli e campo.
+          - 'ds': Focus su rinnovi, acquisti, esuberi e scadenze.
+          - 'scout': Focus su schedatura obiettivi esterni e database osservatori.
+          - 'cfo': Focus su bilancio puro, ammortamenti e conti societari.
+          - 'press': Focus su conferenze e interpretazione della personalità mediatica "${personality.toUpperCase()}".
           - 'youth': Focus su valorizzazione dei giovani Under 20.
-          - 'analyst': Focus su xG, tiri, baricentro e modifiche istruzioni di squadra sui pannelli di FM.
+          - 'analyst': Focus su xG, tiri, baricentro e modifiche istruzioni di squadra FM.
         `;
       }
 
@@ -398,45 +408,63 @@ function App() {
   }
 
   // ==========================================
-  // FUNZIONI DI RENDERING INLINE PER BLINDARE IL FOCUS DI REPARTO
+  // APERTURA INTERFACCIA CHAT FILTRATA AD ALTA SCANNABILITÀ PER REPARTO
   // ==========================================
   function renderChatWindow() {
+    // FILTRIAMO REATTIVAMENTE I MESSAGGI: IN OGNI STANZA APPARE SOLO LA DISCUSSIONE DI QUELL'UFFICIO SPECIFICO
+    const visibleMessages = messages.filter(msg => {
+      if (msg.sender_role === 'system') return true;
+      if (activeRoom === 'board') {
+        return msg.sender_role === 'board' || msg.sender_role === 'user:board' || msg.sender_role === 'user';
+      }
+      return msg.sender_role === activeRoom || msg.sender_role === `user:${activeRoom}`;
+    });
+
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#0f0c1b', height: '100%' }}>
         <div style={{ height: '64px', padding: '0 20px', borderBottom: '1px solid #2c2347', display: 'flex', alignItems: 'center', backgroundColor: '#161224', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <MessageSquare size={18} color="#da1b60" /> 
-            <h2 style={{ fontSize: '14px', color: '#fff', margin: 0, textTransform: 'uppercase', fontWeight: 'bold' }}>Stanza: {activeRoom.toUpperCase()}</h2>
+            <h2 style={{ fontSize: '14px', color: '#fff', margin: 0, textTransform: 'uppercase', fontWeight: 'bold' }}>
+              {activeRoom === 'board' ? '🏛️ Tavolo Riunione Plenaria (Staff Riunito)' : `💼 Ufficio Privato: ${activeRoom.toUpperCase()}`}
+            </h2>
           </div>
           {cloudStatus === 'offline' && <div style={{ fontSize: '10px', backgroundColor: '#450a0a', color: '#fca5a5', padding: '4px 8px', border: '1px solid #991b1b', fontWeight: 'bold' }}>Offline Local Cache</div>}
         </div>
 
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden', flexDirection: 'row' }}>
+          {/* COLONNA CHAT DI REPARTO */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', borderRight: '1px solid #2c2347' }}>
             <div ref={chatContainerRef} style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-              {messages.map((msg, index) => {
-                let align = 'flex-start'; let bColor = '#2c2347'; let nameLabel = 'STAFF'; let itemBg = '#161224';
-                if (msg.sender_role === 'user') { align = 'flex-end'; bColor = '#da1b60'; nameLabel = 'MISTER'; itemBg = '#221b36'; }
-                else if (msg.sender_role === 'vice') { bColor = '#22d3ee'; nameLabel = 'VICE ALLENATORE'; }
-                else if (msg.sender_role === 'ds') { bColor = '#fbbf24'; nameLabel = 'DIRETTORE SPORTIVO'; }
-                else if (msg.sender_role === 'scout') { bColor = '#f43f5e'; nameLabel = 'CAPO OSSERVATORE'; }
-                else if (msg.sender_role === 'cfo') { bColor = '#10b981'; nameLabel = 'CFO FINANZE'; }
-                else if (msg.sender_role === 'press') { bColor = '#ec4899'; nameLabel = 'UFFICIO STAMPA'; }
-                else if (msg.sender_role === 'youth') { bColor = '#ffaa00'; nameLabel = 'RESPONSABILE GIOVANILI'; }
-                else if (msg.sender_role === 'analyst') { bColor = '#3b82f6'; nameLabel = 'MATCH ANALYST'; }
-                else if (msg.sender_role === 'board') { bColor = '#a855f7'; nameLabel = 'RIUNIONE PLENARIA'; }
+              {visibleMessages.length === 0 ? (
+                <div style={{ color: '#475569', fontSize: '12px', fontStyle: 'italic', textAlign: 'center', marginTop: '20px' }}>
+                  Nessun colloquio precedente registrato in questo ufficio. Digita una nota per iniziare il colloquio singolo.
+                </div>
+              ) : (
+                visibleMessages.map((msg, index) => {
+                  let align = 'flex-start'; let bColor = '#2c2347'; let nameLabel = 'STAFF'; let itemBg = '#161224';
+                  if (msg.sender_role.startsWith('user')) { align = 'flex-end'; bColor = '#da1b60'; nameLabel = 'MISTER'; itemBg = '#221b36'; }
+                  else if (msg.sender_role === 'vice') { bColor = '#22d3ee'; nameLabel = 'VICE ALLENATORE'; }
+                  else if (msg.sender_role === 'ds') { bColor = '#fbbf24'; nameLabel = 'DIRETTORE SPORTIVO'; }
+                  else if (msg.sender_role === 'scout') { bColor = '#f43f5e'; nameLabel = 'CAPO OSSERVATORE'; }
+                  else if (msg.sender_role === 'cfo') { bColor = '#10b981'; nameLabel = 'CFO FINANZE'; }
+                  else if (msg.sender_role === 'press') { bColor = '#ec4899'; nameLabel = 'UFFICIO STAMPA'; }
+                  else if (msg.sender_role === 'youth') { bColor = '#ffaa00'; nameLabel = 'RESPONSABILE GIOVANILI'; }
+                  else if (msg.sender_role === 'analyst') { bColor = '#3b82f6'; nameLabel = 'MATCH ANALYST'; }
+                  else if (msg.sender_role === 'board') { bColor = '#a855f7'; nameLabel = 'VERBALE PLENARIA'; }
 
-                return (
-                  <div key={index} style={{ display: 'flex', flexDirection: 'column', alignItems: align, width: '100%', marginBottom: '16px' }}>
-                    <span style={{ fontSize: '9px', color: '#475569', fontWeight: 'bold', marginBottom: '4px', textTransform: 'uppercase' }}>{nameLabel}</span>
-                    <div style={{ padding: '12px', fontSize: '13px', backgroundColor: itemBg, color: '#fff', borderLeft: `3px solid ${bColor}`, borderRadius: '4px', maxWidth: '85%', lineHeight: '1.5', whiteSpace: 'pre-line' }}>{msg.content}</div>
-                  </div>
-                );
-              })}
+                  return (
+                    <div key={index} style={{ display: 'flex', flexDirection: 'column', alignItems: align, width: '100%', marginBottom: '16px' }}>
+                      <span style={{ fontSize: '9px', color: '#475569', fontWeight: 'bold', marginBottom: '4px', textTransform: 'uppercase' }}>{nameLabel}</span>
+                      <div style={{ padding: '12px', fontSize: '13px', backgroundColor: itemBg, color: '#fff', borderLeft: `3px solid ${bColor}`, borderRadius: '4px', maxWidth: '85%', lineHeight: '1.5', whiteSpace: 'pre-line' }}>{msg.content}</div>
+                    </div>
+                  );
+                })
+              )}
               {isTyping && (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginBottom: '16px' }}>
-                  <span style={{ fontSize: '9px', color: '#475569', fontWeight: 'bold', marginBottom: '4px' }}>TAVOLO DI SEDE</span>
-                  <div style={{ padding: '12px', fontSize: '13px', backgroundColor: '#161224', color: '#64748b', borderLeft: '3px solid #475569', borderRadius: '4px', fontStyle: 'italic' }}>I membri dello staff stanno scrivendo a verbale...</div>
+                  <span style={{ fontSize: '9px', color: '#475569', fontWeight: 'bold', marginBottom: '4px' }}>SCRIVANIA</span>
+                  <div style={{ padding: '12px', fontSize: '13px', backgroundColor: '#161224', color: '#64748b', borderLeft: '3px solid #475569', borderRadius: '4px', fontStyle: 'italic' }}>L'esperto di reparto sta formulando il report di risposta...</div>
                 </div>
               )}
             </div>
@@ -444,25 +472,26 @@ function App() {
             <div style={{ padding: '16px', backgroundColor: '#161224', borderTop: '1px solid #2c2347' }}>
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                 <ChevronRight style={{ position: 'absolute', left: '10px', color: '#da1b60' }} size={16} />
-                <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder="Impartisci una direttiva allo staff..." style={{ width: '100%', backgroundColor: '#0f0c1b', border: '1px solid #2c2347', padding: '10px 40px 10px 32px', fontSize: '13px', color: '#fff', borderRadius: '4px', outline: 'none' }} />
+                <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={activeRoom === 'board' ? "Parla al Tavolone della Plenaria..." : `Parla singolarmente con il responsabile del reparto ${activeRoom.toUpperCase()}...`} style={{ width: '100%', backgroundColor: '#0f0c1b', border: '1px solid #2c2347', padding: '10px 40px 10px 32px', fontSize: '13px', color: '#fff', borderRadius: '4px', outline: 'none' }} />
                 <button onClick={handleSendMessage} disabled={isTyping} style={{ position: 'absolute', right: '12px', background: 'none', border: 'none', color: '#da1b60', cursor: 'pointer' }}><Send size={14} /></button>
               </div>
             </div>
           </div>
 
+          {/* PANNELLO DESTRA CORRISPONDENTE STRUMENTI UFFICIO PRIVATO */}
           <div style={{ width: '360px', backgroundColor: '#120e1f', padding: '16px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {activeRoom === 'board' && (
               <>
-                <h3 style={{ fontSize: '11px', textTransform: 'uppercase', color: '#a855f7', borderBottom: '1px solid #2c2347', paddingBottom: '6px', margin: 0, fontWeight: 'bold' }}>Stato Societario Plenaria</h3>
+                <h3 style={{ fontSize: '11px', textTransform: 'uppercase', color: '#a855f7', borderBottom: '1px solid #2c2347', paddingBottom: '6px', margin: 0, fontWeight: 'bold' }}>Configurazione Club Live</h3>
                 <div style={{ backgroundColor: '#161224', border: '1px solid #2c2347', padding: '12px', borderRadius: '4px' }}>
                   <label style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Club Attuale in FM</label>
                   <input type="text" value={clubName} onChange={(e) => setClubName(e.target.value)} style={{ width: '90%', backgroundColor: '#0f0c1b', border: '1px solid #2c2347', padding: '6px', color: '#fff', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '12px' }} />
                 </div>
                 <div style={{ backgroundColor: '#161224', border: '1px solid #2c2347', padding: '12px', borderRadius: '4px', fontSize: '12px', lineHeight: '1.4' }}>
-                  <span style={{ color: '#94a3b8', display: 'block', marginBottom: '4px' }}>📊 Indicatori:</span>
-                  • Giocatori: <strong>{players.length}</strong><br />
-                  • Cassa: <strong>€{finances.balance.toLocaleString()}</strong><br />
-                  • Budget: <strong>€{finances.transfer_budget.toLocaleString()}</strong>
+                  <span style={{ color: '#94a3b8', display: 'block', marginBottom: '4px' }}>📊 Indicatori Cassa:</span>
+                  • Calciatori Schedati: <strong>{players.length}</strong><br />
+                  • Cassa Club: <strong>€{finances.balance.toLocaleString()}</strong><br />
+                  • Budget Mercato: <strong>€{finances.transfer_budget.toLocaleString()}</strong>
                 </div>
               </>
             )}
@@ -490,8 +519,34 @@ function App() {
                 <h3 style={{ fontSize: '11px', textTransform: 'uppercase', color: '#fbbf24', borderBottom: '1px solid #2c2347', paddingBottom: '6px', margin: 0, fontWeight: 'bold' }}>Alert Contratti</h3>
                 <div style={{ backgroundColor: '#161224', border: '1px solid #2c2347', padding: '12px', borderRadius: '4px', fontSize: '11px', lineHeight: '1.4' }}>
                   <span style={{ color: '#fbbf24', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>⚠️ STRUTTURA SALARIALE:</span>
-                  I giocatori contrassegnati come <strong style={{ color: '#ef4444' }}>TOSSICO</strong> bloccano il bilancio. Taglia o vendi subito.
+                  I giocatori contrassegnati come <strong style={{ color: '#ef4444' }}>TOSSICO</strong> bloccano il bilancio. Taglia o vendi subito per risanare la rosa.
                 </div>
+              </>
+            )}
+
+            {activeRoom === 'cfo' && (
+              <>
+                <h3 style={{ fontSize: '11px', textTransform: 'uppercase', color: '#10b981', borderBottom: '1px solid #2c2347', paddingBottom: '6px', margin: 0, fontWeight: 'bold' }}>Cassaforte & Sviluppo Bilanci</h3>
+                <div style={{ backgroundColor: '#161224', border: '1px solid #2c2347', padding: '12px', borderRadius: '4px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <span style={{ fontSize: '10px', color: '#10b981', fontWeight: 'bold', textTransform: 'uppercase' }}>📊 Bilancio visivo OCR:</span>
+                  <input type="file" accept="image/*" ref={financeInputRef} onChange={handleFinanceImageUpload} style={{ display: 'none' }} />
+                  <button onClick={() => financeInputRef.current.click()} disabled={isAnalyzingFinance} style={{ width: '100%', backgroundColor: '#10b981', color: '#0f0c1b', border: 'none', padding: '10px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer' }}>Carica Screen Finanze</button>
+                  {financeAnalysisResult && <div style={{ backgroundColor: '#0f0c1b', border: '1px solid #2c2347', padding: '10px', fontSize: '11px', color: '#cbd5e1', maxHeight: '120px', overflowY: 'auto' }}>{financeAnalysisResult}</div>}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+                  <div><label style={{ fontSize: '10px', color: '#94a3b8' }}>Bilancio (€)</label><input type="number" value={finances.balance} onChange={(e) => updateFinancesCloud('balance', e.target.value)} style={{ width: '90%', backgroundColor: '#0f0c1b', border: '1px solid #2c2347', padding: '6px', color: '#10b981', fontWeight: 'bold' }} /></div>
+                  <div><label style={{ fontSize: '10px', color: '#94a3b8' }}>Budget Mercato (€)</label><input type="number" value={finances.transfer_budget} onChange={(e) => updateFinancesCloud('transfer_budget', e.target.value)} style={{ width: '90%', backgroundColor: '#0f0c1b', border: '1px solid #2c2347', padding: '6px', color: '#fff' }} /></div>
+                  <div><label style={{ fontSize: '10px', color: '#94a3b8' }}>Ingaggi (€/sett)</label><input type="number" value={finances.wage_budget} onChange={(e) => updateFinancesCloud('wage_budget', e.target.value)} style={{ width: '90%', backgroundColor: '#0f0c1b', border: '1px solid #2c2347', padding: '6px', color: '#fff' }} /></div>
+                </div>
+                <div style={{ backgroundColor: '#161224', border: '1px solid #2c2347', padding: '12px', borderRadius: '4px', marginTop: '8px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#fff', textTransform: 'uppercase' }}>📊 Simulatore Moneyball</span>
+                  <div style={{ marginTop: '6px' }}><label style={{ fontSize: '9px', color: '#64748b' }}>Costo (€)</label><input type="number" value={simCost} onChange={(e) => setSimCost(e.target.value)} style={{ width: '90%', backgroundColor: '#0f0f1c', border: '1px solid #2c2347', padding: '4px', color: '#fff', fontSize: '11px' }} /></div>
+                  <div style={{ marginTop: '6px' }}><label style={{ fontSize: '9px', color: '#64748b' }}>Stipendio (€/s)</label><input type="number" value={simWage} onChange={(e) => setSimWage(e.target.value)} style={{ width: '90%', backgroundColor: '#0f0f1c', border: '1px solid #2c2347', padding: '4px', color: '#fff', fontSize: '11px' }} /></div>
+                  <button onClick={handleSimulateTransfer} style={{ backgroundColor: '#10b981', color: '#0f0c1b', border: 'none', padding: '6px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '4px', marginTop: '8px', width: '100%' }}>Simula</button>
+                  {simResult && <div style={{ marginTop: '6px', padding: '8px', backgroundColor: '#0f0c1b', borderLeft: `3px solid ${simResult.color}`, fontSize: '11px' }}><span style={{ color: simResult.color }}>{simResult.status}</span></div>}
+                </div>
+                <button onClick={handleFinanceAudit} disabled={isAuditing} style={{ backgroundColor: '#da1b60', color: '#fff', border: 'none', padding: '8px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '4px', width: '100%' }}>Audit Globale</button>
+                {financeAudit && <div style={{ marginTop: '8px', backgroundColor: '#0f0c1b', border: '1px solid #2c2347', padding: '10px', fontSize: '11px', whiteSpace: 'pre-line', maxHeight: '100px', overflowY: 'auto' }}>{financeAudit}</div>}
               </>
             )}
 
@@ -530,65 +585,6 @@ function App() {
                 {analystAnalysisResult && <div style={{ backgroundColor: '#0f0c1b', border: '1px solid #2c2347', padding: '10px', fontSize: '11px', whiteSpace: 'pre-line', color: '#cbd5e1' }}>{analystAnalysisResult}</div>}
               </>
             )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  function renderFinanceInterface() {
-    return (
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#0f0c1b', height: '100%' }}>
-        <div style={{ height: '64px', padding: '0 24px', borderBottom: '1px solid #2c2347', display: 'flex', alignItems: 'center', backgroundColor: '#161224', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><TrendingUp color="#10b981" /> <h2 style={{ fontSize: '14px', color: '#fff', margin: 0, textTransform: 'uppercase', fontWeight: 'bold' }}>Ufficio CFO & Finanze {clubName.toUpperCase()}</h2></div>
-        </div>
-
-        <div style={{ flex: 1, display: 'flex', overflow: 'hidden', flexDirection: 'row' }}>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', borderRight: '1px solid #2c2347' }}>
-            <div style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
-              {messages.filter(m => m.sender_role === 'cfo' || m.sender_role === 'user' || m.sender_role === 'system').slice(-10).map((msg, index) => (
-                <div key={index} style={{ display: 'flex', flexDirection: 'column', alignItems: msg.sender_role === 'user' ? 'flex-end' : 'flex-start', marginBottom: '16px' }}>
-                  <span style={{ fontSize: '9px', color: '#475569', fontWeight: 'bold', marginBottom: '4px' }}>{msg.sender_role === 'user' ? 'MISTER' : 'CFO FINANZE'}</span>
-                  <div style={{ padding: '12px', fontSize: '13px', backgroundColor: msg.sender_role === 'user' ? '#221b36' : '#161224', color: '#fff', borderLeft: msg.sender_role === 'user' ? '3px solid #da1b60' : '3px solid #10b981', borderRadius: '4px', maxWidth: '85%', lineHeight: '1.4' }}>{msg.content}</div>
-                </div>
-              ))}
-            </div>
-            <div style={{ padding: '16px', backgroundColor: '#161224', borderTop: '1px solid #2c2347' }}>
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                <ChevronRight style={{ position: 'absolute', left: '10px', color: '#10b981' }} size={16} />
-                <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder="Parla di bilanci o di investimenti Moneyball con il CFO..." style={{ width: '100%', backgroundColor: '#0f0c1b', border: '1px solid #2c2347', padding: '10px 40px 10px 32px', fontSize: '13px', color: '#fff', borderRadius: '4px', outline: 'none' }} />
-                <button onClick={handleSendMessage} style={{ position: 'absolute', right: '12px', background: 'none', border: 'none', color: '#10b981', cursor: 'pointer' }}><Send size={14} /></button>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ width: '380px', backgroundColor: '#120e1f', padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <h3 style={{ fontSize: '11px', textTransform: 'uppercase', color: '#10b981', borderBottom: '1px solid #2c2347', paddingBottom: '6px', margin: 0, fontWeight: 'bold' }}>Cassaforte & Sviluppo Bilanci</h3>
-            
-            <div style={{ backgroundColor: '#161224', border: '1px solid #2c2347', padding: '12px', borderRadius: '4px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <span style={{ fontSize: '10px', color: '#10b981', fontWeight: 'bold', textTransform: 'uppercase' }}>📊 Bilancio visivo OCR:</span>
-              <input type="file" accept="image/*" ref={financeInputRef} onChange={handleFinanceImageUpload} style={{ display: 'none' }} />
-              <button onClick={() => financeInputRef.current.click()} disabled={isAnalyzingFinance} style={{ width: '100%', backgroundColor: '#10b981', color: '#0f0c1b', border: 'none', padding: '10px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer' }}>Carica Screen Finanze</button>
-              {financeAnalysisResult && <div style={{ backgroundColor: '#0f0c1b', border: '1px solid #2c2347', padding: '10px', fontSize: '11px', color: '#cbd5e1', maxHeight: '180px', overflowY: 'auto' }}>{financeAnalysisResult}</div>}
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div><label style={{ fontSize: '10px', color: '#94a3b8' }}>Bilancio (€)</label><input type="number" value={finances.balance} onChange={(e) => updateFinancesCloud('balance', e.target.value)} style={{ width: '90%', backgroundColor: '#0f0c1b', border: '1px solid #2c2347', padding: '8px', color: '#10b981', fontWeight: 'bold' }} /></div>
-              <div><label style={{ fontSize: '10px', color: '#94a3b8' }}>Budget Trasferimenti (€)</label><input type="number" value={finances.transfer_budget} onChange={(e) => updateFinancesCloud('transfer_budget', e.target.value)} style={{ width: '90%', backgroundColor: '#0f0c1b', border: '1px solid #2c2347', padding: '8px', color: '#fff' }} /></div>
-              <div><label style={{ fontSize: '10px', color: '#94a3b8' }}>Monte Ingaggi (€/sett)</label><input type="number" value={finances.wage_budget} onChange={(e) => updateFinancesCloud('wage_budget', e.target.value)} style={{ width: '90%', backgroundColor: '#0f0c1b', border: '1px solid #2c2347', padding: '8px', color: '#fff' }} /></div>
-            </div>
-
-            <div style={{ backgroundColor: '#161224', border: '1px solid #2c2347', padding: '16px', borderRadius: '4px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#fff', textTransform: 'uppercase' }}>📊 Simulatore Moneyball</span>
-              <div style={{ marginTop: '8px' }}><label style={{ fontSize: '9px', color: '#64748b' }}>Costo Cartellino (€)</label><input type="number" value={simCost} onChange={(e) => setSimCost(e.target.value)} style={{ width: '90%', backgroundColor: '#0f0f1c', border: '1px solid #2c2347', padding: '6px', color: '#fff', fontSize: '12px' }} /></div>
-              <div style={{ marginTop: '8px' }}><label style={{ fontSize: '9px', color: '#64748b' }}>Ingaggio (€/sett)</label><input type="number" value={simWage} onChange={(e) => setSimWage(e.target.value)} style={{ width: '90%', backgroundColor: '#0f0f1c', border: '1px solid #2c2347', padding: '6px', color: '#fff', fontSize: '12px' }} /></div>
-              <div style={{ marginTop: '8px' }}><label style={{ fontSize: '9px', color: '#64748b' }}>Anni Contratto</label><input type="number" value={simYears} onChange={(e) => setSimYears(e.target.value)} style={{ width: '90%', backgroundColor: '#0f0f1c', border: '1px solid #2c2347', padding: '6px', color: '#fff', fontSize: '12px' }} /></div>
-              <button onClick={handleSimulateTransfer} style={{ backgroundColor: '#10b981', color: '#0f0c1b', border: 'none', padding: '8px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '4px', marginTop: '12px' }}>Calcola Ammortamento</button>
-              {simResult && <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#0f0c1b', borderLeft: `3px solid ${simResult.color}`, fontSize: '11px' }}><span style={{ color: simResult.color }}>DIRETTIVA: {simResult.status}</span><br/>Ammortamento: <strong>€{simResult.annualAmortization.toLocaleString()}</strong><br/>Costo Lordo: <strong>€{simResult.annualWageCost.toLocaleString()}</strong><p style={{ margin: '4px 0 0 0', color: '#94a3b8', lineHeight: '1.3' }}>{simResult.notes}</p></div>}
-            </div>
-
-            <button onClick={handleFinanceAudit} disabled={isAuditing} style={{ backgroundColor: '#da1b60', color: '#fff', border: 'none', padding: '10px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '4px', marginTop: '10px', width: '100%' }}>{isAuditing ? 'Elaborazione...' : 'Genera Audit Globale'}</button>
-            {financeAudit && <div style={{ marginTop: '12px', backgroundColor: '#0f0c1b', border: '1px solid #2c2347', padding: '12px', fontSize: '11px', lineHeight: '1.5', whiteSpace: 'pre-line' }}>{financeAudit}</div>}
           </div>
         </div>
       </div>
@@ -659,7 +655,6 @@ function App() {
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '750px' }}>
                 <thead>
                   <tr style={{ backgroundColor: '#1f1a3a', borderBottom: '2px solid #0f0c1b' }}>
-                    {/* TUTTE LE INTESTAZIONI SONO ORA CLICCABILI E SOTTOPOSTE AD ORDINAMENTO DINAMICO */}
                     <th onClick={() => handleSort('name')} style={{ padding: '12px', color: '#ffffff', fontSize: '12px', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', borderRight: '1px solid #2c2347' }}>
                       Nome {sortField === 'name' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}
                     </th>
@@ -721,7 +716,7 @@ function App() {
   return (
     <div style={{ display: 'flex', height: '100vh', backgroundColor: '#0f0c1b', color: '#cbd5e1', fontFamily: 'system-ui, -apple-system, sans-serif', overflow: 'hidden' }}>
       
-      {/* SIDEBAR NAVIGATION COMPLETA AD 8 REPARTI CHIAVE */}
+      {/* SIDEBAR NAVIGATION AD 8 REPARTI CHIAVE */}
       <div style={{ width: '80px', backgroundColor: '#161224', borderRight: '1px solid #2c2347', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '16px', gap: '14px', zIndex: 10 }}>
         <div style={{ width: '46px', height: '46px', backgroundColor: '#da1b60', display: 'flex', alignItems: 'center', color: '#fff', fontWeight: '900', fontSize: '18px', borderRadius: '8px', justifyContent: 'center' }}>FM</div>
         
@@ -738,9 +733,8 @@ function App() {
         <button onClick={() => setActiveRoom('database')} title="Plancia Organico Database" style={{ background: activeRoom === 'database' ? '#221b36' : 'none', border: activeRoom === 'database' ? '1px solid #da1b60' : '1px solid transparent', color: activeRoom === 'database' ? '#da1b60' : '#475569', padding: '10px', borderRadius: '8px', cursor: 'pointer' }}><Database size={22} /></button>
       </div>
 
-      {/* COMPILAZIONE AGGIORNATA CONTRO LA PERDITA DEL FOCUS DEI COMPONENTI */}
-      {activeRoom !== 'database' && activeRoom !== 'cfo' && renderChatWindow()}
-      {activeRoom === 'cfo' && renderFinanceInterface()}
+      {/* RENDERIZZAZIONE CONTESTUALE DELLE STANZE SULLO SCHERMO CON LAYOUT UNIFICATO */}
+      {activeRoom !== 'database' && renderChatWindow()}
       {activeRoom === 'database' && renderMasterDatabase()}
 
       {/* FLYOUT SUPER-LEGGIBILE AD ALTO CONTRASTO PER I DATI DELLO CALCIATORE */}
