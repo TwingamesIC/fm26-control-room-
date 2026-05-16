@@ -153,12 +153,12 @@ function App() {
       const imagePart = await fileToGenerativePart(file);
       const squadContext = players.map(p => ({ nome: p.name, ruolo: p.position, stats: p.attributes }));
       const prompt = `Sei il Capo Osservatore d'élite del club "${clubName}". Esamina lo screenshot di questo giocatore esterno. Sputa un verdetto in maiuscolo (ACQUISTARE ASSOLUTAMENTE, VALIDO SOLO COME RISERVA, EVITARE/BOCCIATO). Confrontalo con l'organico attuale che controlliamo per evitare doppioni inutili: ${JSON.stringify(squadContext.slice(0, 35))}. Valuta gli attributi chiave in base al Match Engine di FM26.`;
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const result = await model.generateContent([prompt, imagePart]);
       setScoutAnalysisResult(result.response.text());
     } catch (err) {
       setScoutAnalysisResult(`Errore osservatore: ${err.message}`);
-    } finally {
+    } {
       setIsAnalyzingScout(false);
     }
   }
@@ -171,12 +171,12 @@ function App() {
     try {
       const imagePart = await fileToGenerativePart(file);
       const prompt = `Sei l'Addetto Stampa del club "${clubName}". Analizza questo screenshot di conferenza su FM26. Il Mister ha impostato l'identità mediatica: "${personality.toUpperCase()}". Trascrivi la domanda ed indica esattamente quale pulsante premere nel gioco per interpretare alla perfezione il personaggio scelto senza distruggere la determinazione dei ragazzi o causare rivolte di spogliatoio.`;
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const result = await model.generateContent([prompt, imagePart]);
       setPressAnalysisResult(result.response.text());
     } catch (err) {
       setPressAnalysisResult(`Errore addetto stampa: ${err.message}`);
-    } finally {
+    } {
       setIsAnalyzingPress(false);
     }
   }
@@ -189,12 +189,12 @@ function App() {
     try {
       const imagePart = await fileToGenerativePart(file);
       const prompt = `Sei il Match Analyst del club "${clubName}". Esamina lo screenshot di dati, tiri o xG di FM26. FASE 1: Estrai i dati di performance (Tiri, possesso, xG totali, errori di reparto). FASE 2: Fornisci istruzioni di squadra algoritmiche da cambiare subito nei pannelli di FM per correggere i blackout.`;
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const result = await model.generateContent([prompt, imagePart]);
       setAnalystAnalysisResult(result.response.text());
     } catch (e) {
       setAnalystAnalysisResult("Errore di match analysis visiva.");
-    } finally {
+    } {
       setIsAnalyzingAnalyst(false);
     }
   }
@@ -207,7 +207,7 @@ function App() {
     try {
       const imagePart = await fileToGenerativePart(file);
       const prompt = `Sei il CFO del club "${clubName}". Estrai Cassa, Budget Mercato e Budget Ingaggi da questo screen finanziario di FM26. Rispondi SOLO con JSON puro tra parentesi graffe, senza scritte o markdown: { "balance": numero, "transfer_budget": numero, "wage_budget": numero, "analysis": "analisi moneyball dettagliata su come sviluppare un sistema economico sostenibile per il club" }`;
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const result = await model.generateContent([prompt, imagePart]);
       const jsonClean = result.response.text().replace(/```json/g, '').replace(/```/g, '').trim();
       const parsed = JSON.parse(jsonClean);
@@ -218,7 +218,7 @@ function App() {
       }
     } catch (e) {
       setFinanceAnalysisResult("Errore scansione contabile visiva.");
-    } finally {
+    } {
       setIsAnalyzingFinance(false);
     }
   }
@@ -227,16 +227,16 @@ function App() {
     const file = event.target.files[0];
     if (!file) return;
     setIsAnalyzingYouth(true);
-    setYouthAnalysisResult("Il Responsabile delle Giovanili sta tracciando lo sviluppo atletico...");
+    setYouthAnalysisResult("Il Wiwaio sta valutando la crescita atletica...");
     try {
       const imagePart = await fileToGenerativePart(file);
       const prompt = `Sei il Responsabile Giovanili del club "${clubName}". Esamina lo screenshot profilo Under 20 di FM26. Detta i punti di forza, la personalità, il livello di determinazione e stila il ruolo e focus di allenamento perfetto per massimizzare la crescita nel Match Engine.`;
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const result = await model.generateContent([prompt, imagePart]);
       setYouthAnalysisResult(result.response.text());
     } catch (e) {
       setYouthAnalysisResult("Errore lettura vivaio.");
-    } finally {
+    } {
       setIsAnalyzingYouth(false);
     }
   }
@@ -249,7 +249,7 @@ function App() {
     try {
       const imagePart = await fileToGenerativePart(file);
       const prompt = `Estrai i giocatori da questa tabella screenshot di FM. Rispondi SOLO array JSON racchiuso in parentesi quadre: [ { "type": "player", "name": "Nome", "age": num, "position": "Ruolo", "attributes": { "Gol": "num", "Media Voto": "num", "Presenze": "num", "Ingaggio": "txt", "Valore": "txt" } } ]`;
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const result = await model.generateContent([prompt, imagePart]);
       const extractedData = JSON.parse(result.response.text().replace(/```json/g, '').replace(/```/g, '').trim());
       if (Array.isArray(extractedData) && extractedData.length > 0) {
@@ -280,7 +280,7 @@ function App() {
     } catch (err) { setUploadError(`Errore OCR: ${err.message}`); } finally { setIsUploading(false); }
   }
 
-  // CORE ENGINE CHAT: SEGREGRAZIONE DELLE CHAT CON COERENZA IN BACKGROUND CREATIVE STAMP
+  // CORE ENGINE CHAT: SEGREGRAZIONE DELLE CHAT CON MODELLO STABILE "GEMINI-1.5-FLASH"
   async function handleSendMessage() {
     if (!chatInput.trim()) return;
     const currentInputText = chatInput;
@@ -346,12 +346,15 @@ function App() {
         `;
       }
 
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      // CAMBIATO IN GEMINI-1.5-FLASH PER BLOCCARE GLI ERRORI 400 DI BAD REQUEST
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const result = await model.generateContent(instructionPrompt);
       const aiMessageObj = { sender_role: activeRoom, content: result.response.text() };
       setMessages(prev => [...prev, aiMessageObj]);
       try { await supabase.from('club_messages').insert([aiMessageObj]); } catch(e) {}
-    } catch (error) { console.error(error); } finally { setIsTyping(false); }
+    } catch (error) { console.error(error); } {
+      setIsTyping(false);
+    }
   }
 
   async function handleAnalyzeExternalTactic() {
@@ -360,7 +363,7 @@ function App() {
     try {
       const currentSquadContext = players.map(p => ({ nome: p.name, ruolo: p.position, stats: p.attributes }));
       const prompt = `Analizza questa tattica: """${externalTacticInput}""" sulla rosa ${clubName}: ${JSON.stringify(currentSquadContext.slice(0, 40))}. Dividi l'output in FASE 1 (70% analisi modulo nel Match Engine) e FASE 2 (30% screening nomi esatti promossi e bocciati da cedere).`;
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const result = await model.generateContent([prompt, currentSquadContext]);
       setTacticAnalysisResult(result.response.text());
     } catch (error) { setTacticAnalysisResult("Errore."); } finally { setIsAnalyzingTactic(false); }
@@ -380,7 +383,7 @@ function App() {
     try {
       const soraPlayersContext = players.map(p => ({ nome: p.name, ruolo: p.position, stipendio: p.attributes['Ingaggio'] || '-' }));
       const prompt = `CFO Club ${clubName}. Redigi un audit finanziario Moneyball dettagliato e cinico: Cassa: €${finances.balance}. Contratti della rosa: ${JSON.stringify(soraPlayersContext.slice(0, 35))}`;
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const result = await model.generateContent(prompt);
       setFinanceAudit(result.response.text());
     } catch (e) {} finally { setIsAuditing(false); }
@@ -433,7 +436,7 @@ function App() {
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', borderRight: '2px solid #231b3a', backgroundColor: '#090710' }}>
             <div ref={chatContainerRef} style={{ flex: 1, padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               
-              {/* SCHERMATA EMPTY STATE COMPATTA "CARINA DA VEDERE" CONTRO LO SPAZIO DISPERSIVO */}
+              {/* SCHERMATA EMPTY STATE COMPATTA CONTRO LO SPAZIO DISPERSIVO */}
               {visibleMessages.length === 0 ? (
                 <div style={{ margin: 'auto', maxWidth: '600px', backgroundColor: '#140f24', border: '2px solid #da1b60', padding: '32px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}>
                   <Users size={48} color="#da1b60" style={{ margin: '0 auto 16px auto' }} />
@@ -456,7 +459,7 @@ function App() {
                   else if (msg.sender_role === 'press') { bColor = '#ec4899'; nameLabel = 'UFFICIO STAMPA'; }
                   else if (msg.sender_role === 'youth') { bColor = '#ffaa00'; nameLabel = 'RESPONSABILE GIOVANILI'; }
                   else if (msg.sender_role === 'analyst') { bColor = '#3b82f6'; nameLabel = 'MATCH ANALYST'; }
-                  else if (msg.sender_role === 'board') { bColor = '#a855f7'; nameLabel = 'RELAZIONE PLENARIA COMPLETA'; }
+                  else if (msg.sender_role === 'board') { bColor = '#a855f7'; nameLabel = 'VERBALE PLENARIA COMPLETA'; }
 
                   return (
                     <div key={index} style={{ display: 'flex', flexDirection: 'column', alignItems: align, width: '100%' }}>
@@ -478,7 +481,7 @@ function App() {
             <div style={{ padding: '20px', backgroundColor: '#140f24', borderTop: '2px solid #231b3a', boxShadow: '0 -4px 15px rgba(0,0,0,0.3)' }}>
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                 <ChevronRight style={{ position: 'absolute', left: '14px', color: '#da1b60' }} size={20} />
-                <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={activeRoom === 'board' ? "Ordina una discussione generale al Tavolone..." : `Invia un quesito diretto in modalità singola a: ${activeRoom.toUpperCase()}...`} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '16px 50px 16px 42px', fontSize: '16px', color: '#ffffff', borderRadius: '8px', outline: 'none', transition: 'border 0.2s', fontWeight: '500' }} />
+                <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={activeRoom === 'board' ? "Ordina una discussione generale al Tavolone..." : `Invia un quesito diretto in modalità singola a: ${activeRoom.toUpperCase()}...`} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '16px 50px 16px 42px', fontSize: '16px', color: '#ffffff', borderRadius: '8px', outline: 'none', fontWeight: '500' }} />
                 <button onClick={handleSendMessage} disabled={isTyping} style={{ position: 'absolute', right: '16px', background: 'none', border: 'none', color: '#da1b60', cursor: 'pointer', display: 'flex', alignItems: 'center' }}><Send size={18} /></button>
               </div>
             </div>
@@ -506,7 +509,7 @@ function App() {
               <>
                 <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#22d3ee', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Laboratorio Tattico</h3>
                 <textarea value={externalTacticInput} onChange={(e) => setExternalTacticInput(e.target.value)} placeholder="Incolla qui l'analisi testo di una tattica esterna (es. da FMScout)..." style={{ width: '93%', height: '150px', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '12px', color: '#ffffff', fontSize: '14px', resize: 'none', borderRadius: '6px' }} />
-                <button onClick={handleAnalyzeExternalTactic} disabled={isAnalyzingTactic} style={{ backgroundColor: '#22d3ee', color: '#0f0c1b', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer', width: '100%', boxShadow: '0 4px 12px rgba(34,211,238,0.2)' }}>Avvia Convalida Modulo</button>
+                <button onClick={handleAnalyzeExternalTactic} disabled={isAnalyzingTactic} style={{ backgroundColor: '#22d3ee', color: '#0f0b1b', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer', width: '100%' }}>Avvia Convalida Modulo</button>
                 {tacticAnalysisResult && <div style={{ backgroundColor: '#090710', border: '1px solid #231b3a', padding: '14px', fontSize: '13px', whiteSpace: 'pre-line', color: '#e2e8f0', borderRadius: '6px', lineHeight: '1.5' }}>{tacticAnalysisResult}</div>}
               </>
             )}
@@ -515,7 +518,7 @@ function App() {
               <>
                 <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#f43f5e', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Osservatorio Acquisti</h3>
                 <input type="file" accept="image/*" ref={scoutInputRef} onChange={handleScoutImageUpload} style={{ display: 'none' }} />
-                <button onClick={() => scoutInputRef.current.click()} disabled={isAnalyzingScout} style={{ width: '100%', backgroundColor: '#f43f5e', color: '#ffffff', border: 'none', padding: '14px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(244,63,94,0.2)' }}>Carica Profilo Obiettivo</button>
+                <button onClick={() => scoutInputRef.current.click()} disabled={isAnalyzingScout} style={{ width: '100%', backgroundColor: '#f43f5e', color: '#ffffff', border: 'none', padding: '14px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer' }}>Carica Profilo Obiettivo</button>
                 {scoutAnalysisResult && <div style={{ backgroundColor: '#090710', border: '1px solid #231b3a', padding: '14px', fontSize: '13px', whiteSpace: 'pre-line', color: '#e2e8f0', borderRadius: '6px', lineHeight: '1.5' }}>{scoutAnalysisResult}</div>}
               </>
             )}
@@ -553,8 +556,8 @@ function App() {
                   <button onClick={handleSimulateTransfer} style={{ backgroundColor: '#10b981', color: '#0f0c1b', border: 'none', padding: '8px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '4px', marginTop: '10px', width: '100%' }}>Calcola Ammortamento</button>
                   {simResult && <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#090710', borderLeft: `3px solid ${simResult.color}`, fontSize: '12px', color: '#fff' }}>{simResult.status}</div>}
                 </div>
-                <button onClick={handleFinanceAudit} disabled={isAuditing} style={{ backgroundColor: '#da1b60', color: '#fff', border: 'none', padding: '10px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '6px', width: '100%' }}>Genera Audit Contabile</button>
-                {financeAudit && <div style={{ mt: '8px', backgroundColor: '#090710', border: '1px solid #231b3a', padding: '10px', fontSize: '12px', whiteSpace: 'pre-line', maxHeight: '100px', overflowY: 'auto', color: '#fff', borderRadius: '4px' }}>{financeAudit}</div>}
+                <button onClick={handleFinanceAudit} disabled={isAuditing} style={{ backgroundColor: '#da1b60', color: '#fff', border: 'none', padding: '8px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '4px', width: '100%' }}>Genera Audit Contabile</button>
+                {financeAudit && <div style={{ backgroundColor: '#090710', border: '1px solid #231b3a', padding: '10px', fontSize: '12px', whiteSpace: 'pre-line', maxHeight: '100px', overflowY: 'auto', color: '#fff', borderRadius: '4px' }}>{financeAudit}</div>}
               </>
             )}
 
@@ -571,7 +574,7 @@ function App() {
                   </select>
                 </div>
                 <input type="file" accept="image/*" ref={pressInputRef} onChange={handlePressImageUpload} style={{ display: 'none' }} />
-                <button onClick={() => pressInputRef.current.click()} disabled={isAnalyzingPress} style={{ width: '100%', backgroundColor: '#ec4899', color: '#fff', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer', boxShadow: '0 4px 12 rgba(236,72,153,0.2)' }}>Carica Conferenza FM</button>
+                <button onClick={() => pressInputRef.current.click()} disabled={isAnalyzingPress} style={{ width: '100%', backgroundColor: '#ec4899', color: '#fff', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer' }}>Carica Conferenza FM</button>
                 {pressAnalysisResult && <div style={{ backgroundColor: '#090710', border: '1px solid #231b3a', padding: '14px', fontSize: '13px', whiteSpace: 'pre-line', color: '#cbd5e1', maxHeight: '220px', overflowY: 'auto', borderRadius: '6px' }}>{pressAnalysisResult}</div>}
               </>
             )}
@@ -580,7 +583,7 @@ function App() {
               <>
                 <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#ffaa00', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Vivaio Under 20</h3>
                 <input type="file" accept="image/*" ref={youthInputRef} onChange={handleYouthImageUpload} style={{ display: 'none' }} />
-                <button onClick={() => youthInputRef.current.click()} disabled={isAnalyzingYouth} style={{ width: '100%', backgroundColor: '#ffaa00', color: '#0f0c1b', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(255,170,0,0.2)' }}>Carica Screen Wonderkid</button>
+                <button onClick={() => youthInputRef.current.click()} disabled={isAnalyzingYouth} style={{ width: '100%', backgroundColor: '#ffaa00', color: '#0f0c1b', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer' }}>Carica Screen Wonderkid</button>
                 {youthAnalysisResult && <div style={{ backgroundColor: '#090710', border: '1px solid #231b3a', padding: '14px', fontSize: '13px', whiteSpace: 'pre-line', color: '#cbd5e1', borderRadius: '6px' }}>{youthAnalysisResult}</div>}
               </>
             )}
@@ -589,7 +592,7 @@ function App() {
               <>
                 <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#3b82f6', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Match Analysis Center</h3>
                 <input type="file" accept="image/*" ref={analystInputRef} onChange={handleAnalystImageUpload} style={{ display: 'none' }} />
-                <button onClick={() => analystInputRef.current.click()} disabled={isAnalyzingAnalyst} style={{ width: '100%', backgroundColor: '#3b82f6', color: '#fff', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(59,130,246,0.2)' }}>Carica Tabellino Gara</button>
+                <button onClick={() => analystInputRef.current.click()} disabled={isAnalyzingAnalyst} style={{ width: '100%', backgroundColor: '#3b82f6', color: '#fff', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer' }}>Carica Tabellino Gara</button>
                 {analystAnalysisResult && <div style={{ backgroundColor: '#090710', border: '1px solid #231b3a', padding: '14px', fontSize: '13px', whiteSpace: 'pre-line', color: '#cbd5e1', borderRadius: '6px' }}>{analystAnalysisResult}</div>}
               </>
             )}
@@ -604,7 +607,6 @@ function App() {
     const youthPlayers = players.filter(p => p.type === 'player' && p.age && p.age < 20);
     const visibleList = dbSubTab === 'first_team' ? firstTeamPlayers : youthPlayers;
 
-    // ALGORITMO DI ORDINAMENTO UNIVERSALE INTELLIGENTE SUI VALORI ESTRATTI
     const getSortValue = (player, field) => {
       switch(field) {
         case 'name': return (player.name || '').toLowerCase().trim();
@@ -652,7 +654,7 @@ function App() {
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
             <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUploadOCR} style={{ display: 'none' }} />
-            <button onClick={() => fileInputRef.current.click()} disabled={isUploading} style={{ backgroundColor: '#da1b60', color: '#fff', border: 'none', padding: '10px 20px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '6px', boxShadow: '0 4px 12px rgba(218,27,96,0.3)' }}>Carica Foto Rosa</button>
+            <button onClick={() => fileInputRef.current.click()} disabled={isUploading} style={{ backgroundColor: '#da1b60', color: '#fff', border: 'none', padding: '10px 20px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '6px' }}>Carica Foto Rosa</button>
             {players.length > 0 && <button onClick={handleClearAllData} style={{ backgroundColor: 'transparent', border: '2px solid #ef4444', color: '#ef4444', padding: '10px 16px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '6px' }}>Azzera Sede</button>}
           </div>
         </div>
@@ -726,7 +728,7 @@ function App() {
       
       {/* SIDEBAR NAVIGATION COMPLETA AD 8 REPARTI CHIAVE */}
       <div style={{ width: '90px', backgroundColor: '#140f24', borderRight: '2px solid #231b3a', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '20px', gap: '16px', zIndex: 10, boxShadow: '4px 0 15px rgba(0,0,0,0.5)' }}>
-        <div style={{ width: '52px', height: '52px', backgroundColor: '#da1b60', display: 'flex', alignItems: 'center', color: '#fff', fontWeight: '900', fontSize: '22px', borderRadius: '10px', justifyContent: 'center', boxShadow: '0 4px 10px rgba(218,27,96,0.4)' }}>FM</div>
+        <div style={{ width: '52px', height: '52px', backgroundColor: '#da1b60', display: 'flex', alignItems: 'center', color: '#fff', fontWeight: '900', fontSize: '22px', borderRadius: '10px', justifyContent: 'center' }}>FM</div>
         
         <button onClick={() => setActiveRoom('board')} title="Tavolo Plenaria" style={{ background: activeRoom === 'board' ? '#271e44' : 'none', border: activeRoom === 'board' ? '2px solid #a855f7' : '2px solid transparent', color: activeRoom === 'board' ? '#a855f7' : '#475569', padding: '12px', borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s' }}><Users size={24} /></button>
         <button onClick={() => setActiveRoom('vice')} title="Ufficio Vice Allenatore" style={{ background: activeRoom === 'vice' ? '#271e44' : 'none', border: activeRoom === 'vice' ? '2px solid #22d3ee' : '2px solid transparent', color: activeRoom === 'vice' ? '#22d3ee' : '#475569', padding: '12px', borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s' }}><Sliders size={24} /></button>
@@ -741,7 +743,7 @@ function App() {
         <button onClick={() => setActiveRoom('database')} title="Plancia Organico Database" style={{ background: activeRoom === 'database' ? '#271e44' : 'none', border: activeRoom === 'database' ? '2px solid #da1b60' : '2px solid transparent', color: activeRoom === 'database' ? '#da1b60' : '#475569', padding: '12px', borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s' }}><Database size={24} /></button>
       </div>
 
-      {/* RENDERIZZAZIONE CONTESTUALE STANZE SULLO SCHERMO CON LAYOUT UNIFICATO AD ALTO IMPATTO */}
+      {/* RENDERIZZAZIONE CONTESTUALE STANZE SULLO SCHERMO */}
       {activeRoom !== 'database' && renderChatWindow()}
       {activeRoom === 'database' && renderMasterDatabase()}
 
@@ -753,7 +755,7 @@ function App() {
               <span style={{ fontSize: '11px', color: '#da1b60', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.5px' }}>SCHEDA ATTRIBUTI INTUITIVA</span>
               <h4 style={{ fontSize: '20px', color: '#ffffff', margin: '4px 0 0 0', fontWeight: '900' }}>{selectedProfile.name}</h4>
             </div>
-            <button onClick={() => setSelectedProfile(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '6px', transition: 'color 0.2s' }}><X size={22} /></button>
+            <button onClick={() => setSelectedProfile(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '6px' }}><X size={22} /></button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '380px', overflowY: 'auto', paddingRight: '4px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '15px', padding: '10px 14px', backgroundColor: '#090710', border: '1px solid #231b3a', borderRadius: '6px' }}>
