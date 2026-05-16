@@ -12,7 +12,7 @@ function App() {
   const [activeRoom, setActiveRoom] = useState('board') 
   const [dbSubTab, setDbSubTab] = useState('first_team') 
   
-  // STATO PER L'ORDINAMENTO DEL DATABASE
+  // STATO COMPLESSO PER L'ORDINAMENTO UNIVERSALE DEL DATABASE
   const [sortField, setSortField] = useState('name')
   const [sortDirection, setSortDirection] = useState('asc')
   
@@ -230,7 +230,7 @@ function App() {
     setYouthAnalysisResult("Il Responsabile delle Giovanili sta tracciando lo sviluppo atletico...");
     try {
       const imagePart = await fileToGenerativePart(file);
-      const prompt = `Sei il Responsabile Giovanili del club "${clubName}". Esamina lo screenshot profilo Under 20 di FM26. Detta i punti di forza, la personalità, the livello di determinazione e stila il ruolo e focus di allenamento perfetto per massimizzare la crescita nel Match Engine.`;
+      const prompt = `Sei il Responsabile Giovanili del club "${clubName}". Esamina lo screenshot profilo Under 20 di FM26. Detta i punti di forza, la personalità, il livello di determinazione e stila il ruolo e focus di allenamento perfetto per massimizzare la crescita nel Match Engine.`;
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent([prompt, imagePart]);
       setYouthAnalysisResult(result.response.text());
@@ -280,7 +280,7 @@ function App() {
     } catch (err) { setUploadError(`Errore OCR: ${err.message}`); } finally { setIsUploading(false); }
   }
 
-  // CORE ENGINE CHAT: COERENZA AZIENDALE CONDIVISA TOTAL-TALK
+  // CORE ENGINE CHAT: COERENZA AZIENDALE CONDIVISA LIVE MEMORY ENGINE
   async function handleSendMessage() {
     if (!chatInput.trim()) return;
     const currentInputText = chatInput;
@@ -295,15 +295,20 @@ function App() {
 
     try {
       const squadContext = players.map(p => ({ nome: p.name, ruolo: p.position, stats: p.attributes }));
-      const businessChronology = updatedMessages.slice(-12).map(m => `${m.sender_role.toUpperCase()}: ${m.content}`).join('\n');
+      
+      // ESPANSIONE CRONOLOGICA RADICALE: L'IA LEGGE GLI ULTIMI 60 MESSAGGI PER NON DIMENTICARE NULLA
+      const businessChronology = updatedMessages.slice(-60).map(m => `${m.sender_role.toUpperCase()}: ${m.content}`).join('\n');
 
       let instructionPrompt = `
-        SEI LO STAFF DIRIGENZIALE DEL CLUB "${clubName.toUpperCase()}" SU FOOTBALL MANAGER 2026.
-        Il tuo Mister dice: "${currentInputText}"
-        DISCORSI PRECEDENTI NELLE STANZE:
+        SEI LO STAFF DIRIGENZIALE ED ESPERTO DEL CLUB "${clubName.toUpperCase()}" SU FOOTBALL MANAGER 2026.
+        Il tuo Mister (Omiserez) ti dice: "${currentInputText}"
+        
+        CRONOLOGIA COMPLETA E COMPORRE DI MEMORIA INTEGRALE (RICORDA QUESTI DETTAGLI PER SEMPRE):
         ${businessChronology}
-        STATO ATTUALE: Cassa €${finances.balance} | Budget Mercato €${finances.transfer_budget} | Ingaggi €${finances.wage_budget}/sett.
-        ROSA REALE ESTRATTA: ${JSON.stringify(squadContext.slice(0, 35))}
+        
+        REGISTRO PATRIMONIALE ED ORGANICO:
+        - Cassa €${finances.balance} | Budget Mercato €${finances.transfer_budget} | Ingaggi €${finances.wage_budget}/sett.
+        - ROSA REALE ESTRATTA DAGLI SCREENSHOT: ${JSON.stringify(squadContext.slice(0, 35))}
       `;
 
       if (activeRoom === 'board') {
@@ -367,7 +372,7 @@ function App() {
     setIsAuditing(true); setFinanceAudit("Generazione audit contabile...");
     try {
       const soraPlayersContext = players.map(p => ({ nome: p.name, ruolo: p.position, stipendio: p.attributes['Ingaggio'] || '-' }));
-      const prompt = `CFO Club ${clubName}. Redigi un audit finanziario dettagliato e cinico: Cassa: €${finances.balance}. Contratti della rosa: ${JSON.stringify(soraPlayersContext.slice(0, 35))}`;
+      const prompt = `CFO Club ${clubName}. Redigi un audit finanziario Moneyball dettagliato e cinico: Cassa: €${finances.balance}. Contratti della rosa: ${JSON.stringify(soraPlayersContext.slice(0, 35))}`;
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(prompt);
       setFinanceAudit(result.response.text());
@@ -382,7 +387,7 @@ function App() {
     }
   }
 
-  // GESTORE ORDINAMENTO COLONNE (NEW)
+  // GESTORE ORDINAMENTO COLONNE UNIVERSALE DI TIPO INTELLIGENTE
   function handleSort(field) {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -570,7 +575,7 @@ function App() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div><label style={{ fontSize: '10px', color: '#94a3b8' }}>Bilancio (€)</label><input type="number" value={finances.balance} onChange={(e) => updateFinancesCloud('balance', e.target.value)} style={{ width: '90%', backgroundColor: '#0f0c1b', border: '1px solid #2c2347', padding: '8px', color: '#10b981', fontWeight: 'bold' }} /></div>
               <div><label style={{ fontSize: '10px', color: '#94a3b8' }}>Budget Trasferimenti (€)</label><input type="number" value={finances.transfer_budget} onChange={(e) => updateFinancesCloud('transfer_budget', e.target.value)} style={{ width: '90%', backgroundColor: '#0f0c1b', border: '1px solid #2c2347', padding: '8px', color: '#fff' }} /></div>
-              <div><label style={{ fontSize: '10px', color: '#94a3b8' }}>Monte Ingaggi Settimanale (€/sett)</label><input type="number" value={finances.wage_budget} onChange={(e) => updateFinancesCloud('wage_budget', e.target.value)} style={{ width: '90%', backgroundColor: '#0f0c1b', border: '1px solid #2c2347', padding: '8px', color: '#fff' }} /></div>
+              <div><label style={{ fontSize: '10px', color: '#94a3b8' }}>Monte Ingaggi (€/sett)</label><input type="number" value={finances.wage_budget} onChange={(e) => updateFinancesCloud('wage_budget', e.target.value)} style={{ width: '90%', backgroundColor: '#0f0c1b', border: '1px solid #2c2347', padding: '8px', color: '#fff' }} /></div>
             </div>
 
             <div style={{ backgroundColor: '#161224', border: '1px solid #2c2347', padding: '16px', borderRadius: '4px' }}>
@@ -595,13 +600,39 @@ function App() {
     const youthPlayers = players.filter(p => p.type === 'player' && p.age && p.age < 20);
     const visibleList = dbSubTab === 'first_team' ? firstTeamPlayers : youthPlayers;
 
-    // INTEGRAZIONE MOTORE DI ORDINAMENTO SULLA GRIGLIA REALE (NEW)
+    // ALGORITMO DI ORDINAMENTO UNIVERSALE INTELLIGENTE SUI VALORI ESTRATTI
+    const getSortValue = (player, field) => {
+      switch(field) {
+        case 'name': return (player.name || '').toLowerCase().trim();
+        case 'position': return (player.position || '').toLowerCase().trim();
+        case 'age': return parseInt(player.age) || 0;
+        case 'pres': {
+          const v = player.attributes?.Presenze || player.attributes?.Pres || '0';
+          return parseInt(String(v).replace(/\D/g, '')) || 0;
+        }
+        case 'gol': {
+          const v = player.attributes?.Gol || player.attributes?.Gls || '0';
+          return parseInt(String(v).replace(/\D/g, '')) || 0;
+        }
+        case 'mv': {
+          const v = player.attributes?.['Media Voto'] || player.attributes?.Mv || '0';
+          return parseFloat(String(v).replace(',', '.')) || 0;
+        }
+        case 'ingaggio': {
+          const v = player.attributes?.Ingaggio || player.attributes?.Stip || '0';
+          return parseInt(String(v).replace(/\D/g, '')) || 0;
+        }
+        case 'valore': {
+          const v = player.attributes?.Valore || player.attributes?.Val || '0';
+          return parseInt(String(v).replace(/\D/g, '')) || 0;
+        }
+        default: return '';
+      }
+    };
+
     const sortedList = [...visibleList].sort((a, b) => {
-      let valA = a[sortField] || '';
-      let valB = b[sortField] || '';
-      
-      if (typeof valA === 'string') valA = valA.toLowerCase().trim();
-      if (typeof valB === 'string') valB = valB.toLowerCase().trim();
+      const valA = getSortValue(a, sortField);
+      const valB = getSortValue(b, sortField);
       
       if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
       if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
@@ -623,24 +654,36 @@ function App() {
         </div>
 
         <div style={{ flex: 1, padding: '24px', overflowY: 'auto' }}>
-          {visibleList.length === 0 ? <div style={{ textAlignment: 'center', padding: '48px', color: '#64748b', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', border: '1px dashed #2c2347', backgroundColor: '#161224' }}>Nessun calciatore scansionato per il club {clubName.toUpperCase()}. Carica uno screenshot della rosa.</div> : (
+          {visibleList.length === 0 ? <div style={{ textAlign: 'center', padding: '48px', color: '#64748b', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', border: '1px dashed #2c2347', backgroundColor: '#161224' }}>Nessun calciatore scansionato per il club {clubName.toUpperCase()}. Carica uno screenshot della rosa.</div> : (
             <div style={{ backgroundColor: '#161224', border: '1px solid #2c2347', borderRadius: '6px', overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '750px' }}>
                 <thead>
                   <tr style={{ backgroundColor: '#1f1a3a', borderBottom: '2px solid #0f0c1b' }}>
-                    {/* AGGIUNTO TRATTAMENTO ONCLICK SULLE INTESTAZIONI PER IL SORTING (NEW) */}
-                    <th onClick={() => handleSort('name')} style={{ padding: '12px', color: '#cbd5e1', fontSize: '11px', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none' }}>
-                      Nome Calciatore {sortField === 'name' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}
+                    {/* TUTTE LE INTESTAZIONI SONO ORA CLICCABILI E SOTTOPOSTE AD ORDINAMENTO DINAMICO */}
+                    <th onClick={() => handleSort('name')} style={{ padding: '12px', color: '#ffffff', fontSize: '12px', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', borderRight: '1px solid #2c2347' }}>
+                      Nome {sortField === 'name' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}
                     </th>
-                    <th onClick={() => handleSort('position')} style={{ padding: '12px', color: '#cbd5e1', fontSize: '11px', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none' }}>
-                      Ruolo / Posizione {sortField === 'position' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}
+                    <th onClick={() => handleSort('position')} style={{ padding: '12px', color: '#ffffff', fontSize: '12px', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', borderRight: '1px solid #2c2347' }}>
+                      Ruolo {sortField === 'position' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}
                     </th>
-                    <th style={{ padding: '12px', color: '#cbd5e1', fontSize: '11px', textTransform: 'uppercase', textAlign: 'center' }}>Età</th>
-                    <th style={{ padding: '12px', color: '#cbd5e1', fontSize: '11px', textTransform: 'uppercase', textAlign: 'center' }}>Pres</th>
-                    <th style={{ padding: '12px', color: '#cbd5e1', fontSize: '11px', textTransform: 'uppercase', textAlign: 'center' }}>Gol</th>
-                    <th style={{ padding: '12px', color: '#cbd5e1', fontSize: '11px', textTransform: 'uppercase', textAlign: 'center' }}>M.V.</th>
-                    <th style={{ padding: '12px', color: '#cbd5e1', fontSize: '11px', textTransform: 'uppercase', textAlign: 'center' }}>Ingaggio</th>
-                    <th style={{ padding: '12px', color: '#cbd5e1', fontSize: '11px', textTransform: 'uppercase', textAlign: 'right' }}>Valore</th>
+                    <th onClick={() => handleSort('age')} style={{ padding: '12px', color: '#ffffff', fontSize: '12px', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', textAlign: 'center', borderRight: '1px solid #2c2347' }}>
+                      Età {sortField === 'age' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}
+                    </th>
+                    <th onClick={() => handleSort('pres')} style={{ padding: '12px', color: '#ffffff', fontSize: '12px', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', textAlign: 'center', borderRight: '1px solid #2c2347' }}>
+                      Pres {sortField === 'pres' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}
+                    </th>
+                    <th onClick={() => handleSort('gol')} style={{ padding: '12px', color: '#ffffff', fontSize: '12px', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', textAlign: 'center', borderRight: '1px solid #2c2347' }}>
+                      Gol {sortField === 'gol' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}
+                    </th>
+                    <th onClick={() => handleSort('mv')} style={{ padding: '12px', color: '#ffffff', fontSize: '12px', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', textAlign: 'center', borderRight: '1px solid #2c2347' }}>
+                      M.V. {sortField === 'mv' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}
+                    </th>
+                    <th onClick={() => handleSort('ingaggio')} style={{ padding: '12px', color: '#ffffff', fontSize: '12px', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', textAlign: 'center', borderRight: '1px solid #2c2347' }}>
+                      Ingaggio {sortField === 'ingaggio' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}
+                    </th>
+                    <th onClick={() => handleSort('valore')} style={{ padding: '12px', color: '#ffffff', fontSize: '12px', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', textAlign: 'right' }}>
+                      Valore {sortField === 'valore' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -650,9 +693,19 @@ function App() {
                     const gol = parseInt(p.attributes?.Gol || p.attributes?.Gls) || 0; const pres = parseInt(p.attributes?.Presenze || p.attributes?.Pres) || 0;
                     const isTopPlayer = (mv >= 7.10 && pres > 2) || gol >= 5; const isToxicContract = wNum > 1200 && (mv < 6.50 && pres > 3);
                     return (
-                      <tr key={idx} onClick={() => setSelectedProfile(p)} style={{ borderBottom: '1px solid #0f0c1b', cursor: 'pointer', backgroundColor: selectedProfile?.name === p.name ? '#221b36' : 'transparent' }}>
-                        <td style={{ padding: '12px', fontWeight: 'bold', color: '#f8fafc', borderRight: '1px solid rgba(15,12,27,0.1)' }}>{p.name} {isTopPlayer && <span style={{ marginLeft: '6px', fontSize: '9px', backgroundColor: '#34d399', color: '#0f0c1b', padding: '2px 5px', borderRadius: '3px', fontWeight: '900' }}>TOP</span>} {isToxicContract && <span style={{ marginLeft: '6px', fontSize: '9px', backgroundColor: '#ef4444', color: '#fff', padding: '2px 5px', borderRadius: '3px', fontWeight: '900' }}>TOSSICO</span>}</td>
-                        <td style={{ padding: '12px', color: '#22d3ee', fontWeight: '600' }}>{p.position || 'N/D'}</td><td style={{ padding: '12px', textAlign: 'center', color: '#cbd5e1', fontWeight: 'bold' }}>{p.age || '-'}</td><td style={{ padding: '12px', textAlign: 'center', color: '#94a3b8', fontFamily: 'monospace' }}>{p.attributes?.Presenze || p.attributes?.Pres || '-'}</td><td style={{ padding: '12px', textAlign: 'center', color: '#fff', fontWeight: 'bold', fontFamily: 'monospace' }}>{p.attributes?.Gol || p.attributes?.Gls || '-'}</td><td style={{ padding: '12px', textAlign: 'center', color: '#34d399', fontWeight: 'bold', fontFamily: 'monospace' }}>{p.attributes?.['Media Voto'] || p.attributes?.Mv || '-'}</td><td style={{ padding: '12px', textAlign: 'center', color: '#cbd5e1', fontFamily: 'monospace' }}>{p.attributes?.Ingaggio || p.attributes?.Stip || '-'}</td><td style={{ padding: '12px', textAlign: 'right', color: '#cbd5e1', fontFamily: 'monospace' }}>{p.attributes?.Valore || p.attributes?.Val || '-'}</td>
+                      <tr key={idx} onClick={() => setSelectedProfile(p)} style={{ borderBottom: '1px solid #2c2347', cursor: 'pointer', backgroundColor: selectedProfile?.name === p.name ? '#221b36' : 'transparent', transition: 'background 0.2s' }}>
+                        <td style={{ padding: '14px 12px', fontWeight: 'bold', color: '#ffffff', fontSize: '13px' }}>
+                          {p.name} 
+                          {isTopPlayer && <span style={{ marginLeft: '6px', fontSize: '9px', backgroundColor: '#34d399', color: '#0f0c1b', padding: '2px 6px', borderRadius: '3px', fontWeight: '900' }}>TOP</span>} 
+                          {isToxicContract && <span style={{ marginLeft: '6px', fontSize: '9px', backgroundColor: '#ef4444', color: '#ffffff', padding: '2px 6px', borderRadius: '3px', fontWeight: '900' }}>TOSSICO</span>}
+                        </td>
+                        <td style={{ padding: '14px 12px', color: '#22d3ee', fontWeight: '600', fontSize: '13px' }}>{p.position || 'N/D'}</td>
+                        <td style={{ padding: '14px 12px', textAlign: 'center', color: '#f8fafc', fontWeight: 'bold', fontSize: '13px' }}>{p.age || '-'}</td>
+                        <td style={{ padding: '14px 12px', textAlign: 'center', color: '#cbd5e1', fontFamily: 'monospace', fontSize: '13px' }}>{p.attributes?.Presenze || p.attributes?.Pres || '-'}</td>
+                        <td style={{ padding: '14px 12px', textAlign: 'center', color: '#ffffff', fontWeight: 'bold', fontFamily: 'monospace', fontSize: '13px' }}>{p.attributes?.Gol || p.attributes?.Gls || '-'}</td>
+                        <td style={{ padding: '14px 12px', textAlign: 'center', color: '#34d399', fontWeight: 'bold', fontFamily: 'monospace', fontSize: '13px' }}>{p.attributes?.['Media Voto'] || p.attributes?.Mv || '-'}</td>
+                        <td style={{ padding: '14px 12px', textAlign: 'center', color: '#e2e8f0', fontFamily: 'monospace', fontSize: '13px' }}>{p.attributes?.Ingaggio || p.attributes?.Stip || '-'}</td>
+                        <td style={{ padding: '14px 12px', textAlign: 'right', color: '#e2e8f0', fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>{p.attributes?.Valore || p.attributes?.Val || '-'}</td>
                       </tr>
                     );
                   })}
@@ -685,21 +738,35 @@ function App() {
         <button onClick={() => setActiveRoom('database')} title="Plancia Organico Database" style={{ background: activeRoom === 'database' ? '#221b36' : 'none', border: activeRoom === 'database' ? '1px solid #da1b60' : '1px solid transparent', color: activeRoom === 'database' ? '#da1b60' : '#475569', padding: '10px', borderRadius: '8px', cursor: 'pointer' }}><Database size={22} /></button>
       </div>
 
-      {/* RENDERIZZAZIONE CONTESTUALE DELLE STANZE SULLO SCHERMO */}
+      {/* COMPILAZIONE AGGIORNATA CONTRO LA PERDITA DEL FOCUS DEI COMPONENTI */}
       {activeRoom !== 'database' && activeRoom !== 'cfo' && renderChatWindow()}
       {activeRoom === 'cfo' && renderFinanceInterface()}
       {activeRoom === 'database' && renderMasterDatabase()}
 
-      {/* FLYOUT SCHEDE ATTRIBUTO ESTESE */}
+      {/* FLYOUT SUPER-LEGGIBILE AD ALTO CONTRASTO PER I DATI DELLO CALCIATORE */}
       {selectedProfile && (
-        <div style={{ position: 'fixed', right: '20px', bottom: '20px', width: '280px', backgroundColor: '#161224', border: '1px solid #da1b60', padding: '16px', borderRadius: '8px', boxShadow: '0 25px 50px rgba(0,0,0,0.6)', zIndex: 100 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #2c2347', paddingBottom: '8px', marginBottom: '12px', alignItems: 'center' }}>
-            <div><span style={{ fontSize: '9px', color: '#da1b60', fontWeight: 'bold' }}>Parametri Estratti</span><h4 style={{ fontSize: '14px', color: '#fff', margin: '2px 0 0 0' }}>{selectedProfile.name}</h4></div>
-            <button onClick={() => setSelectedProfile(null)} style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer' }}><X size={14} /></button>
+        <div style={{ position: 'fixed', right: '20px', bottom: '20px', width: '310px', backgroundColor: '#161224', border: '2px solid #da1b60', padding: '18px', borderRadius: '8px', boxShadow: '0 25px 50px rgba(0,0,0,0.8)', zIndex: 100 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #2c2347', paddingBottom: '10px', marginBottom: '14px', alignItems: 'center' }}>
+            <div>
+              <span style={{ fontSize: '10px', color: '#da1b60', fontWeight: 'bold', textTransform: 'uppercase' }}>Parametri Schedati ({clubName.toUpperCase()})</span>
+              <h4 style={{ fontSize: '16px', color: '#ffffff', margin: '4px 0 0 0', fontWeight: 'bold' }}>{selectedProfile.name}</h4>
+            </div>
+            <button onClick={() => setSelectedProfile(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}><X size={18} /></button>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '350px', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '8px 12px', backgroundColor: '#0f0c1b', border: '1px solid #2c2347', borderRadius: '4px' }}>
+              <span style={{ color: '#94a3b8' }}>Ruolo Nativo</span>
+              <span style={{ color: '#22d3ee', fontWeight: 'bold' }}>{selectedProfile.position || 'N/D'}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '8px 12px', backgroundColor: '#0f0c1b', border: '1px solid #2c2347', borderRadius: '4px' }}>
+              <span style={{ color: '#94a3b8' }}>Età</span>
+              <span style={{ color: '#ffffff', fontWeight: 'bold' }}>{selectedProfile.age || 'N/D'}</span>
+            </div>
             {Object.entries(selectedProfile.attributes).map(([key, val]) => (
-              <div key={key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '6px 10px', backgroundColor: '#0f0c1b', border: '1px solid #2c2347', borderRadius: '4px' }}><span style={{ color: '#94a3b8' }}>{key}</span><span style={{ color: '#34d399', fontWeight: 'bold', fontFamily: 'monospace' }}>{String(val)}</span></div>
+              <div key={key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '8px 12px', backgroundColor: '#0f0c1b', border: '1px solid #2c2347', borderRadius: '4px' }}>
+                <span style={{ color: '#94a3b8' }}>{key}</span>
+                <span style={{ color: '#34d399', fontWeight: 'bold', fontFamily: 'monospace' }}>{String(val)}</span>
+              </div>
             ))}
           </div>
         </div>
