@@ -15,6 +15,15 @@ function App() {
   // STATO COMPLESSO PER L'ORDINAMENTO UNIVERSALE DEL DATABASE
   const [sortField, setSortField] = useState('name')
   const [sortDirection, setSortDirection] = useState('asc')
+
+  // DETECTOR DINAMICO DELLO SCREEN PER ADATTAMENTO SMARTPHONE LIVE
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   
   // STATO DELL'ORGANICO IDRATATO CON STRUTTURA IBRIDA (LOCAL CACHE + CLOUD)
   const [clubName, setClubName] = useState(() => localStorage.getItem('hq_club_name') || 'Sora')
@@ -170,7 +179,7 @@ function App() {
     setPressAnalysisResult("L'Addetto Stampa sta strutturando la risposta strategica...");
     try {
       const imagePart = await fileToGenerativePart(file);
-      const prompt = `Sei l'Addetto Stampa del club "${clubName}". Analizza questo screenshot di conferenza su FM26. Il Mister ha impostato l'identità mediatica: "${personality.toUpperCase()}". Trascrivi la domanda ed indica esattamente quale pfulsante premere nel gioco per interpretare alla perfezione il personaggio scelto senza distruggere la determinazione dei ragazzi o causare rivolte di spogliatoio.`;
+      const prompt = `Sei l'Addetto Stampa del club "${clubName}". Analizza questo screenshot di conferenza su FM26. Il Mister ha impostato l'identità mediatica: "${personality.toUpperCase()}". Trascrivi la domanda ed indica esattamente quale pulsante premere nel gioco per interpretare alla perfezione il personaggio scelto senza distruggere la determinazione dei ragazzi o causare rivolte di spogliatoio.`;
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent([prompt, imagePart]);
       setPressAnalysisResult(result.response.text());
@@ -280,7 +289,6 @@ function App() {
     } catch (err) { setUploadError(`Errore OCR: ${err.message}`); } finally { setIsUploading(false); }
   }
 
-  // CORE ENGINE CHAT: SEGREGRAZIONE DELLE CHAT CON MODELLO CRISTALLINO "GEMINI-2.5-FLASH"
   async function handleSendMessage() {
     if (!chatInput.trim()) return;
     const currentInputText = chatInput;
@@ -321,7 +329,7 @@ function App() {
       if (activeRoom === 'board') {
         instructionPrompt += `
           REGOLE TAVOLO PLENARIA (IL TAVOLONE COMPLETO):
-          Sei l'intero consiglio dello staff convocato in riunione segreta dal Mister. Devi generare tassativamente una risposta complessa in cui TUTTI E 7 i collaboratori prendono la parola uno dopo l'altro esprimendo la propria opinione dal loro specifico angolo di competenza.
+          Sei l'intero consiglio dello staff convocato in riunione segreta dal Mister. Devi generare tassativamente una risposta complessa in cui TUTTI E 7 i collaboratori prendono la parola uno dopo l'autre esprimendo la propria opinione dal loro specifico angolo di competenza.
           Rispetta fedelmente questo formato di testo ad ampio volume (fai parlare tutti e 7):
           
           VICE ALLENATORE: [Opinione di campo, assetto tattico e morale]
@@ -354,14 +362,11 @@ function App() {
     } catch (error) { console.error(error); } finally { setIsTyping(false); }
   }
 
-  // FIXED: ARGOMENTO DEL TEXT PROMPT CORRETTO SU MOTORE DI PUNTA GEMINI-2.5-FLASH
   async function handleAnalyzeExternalTactic() {
     if (!externalTacticInput.trim()) return;
     setIsAnalyzingTactic(true); setTacticAnalysisResult("Incrocio flussi tattici avanzati...");
     try {
-      const currentSquadContext = players.map(p => ({ nome: p.name, ruolo: p.position, stats: p.attributes }));
-      const prompt = `Analizza questa tattica: """${externalTacticInput}""" sulla rosa ${clubName}: ${JSON.stringify(currentSquadContext.slice(0, 40))}. Dividi l'output in FASE 1 (70% analisi modulo nel Match Engine) e FASE 2 (30% screening nomi esatti promossi e bocciati da cedere).`;
-      
+      const prompt = `Analizza questa tattica: """${externalTacticInput}""" sulla rosa ${clubName}: ${JSON.stringify(players.slice(0, 40).map(p => ({ nome: p.name, ruolo: p.position, stats: p.attributes })))}\`. Dividi l'output in FASE 1 (70% analisi modulo nel Match Engine) e FASE 2 (30% screening nomi esatti promossi e bocciati da cedere).`;
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(prompt);
       setTacticAnalysisResult(result.response.text());
@@ -409,6 +414,9 @@ function App() {
     }
   }
 
+  // ==========================================
+  // VIEW COMPONENTI CHAT OTTIMIZZATA PER MOBILE / DESKTOP
+  // ==========================================
   function renderChatWindow() {
     const visibleMessages = messages.filter(msg => {
       if (msg.sender_role === 'system') return true;
@@ -419,36 +427,36 @@ function App() {
     });
 
     return (
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#0d0a16', height: '100%' }}>
-        <div style={{ height: '75px', padding: '0 24px', borderBottom: '2px solid #231b3a', display: 'flex', alignItems: 'center', backgroundColor: '#140f24', justifyContent: 'space-between', boxShadow: '0 4px 12px rgba(0,0,0,0.4)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <MessageSquare size={24} color="#da1b60" /> 
-            <h2 style={{ fontSize: '22px', color: '#ffffff', margin: 0, textTransform: 'uppercase', fontWeight: '900', letterSpacing: '0.5px' }}>
-              {activeRoom === 'board' ? '🏛️ RIUNIONE PLENARIA CON LO STAFF' : `💼 BRIEFING PRIVATO: ${activeRoom.toUpperCase()}`}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#0d0a16', width: '100%', height: '100%' }}>
+        {/* INTERFACCIA BARRA SUPERIORE RESPONSIVE */}
+        <div style={{ height: isMobile ? '65px' : '75px', padding: '0 16px', borderBottom: '2px solid #231b3a', display: 'flex', alignItems: 'center', backgroundColor: '#140f24', justifyContent: 'space-between', boxShadow: '0 4px 12px rgba(0,0,0,0.4)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <MessageSquare size={isMobile ? 18 : 24} color="#da1b60" /> 
+            <h2 style={{ fontSize: isMobile ? '14px' : '22px', color: '#ffffff', margin: 0, textTransform: 'uppercase', fontWeight: '900', letterSpacing: '0.5px' }}>
+              {activeRoom === 'board' ? '🏛️ PLENARIA STAFF' : `💼 ${activeRoom.toUpperCase()}`}
             </h2>
           </div>
-          {cloudStatus === 'offline' && <div style={{ fontSize: '12px', backgroundColor: '#5f0f0f', color: '#fca5a5', padding: '6px 12px', border: '1px solid #b91c1c', fontWeight: 'bold', borderRadius: '4px' }}>OFFLINE CACHE ACTIVE</div>}
+          {cloudStatus === 'offline' && <div style={{ fontSize: '10px', backgroundColor: '#5f0f0f', color: '#fca5a5', padding: '4px 8px', border: '1px solid #b91c1c', fontWeight: 'bold', borderRadius: '4px' }}>OFFLINE</div>}
         </div>
 
-        <div style={{ flex: 1, display: 'flex', overflow: 'hidden', flexDirection: 'row' }}>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', borderRight: '2px solid #231b3a', backgroundColor: '#090710' }}>
-            <div ref={chatContainerRef} style={{ flex: 1, padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {/* WORKSPACE PRINCIPALE CON COPERTURA DI RE-STACKING PER SMARTPHONE */}
+        <div style={{ flex: 1, display: 'flex', overflow: 'hidden', flexDirection: isMobile ? 'column' : 'row' }}>
+          
+          {/* GRIGLIA CHAT LIVE CONTENITORE */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', borderRight: isMobile ? 'none' : '2px solid #231b3a', backgroundColor: '#090710', overflowY: 'auto' }}>
+            <div ref={chatContainerRef} style={{ flex: 1, padding: isMobile ? '16px' : '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               
               {visibleMessages.length === 0 ? (
-                <div style={{ margin: 'auto', maxWidth: '600px', backgroundColor: '#140f24', border: '2px solid #da1b60', padding: '32px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}>
-                  <Users size={48} color="#da1b60" style={{ margin: '0 auto 16px auto' }} />
-                  <h3 style={{ fontSize: '22px', color: '#fff', margin: '0 0 12px 0', fontWeight: '800' }}>Ufficio Operazioni Allineato</h3>
-                  <p style={{ color: '#94a3b8', fontSize: '15px', lineHeight: '1.6', margin: '0 0 20px 0' }}>
-                    Sei a colloquio a porte chiuse. Lo specialista ha accesso alla memoria storica del club (45 messaggi) e analizzerà ogni screenshot o dato che invierai in tempo reale.
-                  </p>
-                  <div style={{ backgroundColor: '#0d0a16', padding: '14px', borderRadius: '6px', fontSize: '13px', color: '#22d3ee', fontWeight: 'bold', border: '1px solid #231b3a', textTransform: 'uppercase' }}>
-                    ✍️ Digita una nota in basso o carica un file multimediale a destra per iniziare
-                  </div>
+                <div style={{ margin: 'auto', maxWidth: '100%', backgroundColor: '#140f24', border: '2px solid #da1b60', padding: '20px', borderRadius: '12px', textAlign: 'center' }}>
+                  <Users size={36} color="#da1b60" style={{ margin: '0 auto 12px auto' }} />
+                  <h3 style={{ fontSize: '18px', color: '#fff', margin: '0 0 8px 0', fontWeight: '800' }}>Briefing Attivo</h3>
+                  <p style={{ color: '#94a3b8', fontSize: '13px', lineHeight: '1.5', margin: '0 0 14px 0' }}>Lo specialista ha allineato la memoria storica e attende disposizioni sportive.</p>
+                  <div style={{ backgroundColor: '#0d0a16', padding: '10px', borderRadius: '6px', fontSize: '12px', color: '#22d3ee', fontWeight: 'bold' }}>✍️ Invia una nota o carica un file</div>
                 </div>
               ) : (
                 visibleMessages.map((msg, index) => {
                   let align = 'flex-start'; let bColor = '#2c2347'; let nameLabel = 'STAFF'; let itemBg = '#140f24';
-                  if (msg.sender_role.startsWith('user')) { align = 'flex-end'; bColor = '#da1b60'; nameLabel = 'MISTER (OMISEREZ)'; itemBg = '#1d1433'; }
+                  if (msg.sender_role.startsWith('user')) { align = 'flex-end'; bColor = '#da1b60'; nameLabel = 'MISTER'; itemBg = '#1d1433'; }
                   else if (msg.sender_role === 'vice') { bColor = '#22d3ee'; nameLabel = 'VICE ALLENATORE'; }
                   else if (msg.sender_role === 'ds') { bColor = '#fbbf24'; nameLabel = 'DIRETTORE SPORTIVO'; }
                   else if (msg.sender_role === 'scout') { bColor = '#f43f5e'; nameLabel = 'CAPO OSSERVATORE'; }
@@ -456,139 +464,115 @@ function App() {
                   else if (msg.sender_role === 'press') { bColor = '#ec4899'; nameLabel = 'UFFICIO STAMPA'; }
                   else if (msg.sender_role === 'youth') { bColor = '#ffaa00'; nameLabel = 'RESPONSABILE GIOVANILI'; }
                   else if (msg.sender_role === 'analyst') { bColor = '#3b82f6'; nameLabel = 'MATCH ANALYST'; }
-                  else if (msg.sender_role === 'board') { bColor = '#a855f7'; nameLabel = 'VERBALE PLENARIA COMPLETA'; }
+                  else if (msg.sender_role === 'board') { bColor = '#a855f7'; nameLabel = 'RIUNIONE PLENARIA'; }
 
                   return (
                     <div key={index} style={{ display: 'flex', flexDirection: 'column', alignItems: align, width: '100%' }}>
-                      <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '900', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '1px' }}>{nameLabel}</span>
-                      <div style={{ padding: '16px', fontSize: '16px', backgroundColor: itemBg, color: '#ffffff', borderLeft: `4px solid ${bColor}`, borderRadius: '6px', maxWidth: '85%', lineHeight: '1.6', whiteSpace: 'pre-line', boxShadow: '0 4px 10px rgba(0,0,0,0.2)' }}>{msg.content}</div>
+                      <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '900', marginBottom: '4px', textTransform: 'uppercase' }}>{nameLabel}</span>
+                      <div style={{ padding: '12px 14px', fontSize: isMobile ? '15px' : '16px', backgroundColor: itemBg, color: '#ffffff', borderLeft: `4px solid ${bColor}`, borderRadius: '6px', maxWidth: '90%', lineHeight: '1.5', whiteSpace: 'pre-line' }}>{msg.content}</div>
                     </div>
                   );
                 })
               )}
-              {isTyping && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                  <span style={{ fontSize: '11px', color: '#475569', fontWeight: 'bold', marginBottom: '4px' }}>SCRIVANIA DEL RESPONSABILE</span>
-                  <div style={{ padding: '14px', fontSize: '15px', backgroundColor: '#140f24', color: '#64748b', borderLeft: '4px solid #475569', borderRadius: '6px', fontStyle: 'italic' }}>Lo specialista sta scrivendo la risposta tecnica...</div>
-                </div>
-              )}
             </div>
 
-            <div style={{ padding: '20px', backgroundColor: '#140f24', borderTop: '2px solid #231b3a', boxShadow: '0 -4px 15px rgba(0,0,0,0.3)' }}>
+            {/* SEZIONE INPUT DI CHAT STICKY REGOLATA PER SMARTPHONE */}
+            <div style={{ padding: '14px', backgroundColor: '#140f24', borderTop: '2px solid #231b3a' }}>
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                <ChevronRight style={{ position: 'absolute', left: '14px', color: '#da1b60' }} size={20} />
-                <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={activeRoom === 'board' ? "Ordina una discussione generale al Tavolone..." : `Invia un quesito diretto in modalità singola a: ${activeRoom.toUpperCase()}...`} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '16px 50px 16px 42px', fontSize: '16px', color: '#ffffff', borderRadius: '8px', outline: 'none', fontWeight: '500' }} />
-                <button onClick={handleSendMessage} disabled={isTyping} style={{ position: 'absolute', right: '16px', background: 'none', border: 'none', color: '#da1b60', cursor: 'pointer', display: 'flex', alignItems: 'center' }}><Send size={18} /></button>
+                <ChevronRight style={{ position: 'absolute', left: '10px', color: '#da1b60' }} size={16} />
+                <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder="Impartisci direttiva..." style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '12px 40px 12px 32px', fontSize: '15px', color: '#ffffff', borderRadius: '8px', outline: 'none' }} />
+                <button onClick={handleSendMessage} disabled={isTyping} style={{ position: 'absolute', right: '12px', background: 'none', border: 'none', color: '#da1b60', cursor: 'pointer' }}><Send size={16} /></button>
               </div>
             </div>
           </div>
 
-          <div style={{ width: '380px', backgroundColor: '#0f0c1b', padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px', borderLeft: '1px solid #231b3a' }}>
+          {/* PANNELLO STRUMENTI COLLASSATO SOTTO IN MODALITÀ SMARTPHONE (WIDTH 100%) */}
+          <div style={{ width: isMobile ? '100%' : '380px', backgroundColor: '#0f0c1b', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', borderLeft: isMobile ? 'none' : '1px solid #231b3a', borderTop: isMobile ? '2px solid #231b3a' : 'none', overflowY: isMobile ? 'visible' : 'auto', boxSizing: 'border-box' }}>
             {activeRoom === 'board' && (
               <>
-                <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#a855f7', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900', letterSpacing: '0.5px' }}>Dati Identità Club</h3>
-                <div style={{ backgroundColor: '#140f24', border: '1px solid #231b3a', padding: '14px', borderRadius: '6px' }}>
-                  <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px', fontWeight: 'bold' }}>Club Attuale in FM</label>
-                  <input type="text" value={clubName} onChange={(e) => setClubName(e.target.value)} style={{ width: '92%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '10px', color: '#ffffff', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '14px', borderRadius: '4px' }} />
+                <h3 style={{ fontSize: '13px', textTransform: 'uppercase', color: '#a855f7', borderBottom: '2px solid #231b3a', paddingBottom: '6px', margin: 0, fontWeight: '900' }}>Identità Societaria</h3>
+                <div style={{ backgroundColor: '#140f24', border: '1px solid #231b3a', padding: '10px', borderRadius: '6px' }}>
+                  <label style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Club Attuale</label>
+                  <input type="text" value={clubName} onChange={(e) => setClubName(e.target.value)} style={{ width: '90%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '8px', color: '#ffffff', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '13px', borderRadius: '4px' }} />
                 </div>
-                <div style={{ backgroundColor: '#140f24', border: '1px solid #231b3a', padding: '16px', borderRadius: '6px', fontSize: '14px', lineHeight: '1.6' }}>
-                  <span style={{ color: '#22d3ee', display: 'block', marginBottom: '8px', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '12px' }}>📊 Stato Patrimoniale Attivo:</span>
-                  • Calciatori in Memoria: <strong style={{ color: '#fff', fontSize: '16px' }}>{players.length}</strong><br />
-                  • Cassa Club: <strong style={{ color: '#10b981', fontSize: '16px' }}>€{finances.balance.toLocaleString()}</strong><br />
-                  • Budget Trasferimenti: <strong style={{ color: '#fff', fontSize: '16px' }}>€{finances.transfer_budget.toLocaleString()}</strong>
+                <div style={{ backgroundColor: '#140f24', border: '1px solid #231b3a', padding: '12px', borderRadius: '6px', fontSize: '13px', lineHeight: '1.5' }}>
+                  • Calciatori: <strong>{players.length}</strong><br />
+                  • Cassa: <strong style={{ color: '#10b981' }}>€{finances.balance.toLocaleString()}</strong><br />
+                  • Budget: <strong>€{finances.transfer_budget.toLocaleString()}</strong>
                 </div>
               </>
             )}
 
             {activeRoom === 'vice' && (
               <>
-                <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#22d3ee', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Laboratorio Tattico</h3>
-                <textarea value={externalTacticInput} onChange={(e) => setExternalTacticInput(e.target.value)} placeholder="Incolla qui l'analisi testo o il link di una tattica esterna (es. da FMScout)..." style={{ width: '93%', height: '150px', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '12px', color: '#ffffff', fontSize: '14px', resize: 'none', borderRadius: '6px' }} />
-                <button onClick={handleAnalyzeExternalTactic} disabled={isAnalyzingTactic} style={{ backgroundColor: '#22d3ee', color: '#0f0b1b', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer', width: '100%' }}>{isAnalyzingTactic ? "Incrocio Dati..." : "Avvia Convalida Modulo"}</button>
-                {tacticAnalysisResult && <div style={{ backgroundColor: '#090710', border: '1px solid #231b3a', padding: '14px', fontSize: '13px', whiteSpace: 'pre-line', color: '#e2e8f0', borderRadius: '6px', lineHeight: '1.5' }}>{tacticAnalysisResult}</div>}
+                <h3 style={{ fontSize: '13px', textTransform: 'uppercase', color: '#22d3ee', borderBottom: '2px solid #231b3a', paddingBottom: '6px', margin: 0, fontWeight: '900' }}>Laboratorio Tattico</h3>
+                <textarea value={externalTacticInput} onChange={(e) => setExternalTacticInput(e.target.value)} placeholder="Incolla qui l'analisi o il link tattico..." style={{ width: '94%', height: '100px', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '10px', color: '#ffffff', fontSize: '14px', resize: 'none', borderRadius: '6px' }} />
+                <button onClick={handleAnalyzeExternalTactic} disabled={isAnalyzingTactic} style={{ backgroundColor: '#22d3ee', color: '#0f0b1b', border: 'none', padding: '12px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer', width: '100%' }}>{isAnalyzingTactic ? "Incrocio Dati..." : "Avvia Convalida Modulo"}</button>
+                {tacticAnalysisResult && <div style={{ backgroundColor: '#090710', border: '1px solid #231b3a', padding: '12px', fontSize: '13px', whiteSpace: 'pre-line', color: '#e2e8f0', borderRadius: '6px' }}>{tacticAnalysisResult}</div>}
               </>
             )}
 
             {activeRoom === 'scout' && (
               <>
-                <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#f43f5e', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Osservatorio Acquisti</h3>
+                <h3 style={{ fontSize: '13px', textTransform: 'uppercase', color: '#f43f5e', borderBottom: '2px solid #231b3a', paddingBottom: '6px', margin: 0, fontWeight: '900' }}>Osservatorio Acquisti</h3>
                 <input type="file" accept="image/*" ref={scoutInputRef} onChange={handleScoutImageUpload} style={{ display: 'none' }} />
-                <button onClick={() => scoutInputRef.current.click()} disabled={isAnalyzingScout} style={{ width: '100%', backgroundColor: '#f43f5e', color: '#ffffff', border: 'none', padding: '14px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer' }}>Carica Profilo Obiettivo</button>
-                {scoutAnalysisResult && <div style={{ backgroundColor: '#090710', border: '1px solid #231b3a', padding: '14px', fontSize: '13px', whiteSpace: 'pre-line', color: '#e2e8f0', borderRadius: '6px', lineHeight: '1.5' }}>{scoutAnalysisResult}</div>}
+                <button onClick={() => scoutInputRef.current.click()} disabled={isAnalyzingScout} style={{ width: '100%', backgroundColor: '#f43f5e', color: '#ffffff', border: 'none', padding: '12px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer' }}>Carica Profilo Obiettivo</button>
+                {scoutAnalysisResult && <div style={{ backgroundColor: '#090710', border: '1px solid #231b3a', padding: '12px', fontSize: '13px', whiteSpace: 'pre-line', color: '#e2e8f0', borderRadius: '6px' }}>{scoutAnalysisResult}</div>}
               </>
             )}
 
             {activeRoom === 'ds' && (
               <>
-                <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#fbbf24', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Alert Contratti</h3>
-                <div style={{ backgroundColor: '#140f24', border: '1px solid #231b3a', padding: '16px', borderRadius: '6px', fontSize: '14px', lineHeight: '1.6' }}>
-                  <span style={{ color: '#fbbf24', fontWeight: 'bold', display: 'block', marginBottom: '8px', textTransform: 'uppercase', fontSize: '12px' }}>⚠️ STRUTTURA SALARIALE:</span>
-                  I giocatori contrassegnati come <strong style={{ color: '#ef4444' }}>TOSSICO</strong> nella tabella organico pesano sul bilancio e offrono rendimenti scarsi. Taglia o vendi subito per fare spazio in cassa.
+                <h3 style={{ fontSize: '13px', textTransform: 'uppercase', color: '#fbbf24', borderBottom: '2px solid #231b3a', paddingBottom: '6px', margin: 0, fontWeight: '900' }}>Alert Contratti</h3>
+                <div style={{ backgroundColor: '#140f24', border: '1px solid #231b3a', padding: '14px', borderRadius: '6px', fontSize: '13px', lineHeight: '1.5' }}>
+                  I giocatori marchiati <strong style={{ color: '#ef4444' }}>TOSSICO</strong> pesano sulle finanze. Taglia o cedili alla prima sessione utile di calciomercato.
                 </div>
               </>
             )}
 
             {activeRoom === 'cfo' && (
               <>
-                <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#10b981', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Cassaforte & Sviluppo Bilanci</h3>
-                <div style={{ backgroundColor: '#140f24', border: '1px solid #231b3a', padding: '14px', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 'bold', textTransform: 'uppercase' }}>📊 Scansione Bilancio OCR:</span>
-                  <input type="file" accept="image/*" ref={financeInputRef} onChange={handleFinanceImageUpload} style={{ display: 'none' }} />
-                  <button onClick={() => financeInputRef.current.click()} disabled={isAnalyzingFinance} style={{ width: '100%', backgroundColor: '#10b981', color: '#0f0c1b', border: 'none', padding: '12px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '4px' }}>Carica Screen Finanze</button>
-                  {financeAnalysisResult && <div style={{ backgroundColor: '#090710', border: '1px solid #231b3a', padding: '10px', fontSize: '12px', color: '#cbd5e1', maxHeight: '120px', overflowY: 'auto', borderRadius: '4px' }}>{financeAnalysisResult}</div>}
+                <h3 style={{ fontSize: '13px', textTransform: 'uppercase', color: '#10b981', borderBottom: '2px solid #231b3a', paddingBottom: '6px', margin: 0, fontWeight: '900' }}>Cassaforte Economica</h3>
+                <input type="file" accept="image/*" ref={financeInputRef} onChange={handleFinanceImageUpload} style={{ display: 'none' }} />
+                <button onClick={() => financeInputRef.current.click()} disabled={isAnalyzingFinance} style={{ width: '100%', backgroundColor: '#10b981', color: '#0f0c1b', border: 'none', padding: '10px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '4px' }}>Scansiona Screen Finanze</button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div><label style={{ fontSize: '10px', color: '#94a3b8' }}>Cassa (€)</label><input type="number" value={finances.balance} onChange={(e) => updateFinancesCloud('balance', e.target.value)} style={{ width: '90%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '6px', color: '#10b981', fontWeight: 'bold', borderRadius: '4px' }} /></div>
+                  <div><label style={{ fontSize: '10px', color: '#94a3b8' }}>Budget Trasferimenti (€)</label><input type="number" value={finances.transfer_budget} onChange={(e) => updateFinancesCloud('transfer_budget', e.target.value)} style={{ width: '90%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '6px', color: '#fff', borderRadius: '4px' }} /></div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
-                  <div><label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 'bold' }}>Bilancio (€)</label><input type="number" value={finances.balance} onChange={(e) => updateFinancesCloud('balance', e.target.value)} style={{ width: '92%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '8px', color: '#10b981', fontWeight: 'bold', borderRadius: '4px' }} /></div>
-                  <div><label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 'bold' }}>Budget Mercato (€)</label><input type="number" value={finances.transfer_budget} onChange={(e) => updateFinancesCloud('transfer_budget', e.target.value)} style={{ width: '92%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '8px', color: '#fff', borderRadius: '4px' }} /></div>
-                  <div><label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 'bold' }}>Ingaggi (€/sett)</label><input type="number" value={finances.wage_budget} onChange={(e) => updateFinancesCloud('wage_budget', e.target.value)} style={{ width: '92%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '8px', color: '#fff', borderRadius: '4px' }} /></div>
-                </div>
-                <div style={{ backgroundColor: '#140f24', border: '1px solid #231b3a', padding: '14px', borderRadius: '6px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#fff', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>📊 Simulatore Moneyball</span>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <input type="number" value={simCost} onChange={(e) => setSimCost(e.target.value)} placeholder="Costo" style={{ width: '45%', backgroundColor: '#090710', border: '1px solid #231b3a', padding: '6px', color: '#fff', fontSize: '12px', borderRadius: '4px' }} />
-                    <input type="number" value={simWage} onChange={(e) => setSimWage(e.target.value)} placeholder="Stip." style={{ width: '45%', backgroundColor: '#090710', border: '1px solid #231b3a', padding: '6px', color: '#fff', fontSize: '12px', borderRadius: '4px' }} />
-                  </div>
-                  <button onClick={handleSimulateTransfer} style={{ backgroundColor: '#10b981', color: '#0f0c1b', border: 'none', padding: '8px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '4px', marginTop: '10px', width: '100%' }}>Calcola Ammortamento</button>
-                  {simResult && <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#090710', borderLeft: `3px solid ${simResult.color}`, fontSize: '12px', color: '#fff' }}>{simResult.status}</div>}
-                </div>
-                <button onClick={handleFinanceAudit} disabled={isAuditing} style={{ backgroundColor: '#da1b60', color: '#fff', border: 'none', padding: '8px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '4px', width: '100%' }}>{isAuditing ? "Analisi..." : "Genera Audit Contabile"}</button>
-                {financeAudit && <div style={{ backgroundColor: '#090710', border: '1px solid #231b3a', padding: '10px', fontSize: '12px', whiteSpace: 'pre-line', maxHeight: '100px', overflowY: 'auto', color: '#fff', borderRadius: '4px' }}>{financeAudit}</div>}
+                <button onClick={handleFinanceAudit} disabled={isAuditing} style={{ backgroundColor: '#da1b60', color: '#fff', border: 'none', padding: '10px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '6px', width: '100%' }}>Genera Audit Globale</button>
+                {financeAudit && <div style={{ backgroundColor: '#090710', border: '1px solid #231b3a', padding: '10px', fontSize: '12px', whiteSpace: 'pre-line', color: '#fff', borderRadius: '4px' }}>{financeAudit}</div>}
               </>
             )}
 
             {activeRoom === 'press' && (
               <>
-                <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#ec4899', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Media Strategic Hub</h3>
-                <div style={{ backgroundColor: '#140f24', border: '1px solid #231b3a', padding: '14px', borderRadius: '6px', marginBottom: '4px' }}>
-                  <label style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>🎭 Personalità Personaggio:</label>
-                  <select value={personality} onChange={(e) => updateCoachPersonality(e.target.value)} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '8px', color: '#fff', fontSize: '13px', cursor: 'pointer', borderRadius: '4px' }}>
-                    <option value="professional">💼 Professional (Diplomatico)</option>
-                    <option value="aggressive">🔥 Aggressive (Mourinhiano)</option>
-                    <option value="passionate">❤️ Passionate (Passionale / Viscerale)</option>
-                    <option value="calculated">📊 Calculated (Pragmatico / xG)</option>
-                  </select>
-                </div>
+                <h3 style={{ fontSize: '13px', textTransform: 'uppercase', color: '#ec4899', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Media Room</h3>
+                <select value={personality} onChange={(e) => updateCoachPersonality(e.target.value)} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '8px', color: '#fff', fontSize: '13px', borderRadius: '4px' }}>
+                  <option value="professional">💼 Professional (Diplomatico)</option>
+                  <option value="aggressive">🔥 Aggressive (Mourinhiano)</option>
+                  <option value="passionate">❤️ Passionate (Passionale)</option>
+                </select>
                 <input type="file" accept="image/*" ref={pressInputRef} onChange={handlePressImageUpload} style={{ display: 'none' }} />
-                <button onClick={() => pressInputRef.current.click()} disabled={isAnalyzingPress} style={{ width: '100%', backgroundColor: '#ec4899', color: '#fff', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer' }}>Carica Conferenza FM</button>
-                {pressAnalysisResult && <div style={{ backgroundColor: '#090710', border: '1px solid #231b3a', padding: '14px', fontSize: '13px', whiteSpace: 'pre-line', color: '#cbd5e1', maxHeight: '220px', overflowY: 'auto', borderRadius: '6px' }}>{pressAnalysisResult}</div>}
+                <button onClick={() => pressInputRef.current.click()} disabled={isAnalyzingPress} style={{ width: '100%', backgroundColor: '#ec4899', color: '#fff', border: 'none', padding: '12px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer' }}>Carica Screen Conferenza</button>
+                {pressAnalysisResult && <div style={{ backgroundColor: '#090710', border: '1px solid #231b3a', padding: '12px', fontSize: '12px', whiteSpace: 'pre-line', color: '#cbd5e1', borderRadius: '6px' }}>{pressAnalysisResult}</div>}
               </>
             )}
 
             {activeRoom === 'youth' && (
               <>
-                <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#ffaa00', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Vivaio Under 20</h3>
+                <h3 style={{ fontSize: '13px', textTransform: 'uppercase', color: '#ffaa00', borderBottom: '2px solid #231b3a', paddingBottom: '6px', margin: 0, fontWeight: '900' }}>Settore Giovanile</h3>
                 <input type="file" accept="image/*" ref={youthInputRef} onChange={handleYouthImageUpload} style={{ display: 'none' }} />
-                <button onClick={() => youthInputRef.current.click()} disabled={isAnalyzingYouth} style={{ width: '100%', backgroundColor: '#ffaa00', color: '#0f0c1b', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer' }}>Carica Screen Wonderkid</button>
-                {youthAnalysisResult && <div style={{ backgroundColor: '#090710', border: '1px solid #231b3a', padding: '14px', fontSize: '13px', whiteSpace: 'pre-line', color: '#cbd5e1', borderRadius: '6px' }}>{youthAnalysisResult}</div>}
+                <button onClick={() => youthInputRef.current.click()} disabled={isAnalyzingYouth} style={{ width: '100%', backgroundColor: '#ffaa00', color: '#0f0c1b', border: 'none', padding: '12px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer' }}>Carica Foto Wonderkid</button>
+                {youthAnalysisResult && <div style={{ backgroundColor: '#090710', border: '1px solid #231b3a', padding: '12px', fontSize: '12px', whiteSpace: 'pre-line', color: '#cbd5e1', borderRadius: '6px' }}>{youthAnalysisResult}</div>}
               </>
             )}
 
             {activeRoom === 'analyst' && (
               <>
-                <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#3b82f6', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Match Analysis Center</h3>
+                <h3 style={{ fontSize: '13px', textTransform: 'uppercase', color: '#3b82f6', borderBottom: '2px solid #231b3a', paddingBottom: '6px', margin: 0, fontWeight: '900' }}>Match Analysis Center</h3>
                 <input type="file" accept="image/*" ref={analystInputRef} onChange={handleAnalystImageUpload} style={{ display: 'none' }} />
-                <button onClick={() => analystInputRef.current.click()} disabled={isAnalyzingAnalyst} style={{ width: '100%', backgroundColor: '#3b82f6', color: '#fff', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer' }}>Carica Tabellino Gara</button>
-                {analystAnalysisResult && <div style={{ backgroundColor: '#090710', border: '1px solid #231b3a', padding: '14px', fontSize: '13px', whiteSpace: 'pre-line', color: '#cbd5e1', borderRadius: '6px' }}>{analystAnalysisResult}</div>}
+                <button onClick={() => analystInputRef.current.click()} disabled={isAnalyzingAnalyst} style={{ width: '100%', backgroundColor: '#3b82f6', color: '#fff', border: 'none', padding: '12px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer' }}>Carica Tabellino Gara</button>
+                {analystAnalysisResult && <div style={{ backgroundColor: '#090710', border: '1px solid #231b3a', padding: '12px', fontSize: '12px', whiteSpace: 'pre-line', color: '#cbd5e1', borderRadius: '6px' }}>{analystAnalysisResult}</div>}
               </>
             )}
           </div>
@@ -607,26 +591,11 @@ function App() {
         case 'name': return (player.name || '').toLowerCase().trim();
         case 'position': return (player.position || '').toLowerCase().trim();
         case 'age': return parseInt(player.age) || 0;
-        case 'pres': {
-          const v = player.attributes?.Presenze || player.attributes?.Pres || '0';
-          return parseInt(String(v).replace(/\D/g, '')) || 0;
-        }
-        case 'gol': {
-          const v = player.attributes?.Gol || player.attributes?.Gls || '0';
-          return parseInt(String(v).replace(/\D/g, '')) || 0;
-        }
-        case 'mv': {
-          const v = player.attributes?.['Media Voto'] || player.attributes?.Mv || '0';
-          return parseFloat(String(v).replace(',', '.')) || 0;
-        }
-        case 'ingaggio': {
-          const v = player.attributes?.Ingaggio || player.attributes?.Stip || '0';
-          return parseInt(String(v).replace(/\D/g, '')) || 0;
-        }
-        case 'valore': {
-          const v = player.attributes?.Valore || player.attributes?.Val || '0';
-          return parseInt(String(v).replace(/\D/g, '')) || 0;
-        }
+        case 'pres': return parseInt(String(player.attributes?.Presenze || player.attributes?.Pres || '0').replace(/\D/g, '')) || 0;
+        case 'gol': return parseInt(String(player.attributes?.Gol || player.attributes?.Gls || '0').replace(/\D/g, '')) || 0;
+        case 'mv': return parseFloat(String(player.attributes?.['Media Voto'] || player.attributes?.Mv || '0').replace(',', '.')) || 0;
+        case 'ingaggio': return parseInt(String(player.attributes?.Ingaggio || player.attributes?.Stip || '0').replace(/\D/g, '')) || 0;
+        case 'valore': return parseInt(String(player.attributes?.Valore || player.attributes?.Val || '0').replace(/\D/g, '')) || 0;
         default: return '';
       }
     };
@@ -634,56 +603,40 @@ function App() {
     const sortedList = [...visibleList].sort((a, b) => {
       const valA = getSortValue(a, sortField);
       const valB = getSortValue(b, sortField);
-      
       if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
       if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
 
     return (
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#0f0c1b', height: '100%', overflow: 'hidden' }}>
-        <div style={{ height: '75px', padding: '0 24px', borderBottom: '2px solid #231b3a', display: 'flex', alignItems: 'center', backgroundColor: '#161224', justifyContent: 'space-between', boxShadow: '0 4px 12px rgba(0,0,0,0.4)' }}>
-          <div style={{ display: 'flex', gap: '8px', backgroundColor: '#090710', padding: '6px', border: '1px solid #231b3a', borderRadius: '6px' }}>
-            <button onClick={() => setDbSubTab('first_team')} style={{ padding: '8px 16px', border: 'none', cursor: 'pointer', textTransform: 'uppercase', fontSize: '13px', fontWeight: 'bold', backgroundColor: dbSubTab === 'first_team' ? '#da1b60' : 'transparent', color: '#fff', borderRadius: '4px' }}>Prima Squadra ({firstTeamPlayers.length})</button>
-            <button onClick={() => setDbSubTab('youth')} style={{ padding: '8px 16px', border: 'none', cursor: 'pointer', textTransform: 'uppercase', fontSize: '13px', fontWeight: 'bold', backgroundColor: dbSubTab === 'youth' ? '#ffaa00' : 'transparent', color: '#fff', borderRadius: '4px' }}>Under 20 ({youthPlayers.length})</button>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#0f0c1b', height: '100%', overflow: 'hidden', width: '100%' }}>
+        <div style={{ height: 'auto', minHeight: '75px', padding: '12px 16px', borderBottom: '2px solid #231b3a', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', backgroundColor: '#161224', justifyContent: 'space-between', gap: '10px', boxShadow: '0 4px 12px rgba(0,0,0,0.4)' }}>
+          <div style={{ display: 'flex', gap: '6px', backgroundColor: '#090710', padding: '4px', border: '1px solid #231b3a', borderRadius: '6px', width: isMobile ? '100%' : 'auto', justifyContent: 'center' }}>
+            <button onClick={() => setDbSubTab('first_team')} style={{ flex: isMobile ? 1 : 'none', padding: '6px 12px', border: 'none', cursor: 'pointer', textTransform: 'uppercase', fontSize: '12px', fontWeight: 'bold', backgroundColor: dbSubTab === 'first_team' ? '#da1b60' : 'transparent', color: '#fff', borderRadius: '4px' }}>Prima Squadra ({firstTeamPlayers.length})</button>
+            <button onClick={() => setDbSubTab('youth')} style={{ flex: isMobile ? 1 : 'none', padding: '6px 12px', border: 'none', cursor: 'pointer', textTransform: 'uppercase', fontSize: '12px', fontWeight: 'bold', backgroundColor: dbSubTab === 'youth' ? '#ffaa00' : 'transparent', color: '#fff', borderRadius: '4px' }}>Under 20 ({youthPlayers.length})</button>
           </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div style={{ display: 'flex', gap: '8px', width: isMobile ? '100%' : 'auto', justifyContent: 'center' }}>
             <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUploadOCR} style={{ display: 'none' }} />
-            <button onClick={() => fileInputRef.current.click()} disabled={isUploading} style={{ backgroundColor: '#da1b60', color: '#fff', border: 'none', padding: '10px 20px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '6px' }}>Carica Foto Rosa</button>
-            {players.length > 0 && <button onClick={handleClearAllData} style={{ backgroundColor: 'transparent', border: '2px solid #ef4444', color: '#ef4444', padding: '10px 16px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '6px' }}>Azzera Sede</button>}
+            <button onClick={() => fileInputRef.current.click()} disabled={isUploading} style={{ flex: isMobile ? 1 : 'none', backgroundColor: '#da1b60', color: '#fff', border: 'none', padding: '8px 14px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '6px' }}>Carica Foto Rosa</button>
+            {players.length > 0 && <button onClick={handleClearAllData} style={{ backgroundColor: 'transparent', border: '2px solid #ef4444', color: '#ef4444', padding: '8px 12px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '6px' }}>Azzera</button>}
           </div>
         </div>
 
-        <div style={{ flex: 1, padding: '24px', overflowY: 'auto', backgroundColor: '#090710' }}>
-          {visibleList.length === 0 ? <div style={{ textAlign: 'center', padding: '64px', color: '#64748b', fontSize: '16px', fontWeight: 'bold', textTransform: 'uppercase', border: '2px dashed #231b3a', backgroundColor: '#140f24', borderRadius: '8px' }}>Nessun calciatore scansionato per il club {clubName.toUpperCase()}. Carica uno screenshot della rosa.</div> : (
-            <div style={{ backgroundColor: '#140f24', border: '2px solid #231b3a', borderRadius: '8px', overflowX: 'auto', boxShadow: '0 15px 30px rgba(0,0,0,0.5)' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '850px' }}>
+        {/* CONTENITORE TABELLA PROTETTO CON OVERFLOW ORIZZONTALE PER EVITARE ROTTURE SU MOBILE */}
+        <div style={{ flex: 1, padding: isMobile ? '12px' : '24px', overflowY: 'auto', backgroundColor: '#090710', width: '100%', boxSizing: 'border-box' }}>
+          {visibleList.length === 0 ? <div style={{ textAlign: 'center', padding: '32px', color: '#64748b', fontSize: '14px', fontWeight: 'bold', border: '2px dashed #231b3a', backgroundColor: '#140f24', borderRadius: '8px' }}>Nessun calciatore in archivio per il club {clubName.toUpperCase()}.</div> : (
+            <div style={{ backgroundColor: '#140f24', border: '2px solid #231b3a', borderRadius: '8px', overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: isMobile ? '600px' : '850px' }}>
                 <thead>
                   <tr style={{ backgroundColor: '#1d1733', borderBottom: '3px solid #090710' }}>
-                    <th onClick={() => handleSort('name')} style={{ padding: '16px 14px', color: '#ffffff', fontSize: '13px', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', borderRight: '1px solid #231b3a', fontWeight: '900' }}>
-                      Nome {sortField === 'name' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}
-                    </th>
-                    <th onClick={() => handleSort('position')} style={{ padding: '16px 14px', color: '#ffffff', fontSize: '13px', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', borderRight: '1px solid #231b3a', fontWeight: '900' }}>
-                      Ruolo {sortField === 'position' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}
-                    </th>
-                    <th onClick={() => handleSort('age')} style={{ padding: '16px 14px', color: '#ffffff', fontSize: '13px', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', textAlign: 'center', borderRight: '1px solid #231b3a', fontWeight: '900' }}>
-                      Età {sortField === 'age' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}
-                    </th>
-                    <th onClick={() => handleSort('pres')} style={{ padding: '16px 14px', color: '#ffffff', fontSize: '13px', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', textAlign: 'center', borderRight: '1px solid #231b3a', fontWeight: '900' }}>
-                      Pres {sortField === 'pres' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}
-                    </th>
-                    <th onClick={() => handleSort('gol')} style={{ padding: '16px 14px', color: '#ffffff', fontSize: '13px', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', textAlign: 'center', borderRight: '1px solid #231b3a', fontWeight: '900' }}>
-                      Gol {sortField === 'gol' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}
-                    </th>
-                    <th onClick={() => handleSort('mv')} style={{ padding: '16px 14px', color: '#ffffff', fontSize: '13px', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', textAlign: 'center', borderRight: '1px solid #231b3a', fontWeight: '900' }}>
-                      M.V. {sortField === 'mv' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}
-                    </th>
-                    <th onClick={() => handleSort('ingaggio')} style={{ padding: '16px 14px', color: '#ffffff', fontSize: '13px', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', textAlign: 'center', borderRight: '1px solid #231b3a', fontWeight: '900' }}>
-                      Ingaggio {sortField === 'ingaggio' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}
-                    </th>
-                    <th onClick={() => handleSort('valore')} style={{ padding: '16px 14px', color: '#ffffff', fontSize: '13px', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', textAlign: 'right', fontWeight: '900' }}>
-                      Valore {sortField === 'valore' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}
-                    </th>
+                    <th onClick={() => handleSort('name')} style={{ padding: '12px 10px', color: '#ffffff', fontSize: '12px', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', borderRight: '1px solid #231b3a', fontWeight: '900' }}>Nome {sortField === 'name' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}</th>
+                    <th onClick={() => handleSort('position')} style={{ padding: '12px 10px', color: '#ffffff', fontSize: '12px', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', borderRight: '1px solid #231b3a', fontWeight: '900' }}>Ruolo {sortField === 'position' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}</th>
+                    <th onClick={() => handleSort('age')} style={{ padding: '12px 10px', color: '#ffffff', fontSize: '12px', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', textAlign: 'center', borderRight: '1px solid #231b3a', fontWeight: '900' }}>Età {sortField === 'age' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}</th>
+                    <th onClick={() => handleSort('pres')} style={{ padding: '12px 10px', color: '#ffffff', fontSize: '12px', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', textAlign: 'center', borderRight: '1px solid #231b3a', fontWeight: '900' }}>Pres {sortField === 'pres' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}</th>
+                    <th onClick={() => handleSort('gol')} style={{ padding: '12px 10px', color: '#ffffff', fontSize: '12px', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', textAlign: 'center', borderRight: '1px solid #231b3a', fontWeight: '900' }}>Gol {sortField === 'gol' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}</th>
+                    <th onClick={() => handleSort('mv')} style={{ padding: '12px 10px', color: '#ffffff', fontSize: '12px', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', textAlign: 'center', borderRight: '1px solid #231b3a', fontWeight: '900' }}>M.V. {sortField === 'mv' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}</th>
+                    <th onClick={() => handleSort('ingaggio')} style={{ padding: '12px 10px', color: '#ffffff', fontSize: '12px', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', textAlign: 'center', borderRight: '1px solid #231b3a', fontWeight: '900' }}>Ing. {sortField === 'ingaggio' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}</th>
+                    <th onClick={() => handleSort('valore')} style={{ padding: '12px 10px', color: '#ffffff', fontSize: '12px', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', textAlign: 'right', fontWeight: '900' }}>Val {sortField === 'valore' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -693,19 +646,15 @@ function App() {
                     const gol = parseInt(p.attributes?.Gol || p.attributes?.Gls) || 0; const pres = parseInt(p.attributes?.Presenze || p.attributes?.Pres) || 0;
                     const isTopPlayer = (mv >= 7.10 && pres > 2) || gol >= 5; const isToxicContract = wNum > 1200 && (mv < 6.50 && pres > 3);
                     return (
-                      <tr key={idx} onClick={() => setSelectedProfile(p)} style={{ borderBottom: '1px solid #231b3a', cursor: 'pointer', backgroundColor: selectedProfile?.name === p.name ? '#271e44' : 'transparent', transition: 'background 0.2s' }}>
-                        <td style={{ padding: '16px 14px', fontWeight: 'bold', color: '#ffffff', fontSize: '15px' }}>
-                          {p.name} 
-                          {isTopPlayer && <span style={{ marginLeft: '8px', fontSize: '10px', backgroundColor: '#34d399', color: '#0f0c1b', padding: '3px 8px', borderRadius: '4px', fontWeight: '900' }}>TOP</span>} 
-                          {isToxicContract && <span style={{ marginLeft: '8px', fontSize: '10px', backgroundColor: '#ef4444', color: '#ffffff', padding: '3px 8px', borderRadius: '4px', fontWeight: '900' }}>TOSSICO</span>}
-                        </td>
-                        <td style={{ padding: '16px 14px', color: '#22d3ee', fontWeight: '700', fontSize: '14px' }}>{p.position || 'N/D'}</td>
-                        <td style={{ padding: '16px 14px', textAlign: 'center', color: '#f8fafc', fontWeight: 'bold', fontSize: '14px' }}>{p.age || '-'}</td>
-                        <td style={{ padding: '16px 14px', textAlign: 'center', color: '#cbd5e1', fontFamily: 'monospace', fontSize: '14px' }}>{p.attributes?.Presenze || p.attributes?.Pres || '-'}</td>
-                        <td style={{ padding: '16px 14px', textAlign: 'center', color: '#ffffff', fontWeight: 'bold', fontFamily: 'monospace', fontSize: '15px' }}>{p.attributes?.Gol || p.attributes?.Gls || '-'}</td>
-                        <td style={{ padding: '16px 14px', textAlign: 'center', color: '#34d399', fontWeight: 'bold', fontFamily: 'monospace', fontSize: '15px' }}>{p.attributes?.['Media Voto'] || p.attributes?.Mv || '-'}</td>
-                        <td style={{ padding: '16px 14px', textAlign: 'center', color: '#e2e8f0', fontFamily: 'monospace', fontSize: '14px' }}>{p.attributes?.Ingaggio || p.attributes?.Stip || '-'}</td>
-                        <td style={{ padding: '16px 14px', textAlign: 'right', color: '#e2e8f0', fontFamily: 'monospace', fontSize: '14px', fontWeight: '700' }}>{p.attributes?.Valore || p.attributes?.Val || '-'}</td>
+                      <tr key={idx} onClick={() => setSelectedProfile(p)} style={{ borderBottom: '1px solid #231b3a', cursor: 'pointer', backgroundColor: selectedProfile?.name === p.name ? '#271e44' : 'transparent' }}>
+                        <td style={{ padding: '12px 10px', fontWeight: 'bold', color: '#ffffff', fontSize: '14px' }}>{p.name} {isTopPlayer && <span style={{ fontSize: '9px', backgroundColor: '#34d399', color: '#0f0c1b', padding: '1px 4px', borderRadius: '3px', fontWeight: '900' }}>TOP</span>} {isToxicContract && <span style={{ fontSize: '9px', backgroundColor: '#ef4444', color: '#fff', padding: '1px 4px', borderRadius: '3px', fontWeight: '900' }}>TOSSICO</span>}</td>
+                        <td style={{ padding: '12px 10px', color: '#22d3ee', fontWeight: '700', fontSize: '13px' }}>{p.position || 'N/D'}</td>
+                        <td style={{ padding: '12px 10px', textAlign: 'center', color: '#f8fafc', fontWeight: 'bold', fontSize: '13px' }}>{p.age || '-'}</td>
+                        <td style={{ padding: '12px 10px', textAlign: 'center', color: '#cbd5e1', fontFamily: 'monospace', fontSize: '13px' }}>{p.attributes?.Presenze || p.attributes?.Pres || '-'}</td>
+                        <td style={{ padding: '12px 10px', textAlign: 'center', color: '#ffffff', fontWeight: 'bold', fontFamily: 'monospace', fontSize: '14px' }}>{p.attributes?.Gol || p.attributes?.Gls || '-'}</td>
+                        <td style={{ padding: '12px 10px', textAlign: 'center', color: '#34d399', fontWeight: 'bold', fontFamily: 'monospace', fontSize: '14px' }}>{p.attributes?.['Media Voto'] || p.attributes?.Mv || '-'}</td>
+                        <td style={{ padding: '12px 10px', textAlign: 'center', color: '#e2e8f0', fontFamily: 'monospace', fontSize: '13px' }}>{p.attributes?.Ingaggio || p.attributes?.Stip || '-'}</td>
+                        <td style={{ padding: '12px 10px', textAlign: 'right', color: '#e2e8f0', fontFamily: 'monospace', fontSize: '13px', fontWeight: '700' }}>{p.attributes?.Valore || p.attributes?.Val || '-'}</td>
                       </tr>
                     );
                   })}
@@ -718,54 +667,68 @@ function App() {
     );
   }
 
+  // LOGICA DI RENDERING STILI SIDEBAR / BOTTOM BAR ORIZZONTALE SCORREVOLE PER SMARTPHONE
+  const navContainerStyle = isMobile ? {
+    position: 'fixed', bottom: 0, left: 0, right: 0, height: '70px', width: '100%',
+    backgroundColor: '#140f24', borderTop: '2px solid #231b3a', display: 'flex',
+    flexDirection: 'row', alignItems: 'center', padding: '0 10px', gap: '14px',
+    overflowX: 'auto', zIndex: 1000, boxShadow: '0 -4px 20px rgba(0,0,0,0.6)',
+    WebkitOverflowScrolling: 'touch'
+  } : {
+    width: '90px', backgroundColor: '#140f24', borderRight: '2px solid #231b3a',
+    display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '20px',
+    gap: '16px', zIndex: 10, boxShadow: '4px 0 15px rgba(0,0,0,0.5)'
+  };
+
+  const navButtonStyle = (room, color) => ({
+    background: activeRoom === room ? '#271e44' : 'none',
+    border: activeRoom === room ? `2px solid ${color}` : '2px solid transparent',
+    color: activeRoom === room ? color : '#475569',
+    padding: '10px', borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+  });
+
   return (
-    <div style={{ display: 'flex', height: '100vh', backgroundColor: '#090710', color: '#cbd5e1', fontFamily: 'system-ui, -apple-system, sans-serif', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', height: '100vh', flexDirection: isMobile ? 'column' : 'row', backgroundColor: '#090710', color: '#cbd5e1', fontFamily: 'system-ui, -apple-system, sans-serif', overflow: 'hidden' }}>
       
-      {/* SIDEBAR NAVIGATION COMPLETA AD 8 REPARTI CHIAVE */}
-      <div style={{ width: '90px', backgroundColor: '#140f24', borderRight: '2px solid #231b3a', display: 'flex', flexDirection: 'column', textAlignment: 'center', alignItems: 'center', paddingTop: '20px', gap: '16px', zIndex: 10, boxShadow: '4px 0 15px rgba(0,0,0,0.5)' }}>
-        <div style={{ width: '52px', height: '52px', backgroundColor: '#da1b60', display: 'flex', alignItems: 'center', color: '#fff', fontWeight: '900', fontSize: '22px', borderRadius: '10px', justifyContent: 'center' }}>FM</div>
+      {/* SIDEBAR DESKTOP CHE DIVENTA UN BARRA FLUIDA INFERIORE SU SMARTPHONE */}
+      <div style={navContainerStyle}>
+        {!isMobile && <div style={{ width: '52px', height: '52px', backgroundColor: '#da1b60', display: 'flex', alignItems: 'center', color: '#fff', fontWeight: '900', fontSize: '22px', borderRadius: '10px', justifyContent: 'center' }}>FM</div>}
         
-        <button onClick={() => setActiveRoom('board')} title="Tavolo Plenaria" style={{ background: activeRoom === 'board' ? '#271e44' : 'none', border: activeRoom === 'board' ? '2px solid #a855f7' : '2px solid transparent', color: activeRoom === 'board' ? '#a855f7' : '#475569', padding: '12px', borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s' }}><Users size={24} /></button>
-        <button onClick={() => setActiveRoom('vice')} title="Ufficio Vice Allenatore" style={{ background: activeRoom === 'vice' ? '#271e44' : 'none', border: activeRoom === 'vice' ? '2px solid #22d3ee' : '2px solid transparent', color: activeRoom === 'vice' ? '#22d3ee' : '#475569', padding: '12px', borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s' }}><Sliders size={24} /></button>
-        <button onClick={() => setActiveRoom('scout')} title="Ufficio Capo Osservatore" style={{ background: activeRoom === 'scout' ? '#271e44' : 'none', border: activeRoom === 'scout' ? '2px solid #f43f5e' : '2px solid transparent', color: activeRoom === 'scout' ? '#f43f5e' : '#475569', padding: '12px', borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s' }}><Search size={24} /></button>
-        <button onClick={() => setActiveRoom('ds')} title="Ufficio Direttore Sportivo" style={{ background: activeRoom === 'ds' ? '#271e44' : 'none', border: activeRoom === 'ds' ? '2px solid #fbbf24' : '2px solid transparent', color: activeRoom === 'ds' ? '#fbbf24' : '#475569', padding: '12px', borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s' }}><Briefcase size={24} /></button>
-        <button onClick={() => setActiveRoom('cfo')} title="Ufficio CFO Finanze" style={{ background: activeRoom === 'cfo' ? '#271e44' : 'none', border: activeRoom === 'cfo' ? '2px solid #10b981' : '2px solid transparent', color: activeRoom === 'cfo' ? '#10b981' : '#475569', padding: '12px', borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s' }}><TrendingUp size={24} /></button>
-        <button onClick={() => setActiveRoom('press')} title="Ufficio Stampa Conferenze" style={{ background: activeRoom === 'press' ? '#271e44' : 'none', border: activeRoom === 'press' ? '2px solid #ec4899' : '2px solid transparent', color: activeRoom === 'press' ? '#ec4899' : '#475569', padding: '12px', borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s' }}><HelpCircle size={24} /></button>
-        <button onClick={() => setActiveRoom('youth')} title="Ufficio Responsabile Giovanili" style={{ background: activeRoom === 'youth' ? '#271e44' : 'none', border: activeRoom === 'youth' ? '2px solid #ffaa00' : '2px solid transparent', color: activeRoom === 'youth' ? '#ffaa00' : '#475569', padding: '12px', borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s' }}><Award size={24} /></button>
-        <button onClick={() => setActiveRoom('analyst')} title="Ufficio Match Analyst Center" style={{ background: activeRoom === 'analyst' ? '#271e44' : 'none', border: activeRoom === 'analyst' ? '2px solid #3b82f6' : '2px solid transparent', color: activeRoom === 'analyst' ? '#3b82f6' : '#475569', padding: '12px', borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s' }}><Activity size={24} /></button>
+        <button onClick={() => setActiveRoom('board')} title="Tavolo Plenaria" style={navButtonStyle('board', '#a855f7')}><Users size={22} /></button>
+        <button onClick={() => setActiveRoom('vice')} title="Ufficio Vice Allenatore" style={navButtonStyle('vice', '#22d3ee')}><Sliders size={22} /></button>
+        <button onClick={() => setActiveRoom('scout')} title="Ufficio Capo Osservatore" style={navButtonStyle('scout', '#f43f5e')}><Search size={22} /></button>
+        <button onClick={() => setActiveRoom('ds')} title="Ufficio Direttore Sportivo" style={navButtonStyle('ds', '#fbbf24')}><Briefcase size={22} /></button>
+        <button onClick={() => setActiveRoom('cfo')} title="Ufficio CFO Finanze" style={navButtonStyle('cfo', '#10b981')}><TrendingUp size={22} /></button>
+        <button onClick={() => setActiveRoom('press')} title="Ufficio Stampa Conferenze" style={navButtonStyle('press', '#ec4899')}><HelpCircle size={22} /></button>
+        <button onClick={() => setActiveRoom('youth')} title="Ufficio Responsabile Giovanili" style={navButtonStyle('youth', '#ffaa00')}><Award size={22} /></button>
+        <button onClick={() => setActiveRoom('analyst')} title="Ufficio Match Analyst" style={navButtonStyle('analyst', '#3b82f6')}><Activity size={22} /></button>
         
-        <div style={{ width: '44px', height: '2px', backgroundColor: '#231b3a', margin: '6px 0' }}></div>
-        <button onClick={() => setActiveRoom('database')} title="Plancia Organico Database" style={{ background: activeRoom === 'database' ? '#271e44' : 'none', border: activeRoom === 'database' ? '2px solid #da1b60' : '2px solid transparent', color: activeRoom === 'database' ? '#da1b60' : '#475569', padding: '12px', borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s' }}><Database size={24} /></button>
+        {!isMobile && <div style={{ width: '44px', height: '2px', backgroundColor: '#231b3a', margin: '6px 0' }}></div>}
+        <button onClick={() => setActiveRoom('database')} title="Plancia Organico Database" style={navButtonStyle('database', '#da1b60')}><Database size={22} /></button>
       </div>
 
-      {/* RENDERIZZAZIONE CONTESTUALE STANZE SULLO SCHERMO */}
-      {activeRoom !== 'database' && renderChatWindow()}
-      {activeRoom === 'database' && renderMasterDatabase()}
+      {/* CORE VIEWPORT CON RICALCOLO DEL MARGINE INFERIORE SE ATTIVO SU SMARTPHONE */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', paddingBottom: isMobile ? '70px' : '0px' }}>
+        {activeRoom !== 'database' && renderChatWindow()}
+        {activeRoom === 'database' && renderMasterDatabase()}
+      </div>
 
-      {/* FLYOUT COMPATTO ED ENORME AD ALTA LEGGIBILITÀ PER I ATTRIBUTI FILTRATI */}
+      {/* SCHEDA ATTRIBUTI INTUITIVA FLYOUT ADATTIVA PER SCHERMI PICCOLI */}
       {selectedProfile && (
-        <div style={{ position: 'fixed', right: '25px', bottom: '25px', width: '340px', backgroundColor: '#140f24', border: '3px solid #da1b60', padding: '20px', borderRadius: '12px', boxShadow: '0 30px 60px rgba(0,0,0,0.9)', zIndex: 100 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #231b3a', paddingBottom: '12px', marginBottom: '16px', alignItems: 'center' }}>
+        <div style={{ position: 'fixed', right: isMobile ? '10px' : '25px', bottom: isMobile ? '80px' : '25px', left: isMobile ? '10px' : 'auto', width: isMobile ? 'calc(100% - 20px)' : '340px', backgroundColor: '#140f24', border: '3px solid #da1b60', padding: '16px', borderRadius: '12px', boxShadow: '0 30px 60px rgba(0,0,0,0.9)', zIndex: 5000, boxSizing: 'border-box' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #231b3a', paddingBottom: '10px', marginBottom: '12px', alignItems: 'center' }}>
             <div>
-              <span style={{ fontSize: '11px', color: '#da1b60', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.5px' }}>SCHEDA ATTRIBUTI INTUITIVA</span>
-              <h4 style={{ fontSize: '20px', color: '#ffffff', margin: '4px 0 0 0', fontWeight: '900' }}>{selectedProfile.name}</h4>
+              <span style={{ fontSize: '10px', color: '#da1b60', fontWeight: '900', textTransform: 'uppercase' }}>PARAMETRI SCHEDATI</span>
+              <h4 style={{ fontSize: '18px', color: '#ffffff', margin: '2px 0 0 0', fontWeight: '900' }}>{selectedProfile.name}</h4>
             </div>
-            <button onClick={() => setSelectedProfile(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '6px' }}><X size={22} /></button>
+            <button onClick={() => setSelectedProfile(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}><X size={20} /></button>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '380px', overflowY: 'auto', paddingRight: '4px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '15px', padding: '10px 14px', backgroundColor: '#090710', border: '1px solid #231b3a', borderRadius: '6px' }}>
-              <span style={{ color: '#94a3b8', fontWeight: '500' }}>Ruolo Estratto</span>
-              <span style={{ color: '#22d3ee', fontWeight: '900', textTransform: 'uppercase' }}>{selectedProfile.position || 'N/D'}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '15px', padding: '10px 14px', backgroundColor: '#090710', border: '1px solid #231b3a', borderRadius: '6px' }}>
-              <span style={{ color: '#94a3b8', fontWeight: '500' }}>Età</span>
-              <span style={{ color: '#ffffff', fontWeight: '900' }}>{selectedProfile.age || 'N/D'}</span>
-            </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '280px', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', padding: '8px 12px', backgroundColor: '#090710', border: '1px solid #231b3a', borderRadius: '6px' }}><span style={{ color: '#94a3b8' }}>Ruolo</span><span style={{ color: '#22d3ee', fontWeight: '900' }}>{selectedProfile.position || 'N/D'}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', padding: '8px 12px', backgroundColor: '#090710', border: '1px solid #231b3a', borderRadius: '6px' }}><span style={{ color: '#94a3b8' }}>Età</span><span style={{ color: '#ffffff', fontWeight: '900' }}>{selectedProfile.age || 'N/D'}</span></div>
             {Object.entries(selectedProfile.attributes).map(([key, val]) => (
-              <div key={key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '15px', padding: '10px 14px', backgroundColor: '#090710', border: '1px solid #231b3a', borderRadius: '6px' }}>
-                <span style={{ color: '#94a3b8', fontWeight: '500' }}>{key}</span>
-                <span style={{ color: '#34d399', fontWeight: '900', fontFamily: 'monospace', fontSize: '16px' }}>{String(val)}</span>
-              </div>
+              <div key={key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', padding: '8px 12px', backgroundColor: '#090710', border: '1px solid #231b3a', borderRadius: '6px' }}><span style={{ color: '#94a3b8' }}>{key}</span><span style={{ color: '#34d399', fontWeight: '900', fontFamily: 'monospace' }}>{String(val)}</span></div>
             ))}
           </div>
         </div>
