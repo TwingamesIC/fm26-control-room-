@@ -158,7 +158,7 @@ function App() {
       setScoutAnalysisResult(result.response.text());
     } catch (err) {
       setScoutAnalysisResult(`Errore osservatore: ${err.message}`);
-    } {
+    } finally {
       setIsAnalyzingScout(false);
     }
   }
@@ -176,7 +176,7 @@ function App() {
       setPressAnalysisResult(result.response.text());
     } catch (err) {
       setPressAnalysisResult(`Errore addetto stampa: ${err.message}`);
-    } {
+    } finally {
       setIsAnalyzingPress(false);
     }
   }
@@ -194,7 +194,7 @@ function App() {
       setAnalystAnalysisResult(result.response.text());
     } catch (e) {
       setAnalystAnalysisResult("Errore di match analysis visiva.");
-    } {
+    } finally {
       setIsAnalyzingAnalyst(false);
     }
   }
@@ -206,7 +206,7 @@ function App() {
     setFinanceAnalysisResult("Il CFO sta decifrando le proiezioni di bilancio societarie...");
     try {
       const imagePart = await fileToGenerativePart(file);
-      const prompt = `Sei il CFO del club "${clubName}". Estrai Cassa, Budget Mercato e Budget Ingaggi da questo screen finanziario di FM26. Rispondi SOLO con JSON puro tra parentesi graffe, senza scritte o markdown: { "balance": numero, "transfer_budget": numero, "wage_budget": numero, "analysis": "analisi moneyball dettagliata su come sviluppare un sistema economico sostenibile per il club" }`;
+      const prompt = `Sei il CFO del club "${clubName}". Estrai Cassa, Budget Mercato e Budget Ingaggi da questo screen finanziario di FM26. Rispondi SOLO con JSON puro tra parentesi graffe, senza scritte o markdown: { "balance": numero, "transfer_budget": numero, "wage_budget": numero, "analysis": "analisi moneyball dettagliata su come sviluppare un system economico sostenibile per il club" }`;
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const result = await model.generateContent([prompt, imagePart]);
       const jsonClean = result.response.text().replace(/```json/g, '').replace(/```/g, '').trim();
@@ -218,7 +218,7 @@ function App() {
       }
     } catch (e) {
       setFinanceAnalysisResult("Errore scansione contabile visiva.");
-    } {
+    } finally {
       setIsAnalyzingFinance(false);
     }
   }
@@ -227,7 +227,7 @@ function App() {
     const file = event.target.files[0];
     if (!file) return;
     setIsAnalyzingYouth(true);
-    setYouthAnalysisResult("Il Wiwaio sta valutando la crescita atletica...");
+    setYouthAnalysisResult("Il Vivaio sta valutando la crescita atletica...");
     try {
       const imagePart = await fileToGenerativePart(file);
       const prompt = `Sei il Responsabile Giovanili del club "${clubName}". Esamina lo screenshot profilo Under 20 di FM26. Detta i punti di forza, la personalità, il livello di determinazione e stila il ruolo e focus di allenamento perfetto per massimizzare la crescita nel Match Engine.`;
@@ -236,7 +236,7 @@ function App() {
       setYouthAnalysisResult(result.response.text());
     } catch (e) {
       setYouthAnalysisResult("Errore lettura vivaio.");
-    } {
+    } finally {
       setIsAnalyzingYouth(false);
     }
   }
@@ -280,7 +280,7 @@ function App() {
     } catch (err) { setUploadError(`Errore OCR: ${err.message}`); } finally { setIsUploading(false); }
   }
 
-  // CORE ENGINE CHAT: SEGREGRAZIONE DELLE CHAT CON MODELLO STABILE "GEMINI-1.5-FLASH"
+  // CORE ENGINE CHAT: COLLEGAMENTO CORRETTO E SICURO DELLE STANZE SULLA MEMORIA STORICA
   async function handleSendMessage() {
     if (!chatInput.trim()) return;
     const currentInputText = chatInput;
@@ -346,27 +346,34 @@ function App() {
         `;
       }
 
-      // CAMBIATO IN GEMINI-1.5-FLASH PER BLOCCARE GLI ERRORI 400 DI BAD REQUEST
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const result = await model.generateContent(instructionPrompt);
       const aiMessageObj = { sender_role: activeRoom, content: result.response.text() };
       setMessages(prev => [...prev, aiMessageObj]);
       try { await supabase.from('club_messages').insert([aiMessageObj]); } catch(e) {}
-    } catch (error) { console.error(error); } {
-      setIsTyping(false);
-    }
+    } catch (error) { console.error(error); } finally { setIsTyping(false); }
   }
 
+  // ==========================================
+  // FIX CRITICO: RIMOZIONE DELL'ARRAY DI OGGETTI CHE CAUSAVA L'ERRORE 400 BAD REQUEST
+  // ==========================================
   async function handleAnalyzeExternalTactic() {
     if (!externalTacticInput.trim()) return;
     setIsAnalyzingTactic(true); setTacticAnalysisResult("Incrocio flussi tattici avanzati...");
     try {
       const currentSquadContext = players.map(p => ({ nome: p.name, ruolo: p.position, stats: p.attributes }));
       const prompt = `Analizza questa tattica: """${externalTacticInput}""" sulla rosa ${clubName}: ${JSON.stringify(currentSquadContext.slice(0, 40))}. Dividi l'output in FASE 1 (70% analisi modulo nel Match Engine) e FASE 2 (30% screening nomi esatti promossi e bocciati da cedere).`;
+      
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const result = await model.generateContent([prompt, currentSquadContext]);
+      
+      // SOLUZIONE: Invochiamo passando solo la stringa di testo compilata, eliminando il blocco JS puro!
+      const result = await model.generateContent(prompt);
       setTacticAnalysisResult(result.response.text());
-    } catch (error) { setTacticAnalysisResult("Errore."); } finally { setIsAnalyzingTactic(false); }
+    } catch (error) { 
+      setTacticAnalysisResult("Errore di elaborazione flussi nell'analisi tattica visiva."); 
+    } finally { 
+      setIsAnalyzingTactic(false); 
+    }
   }
 
   function handleSimulateTransfer() {
@@ -406,9 +413,6 @@ function App() {
     }
   }
 
-  // ==========================================
-  // APERTURA INTERFACCIA CHAT INTERAMENTE RIPENSATA CONTRO IL VUOTO DISPERSIVO
-  // ==========================================
   function renderChatWindow() {
     const visibleMessages = messages.filter(msg => {
       if (msg.sender_role === 'system') return true;
@@ -420,7 +424,6 @@ function App() {
 
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#0d0a16', height: '100%' }}>
-        {/* BARRA SUPERIORE TITOLI ENORMI */}
         <div style={{ height: '75px', padding: '0 24px', borderBottom: '2px solid #231b3a', display: 'flex', alignItems: 'center', backgroundColor: '#140f24', justifyContent: 'space-between', boxShadow: '0 4px 12px rgba(0,0,0,0.4)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <MessageSquare size={24} color="#da1b60" /> 
@@ -432,11 +435,9 @@ function App() {
         </div>
 
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden', flexDirection: 'row' }}>
-          {/* VANO CENTRALIZZATO CHAT CON CARATTERI ESPANSI */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', borderRight: '2px solid #231b3a', backgroundColor: '#090710' }}>
             <div ref={chatContainerRef} style={{ flex: 1, padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               
-              {/* SCHERMATA EMPTY STATE COMPATTA CONTRO LO SPAZIO DISPERSIVO */}
               {visibleMessages.length === 0 ? (
                 <div style={{ margin: 'auto', maxWidth: '600px', backgroundColor: '#140f24', border: '2px solid #da1b60', padding: '32px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}>
                   <Users size={48} color="#da1b60" style={{ margin: '0 auto 16px auto' }} />
@@ -477,7 +478,6 @@ function App() {
               )}
             </div>
 
-            {/* SEZIONE INPUT GRANDE E AD ALTO CONTRASTO */}
             <div style={{ padding: '20px', backgroundColor: '#140f24', borderTop: '2px solid #231b3a', boxShadow: '0 -4px 15px rgba(0,0,0,0.3)' }}>
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                 <ChevronRight style={{ position: 'absolute', left: '14px', color: '#da1b60' }} size={20} />
@@ -487,7 +487,6 @@ function App() {
             </div>
           </div>
 
-          {/* PANNELLO STRUMENTI SULLA DESTRA ORDINATO E COMPATTO */}
           <div style={{ width: '380px', backgroundColor: '#0f0c1b', padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px', borderLeft: '1px solid #231b3a' }}>
             {activeRoom === 'board' && (
               <>
@@ -508,8 +507,8 @@ function App() {
             {activeRoom === 'vice' && (
               <>
                 <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#22d3ee', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Laboratorio Tattico</h3>
-                <textarea value={externalTacticInput} onChange={(e) => setExternalTacticInput(e.target.value)} placeholder="Incolla qui l'analisi testo di una tattica esterna (es. da FMScout)..." style={{ width: '93%', height: '150px', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '12px', color: '#ffffff', fontSize: '14px', resize: 'none', borderRadius: '6px' }} />
-                <button onClick={handleAnalyzeExternalTactic} disabled={isAnalyzingTactic} style={{ backgroundColor: '#22d3ee', color: '#0f0b1b', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer', width: '100%' }}>Avvia Convalida Modulo</button>
+                <textarea value={externalTacticInput} onChange={(e) => setExternalTacticInput(e.target.value)} placeholder="Incolla qui l'analisi testo o il link di una tattica esterna (es. da FMScout)..." style={{ width: '93%', height: '150px', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '12px', color: '#ffffff', fontSize: '14px', resize: 'none', borderRadius: '6px' }} />
+                <button onClick={handleAnalyzeExternalTactic} disabled={isAnalyzingTactic} style={{ backgroundColor: '#22d3ee', color: '#0f0b1b', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer', width: '100%' }}>{isAnalyzingTactic ? "Incrocio Dati..." : "Avvia Convalida Modulo"}</button>
                 {tacticAnalysisResult && <div style={{ backgroundColor: '#090710', border: '1px solid #231b3a', padding: '14px', fontSize: '13px', whiteSpace: 'pre-line', color: '#e2e8f0', borderRadius: '6px', lineHeight: '1.5' }}>{tacticAnalysisResult}</div>}
               </>
             )}
@@ -556,7 +555,7 @@ function App() {
                   <button onClick={handleSimulateTransfer} style={{ backgroundColor: '#10b981', color: '#0f0c1b', border: 'none', padding: '8px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '4px', marginTop: '10px', width: '100%' }}>Calcola Ammortamento</button>
                   {simResult && <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#090710', borderLeft: `3px solid ${simResult.color}`, fontSize: '12px', color: '#fff' }}>{simResult.status}</div>}
                 </div>
-                <button onClick={handleFinanceAudit} disabled={isAuditing} style={{ backgroundColor: '#da1b60', color: '#fff', border: 'none', padding: '8px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '4px', width: '100%' }}>Genera Audit Contabile</button>
+                <button onClick={handleFinanceAudit} disabled={isAuditing} style={{ backgroundColor: '#da1b60', color: '#fff', border: 'none', padding: '8px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '4px', width: '100%' }}>{isAuditing ? "Analisi..." : "Genera Audit Contabile"}</button>
                 {financeAudit && <div style={{ backgroundColor: '#090710', border: '1px solid #231b3a', padding: '10px', fontSize: '12px', whiteSpace: 'pre-line', maxHeight: '100px', overflowY: 'auto', color: '#fff', borderRadius: '4px' }}>{financeAudit}</div>}
               </>
             )}
@@ -591,7 +590,7 @@ function App() {
             {activeRoom === 'analyst' && (
               <>
                 <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#3b82f6', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Match Analysis Center</h3>
-                <input type="file" accept="image/*" ref={analystInputRef} onChange={handleAnalystImageUpload} style={{ display: 'none' }} />
+                <input type="file" accept="image/*" ref={analystInputRef} onChange={handleAnalystImageUpload} style={{ display: 'none' }} style={{ display: 'none' }} />
                 <button onClick={() => analystInputRef.current.click()} disabled={isAnalyzingAnalyst} style={{ width: '100%', backgroundColor: '#3b82f6', color: '#fff', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer' }}>Carica Tabellino Gara</button>
                 {analystAnalysisResult && <div style={{ backgroundColor: '#090710', border: '1px solid #231b3a', padding: '14px', fontSize: '13px', whiteSpace: 'pre-line', color: '#cbd5e1', borderRadius: '6px' }}>{analystAnalysisResult}</div>}
               </>
