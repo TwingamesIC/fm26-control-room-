@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+@theme {
+  --color-fm-bg: #110c22;
+  --color-fm-panel: #1e143c;
+  --color-fm-panel-light: #2d1b4e;
+  --color-fm-magenta: #e6005c;
+  --color-fm-green: #00ff87;
+  --color-fm-cyan: #00e5ff;
+}
+
+body {
+  background-color: #110c22;
+  color: #cbd5e1;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
