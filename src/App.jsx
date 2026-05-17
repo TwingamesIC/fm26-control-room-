@@ -191,9 +191,9 @@ function App() {
     try { await supabase.from('club_messages').insert([userMessageObj]); } catch(e) { setCloudStatus('offline') }
 
     try {
-      const squadContext = players.map(p => ({ nome: p?.name, ruolo: p?.position, stats: p?.attributes, note_mister: p?.notes || '' }));
-      const shortlistContext = shortlist.slice(0, 15).map(s => ({ nome: s?.name, ruolo: s?.position, verdetto: s?.verdict }));
-      const matchesContext = matches.slice(0, 5).map(m => ({ avversario: m?.opponent, risultato: m?.result, analisi: m?.analysis }));
+      const squadContext = players.map(p => ({ nome: p?.name || 'Sconosciuto', ruolo: p?.position || 'N/D', stats: p?.attributes || {}, note_mister: p?.notes || '' }));
+      const shortlistContext = shortlist.slice(0, 15).map(s => ({ nome: s?.name || 'Target', ruolo: s?.position || 'N/D', verdetto: s?.verdict || 'VAGLIATO' }));
+      const matchesContext = matches.slice(0, 5).map(m => ({ avversario: m?.opponent || 'Gara', risultato: m?.result || 'N/D', analisi: m?.analysis || '' }));
 
       const businessChronology = updatedMessages.slice(-45).map(m => {
         let roleLabel = m.sender_role ? String(m.sender_role).toUpperCase() : 'MISTER';
@@ -202,7 +202,7 @@ function App() {
       }).join('\n');
 
       let instructionPrompt = `
-        SEI LO STAFF REALE, PASSIONALE E CHIACCHIERONE DEL CLUB "${clubName.toUpperCase()}" SU FOOTBALL MANAGER 2026.
+        SEI LO STAFF REALISTICO, PASSIONALE E CHIACCHIERONE DEL CLUB "${clubName.toUpperCase()}" SU FOOTBALL MANAGER 2026.
         Il tuo Mister (Omiserez) ti dice: "${currentInputText}"
         
         ⚠️ PARAMETRI IDENTITÀ CARATTERIALE DEL MISTER (REAGISCI DI CONSEGUENZA):
@@ -212,8 +212,8 @@ function App() {
         - Filosofia di Campo: ${tacticalFocus.toUpperCase()}
 
         REGOLE INTERNE CARATTERE DELLO STAFF (VIETATO COMPORTARSI DA BOT):
-        - VICE ALLENATORE: Chiama il mister "Mister", parla di campo, sudore e spogliatoio. Odia i nerd dei dati, è sanguigno.
-        - DIRETTORE SPORTIVO: Squalo del calciomercato, parla di commissioni, procuratori avidi, e sotterfugi da Hotel Gallia.
+        - VICE ALLENATORE: Dice "Mister", è un uomo di campo verace, odia i nerd dei dati, usa metafore spavalde, difende lo spogliatoio.
+        - DIRETTORE SPORTIVO: Squalo del calciomercato, parla sempre di plusvalenze, agenti avidi, scadenze contrattuali e furbate.
         - CHIEF SCOUT: Stravede per i ragazzi prodigio tecnici (wonderkids), si gasa per i dribbling e disprezza i vecchi bidoni.
         - CFO FINANZE: Ironico, sardonico, tirchio fino al midollo, ti rimprovera se spendi troppo e si lamenta dei budget.
         - ADDETTO STAMPA: Pettegolo, sa le trappole dei giornalisti locali e adora la tensione dei titoli sui giornali.
@@ -233,7 +233,7 @@ function App() {
       if (activeRoom === 'board') {
         instructionPrompt += `\nREGOLE TAVOLO PLENARIA: Rispondi simulando un dibattito acceso e divertente al tavolone in cui TUTTI E 7 i collaboratori intervengono uno dopo l'altro con scambi di battute spontanei ed ironici tra di loro.`;
       } else {
-        instructionPrompt += `\nSTANZA SINGOLA ATTIVA: SEI NELL'UFFICIO PRIVATO DI '${activeRoom.toUpperCase()}'. Rispondi al Mister interpretando esclusivamente il tuo personaggio a quattrocchi senza peli sulla lingua.`;
+        instructionPrompt += `\nSTANZA SINGOLA ATTIVA: SEI NELL'UFFICIO PRIVATO DI '${activeRoom.toUpperCase()}'. Rispondi al Mister interpretando esclusivamente il tuo personaggio a quattrocchi senza mezzi termini.`;
       }
 
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
@@ -244,7 +244,7 @@ function App() {
     } catch (error) { console.error(error); } finally { setIsTyping(false); }
   }
 
-  // CARICAMENTI MULTIMEDIALI CON SCRITTURA LIVE IN CHAT E RE-DIRECT SMARTPHONE
+  // ANALISI GRAFICHE MULTIMEDIALI BLINDATE CONTRO I NULL POINTERS
   async function handleScoutImageUpload(event) {
     const file = event.target.files[0]; if (!file) return; setIsTyping(true); if (isMobile) setMobileViewTab('chat');
     try {
@@ -316,54 +316,58 @@ function App() {
     } catch (e) { console.error(e); } finally { setIsTyping(false); }
   }
 
+  // ==========================================
+  // CORREZIONE DEL ROGUE SEMICOLON (;) NELL'OGGETTO aiMsg DI handleYouthImageUpload
+  // ==========================================
   async function handleYouthImageUpload(event) {
     const file = event.target.files[0]; if (!file) return; setIsTyping(true); if (isMobile) setMobileViewTab('chat');
     try {
       const reader = new FileReader(); reader.onloadend = async () => {
-        const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
-        const prompt = `Sei il Responsabile Giovanili del club "${clubName}". Esamina lo screen profilo Under 20 di FM26 e dai una valutazione entusiasta, paterna e protettiva delle potenzialità reali del ragazzo.`;
+        const base64Data = reader.result.split(',')[1];
+        const imagePart = { inlineData: { data: base64Data, mimeType: file.type } };
+        const prompt = `Sei il Responsabile Giovanili del club "${clubName}". Esamina lo screen profilo Under 20 di FM26 e dai una valutazione entusiasta e protettiva delle potenzialità reali del ragazzo.`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]);
-        const userMsg = { sender_role: `user:youth`, content: `📷 Mister ha scansionato il cartellino di un... giovane wonderkid del vivaio.` };
-        const aiMsg = { sender_role: 'youth', content: result.response.text(); }; setMessages(prev => [...prev, userMsg, aiMsg]);
+        
+        const userMsg = { sender_role: `user:youth`, content: `📷 Mister ha scansionato il cartellino di un giovane wonderkid del vivaio.` };
+        // RIMOSSO IL VECCHIO PUNTO E VIRGOLA ERRORE DI SINTASSI CHE CAUSAVA IL BLOCCO
+        const aiMsg = { sender_role: 'youth', content: result.response.text() }; 
+        setMessages(prev => [...prev, userMsg, aiMsg]);
         try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e){}
       }; reader.readAsDataURL(file);
-    } catch (e) { console.error(e); } finally { setIsTyping(false); }
+    } catch (e) { console.error(file); } finally { setIsTyping(false); }
   }
 
-  // ==========================================
-  // PROTEZIONE SYNC INTERFACCIA: SANITIZZAZIONE FORZATA DI ETA/AGE AD INT CONTRO I CRASH DI SMARTPHONE
-  // ==========================================
+  // SANITIZZAZIONE OCR INTELLIGENTE CONTRO I MISMATCH DI SUPABASE
   async function handleImageUploadOCR(event) {
     const file = event.target.files[0]; if (!file) return; setIsUploading(true);
     try {
       const reader = new FileReader(); reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
-        const prompt = `Estrai i calciatori da questa griglia di FM. Nota abbreviazioni (Val, Anni, Stip, Mv). Rispondi SOLO array JSON puro, senza blocchi markdown o scritte extra: [ { "type": "player", "name": "Nome", "age": "num", "position": "Ruolo", "attributes": { "Gol": "num", "Media Voto": "num", "Presenze": "num", "Ingaggio": "txt", "Valore": "txt" } } ]`;
+        const prompt = `Estrai i calciatori da questa griglia di FM. Nota abbreviazioni (Val, Anni, Stip, Mv). Rispondi SOLO array JSON: [ { "type": "player", "name": "Nome", "age": "num", "position": "Ruolo", "attributes": { "Gol": "num", "Media Voto": "num", "Presenze": "num", "Ingaggio": "txt", "Valore": "txt" } } ]`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]);
         const extractedData = JSON.parse(result.response.text().replace(/```json/g, '').replace(/```/g, '').trim());
         
         if (Array.isArray(extractedData)) {
-          // PROVVEDIMENTO ANTICRASH: CAST FORZATO DEL NUMERO INTERO PER SUPABASE
           const sanitizedData = extractedData.map(p => ({
-            name: p.name || 'Sconosciuto',
-            position: p.position || 'N/D',
-            age: parseInt(p.age) ? parseInt(p.age) : null, 
-            type: p.type || 'player',
-            attributes: p.attributes || {}
+            name: p?.name || 'Sconosciuto',
+            position: p?.position || 'N/D',
+            age: parseInt(p?.age) ? parseInt(p?.age) : null, 
+            type: p?.type || 'player',
+            attributes: p?.attributes || {}
           }));
 
           setPlayers(prev => {
             const list = [...prev]; sanitizedData.forEach(np => {
-              const idx = list.findIndex(x => x.name.toLowerCase().trim() === np.name.toLowerCase().trim());
-              if (idx >= 0) list[idx] = { ...list[idx], ...np, attributes: { ...list[idx].attributes, ...np.attributes } }; else list.push(np);
+              const idx = list.findIndex(x => (x?.name || '').toLowerCase().trim() === (np?.name || '').toLowerCase().trim());
+              if (idx >= 0) list[idx] = { ...list[idx], ...np, attributes: { ...list[idx]?.attributes, ...np?.attributes } }; else list.push(np);
             }); return list;
           });
 
           let { data: dbPlayers } = await supabase.from('players').select('*');
           for (const p of sanitizedData) {
-            const match = dbPlayers?.find(x => x.name.toLowerCase().trim() === p.name.toLowerCase().trim());
+            const match = dbPlayers?.find(x => (x?.name || '').toLowerCase().trim() === (p?.name || '').toLowerCase().trim());
             if (match) {
               await supabase.from('players').update({ age: p.age, position: p.position, attributes: { ...match.attributes, ...p.attributes } }).eq('id', match.id);
             } else {
@@ -392,337 +396,11 @@ function App() {
     } catch (error) { console.error(error); } finally { setIsTyping(false); }
   }
 
-  async function handleFinanceAudit() {
-    setIsTyping(true); if (isMobile) setMobileViewTab('chat');
-    try {
-      const soraPlayersContext = players.map(p => ({ nome: p.name, stipendio: p.attributes?.Ingaggio || '-' }));
-      const prompt = `CFO Club ${clubName}. Redigi un audit finanziario Moneyball sarcastico e protettivo: Cassa €${finances.balance}. Contratti: ${JSON.stringify(soraPlayersContext.slice(0, 30))}`;
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-      const result = await model.generateContent(prompt); const auditOutput = result.response.text();
-      const userMsg = { sender_role: `user:cfo`, content: `📊 Mister ha richiesto lo sblocco di un Audit Contabile Globale in tempo reale.` };
-      const aiMsg = { sender_role: 'cfo', content: auditOutput }; setMessages(prev => [...prev, userMsg, aiMsg]);
-      try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e) {}
-    } catch (e) { console.error(e); } finally { setIsTyping(false); }
-  }
-
-  function renderChatWindow() {
-    const visibleMessages = messages.filter(msg => {
-      if (!msg || !msg.sender_role) return false;
-      if (msg.sender_role === 'system') return true;
-      if (activeRoom === 'board') return msg.sender_role === 'board' || msg.sender_role === 'user:board' || msg.sender_role === 'user';
-      return msg.sender_role === activeRoom || msg.sender_role === `user:${activeRoom}`;
-    });
-
-    return (
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#0d0a16', width: '100%', height: '100%' }}>
-        <div style={{ height: '75px', padding: '0 24px', borderBottom: '2px solid #231b3a', display: 'flex', alignItems: 'center', backgroundColor: '#140f24', justifyContent: 'space-between', boxShadow: '0 4px 12px rgba(0,0,0,0.4)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <MessageSquare size={24} color="#da1b60" /> 
-            <h2 style={{ fontSize: isMobile ? '16px' : '22px', color: '#ffffff', margin: 0, textTransform: 'uppercase', fontWeight: '900' }}>
-              {activeRoom === 'board' ? '🏛️ RIUNIONE PLENARIA CON LO STAFF' : `💼 BRIEFING PRIVATO: ${activeRoom.toUpperCase()}`}
-            </h2>
-          </div>
-        </div>
-
-        {isMobile && (
-          <div style={{ display: 'flex', backgroundColor: '#140f24', borderBottom: '2px solid #231b3a', padding: '8px', gap: '8px' }}>
-            <button onClick={() => setMobileViewTab('chat')} style={{ flex: 1, padding: '12px', fontSize: '14px', fontWeight: '900', border: 'none', borderRadius: '6px', backgroundColor: mobileViewTab === 'chat' ? '#da1b60' : '#090710', color: '#fff', textTransform: 'uppercase' }}>💬 Leggi Dialogo</button>
-            <button onClick={() => setMobileViewTab('tools')} style={{ flex: 1, padding: '12px', fontSize: '14px', fontWeight: '900', border: 'none', borderRadius: '6px', backgroundColor: mobileViewTab === 'tools' ? '#22d3ee' : '#090710', color: '#fff', textTransform: 'uppercase' }}>🛠️ Apri Strumenti</button>
-          </div>
-        )}
-
-        <div style={{ flex: 1, display: 'flex', overflow: 'hidden', flexDirection: isMobile ? 'column' : 'row' }}>
-          {(!isMobile || mobileViewTab === 'chat') && (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', borderRight: isMobile ? 'none' : '2px solid #231b3a', backgroundColor: '#090710' }}>
-              <div ref={chatContainerRef} style={{ flex: 1, padding: isMobile ? '16px' : '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {visibleMessages.map((msg, index) => {
-                  let align = 'flex-start'; let bColor = '#2c2347'; let nameLabel = 'STAFF'; let itemBg = '#140f24';
-                  const role = msg.sender_role ? String(msg.sender_role) : '';
-                  if (role.startsWith('user')) { align = 'flex-end'; bColor = '#da1b60'; nameLabel = 'MISTER (OMISEREZ)'; itemBg = '#1d1433'; }
-                  else if (role === 'vice') { bColor = '#22d3ee'; nameLabel = 'VICE ALLENATORE'; }
-                  else if (role === 'ds') { bColor = '#fbbf24'; nameLabel = 'DIRETTORE SPORTIVO'; }
-                  else if (role === 'scout') { bColor = '#f43f5e'; nameLabel = 'CAPO OSSERVATORE'; }
-                  else if (role === 'cfo') { bColor = '#10b981'; nameLabel = 'CFO FINANZE'; }
-                  else if (role === 'press') { bColor = '#ec4899'; nameLabel = 'UFFICIO STAMPA'; }
-                  else if (role === 'youth') { bColor = '#ffaa00'; nameLabel = 'RESPONSABILE GIOVANILI'; }
-                  else if (role === 'board') { bColor = '#a855f7'; nameLabel = 'VERBALE PLENARIA'; }
-                  return (
-                    <div key={index} style={{ display: 'flex', flexDirection: 'column', alignItems: align, width: '100%' }}>
-                      <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '900', marginBottom: '6px', textTransform: 'uppercase' }}>{nameLabel}</span>
-                      <div style={{ padding: '16px', fontSize: '16px', backgroundColor: itemBg, color: '#ffffff', borderLeft: `4px solid ${bColor}`, borderRadius: '6px', maxWidth: '85%', lineHeight: '1.6', whiteSpace: 'pre-line', boxShadow: '0 4px 10px rgba(0,0,0,0.2)' }}>{msg.content}</div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div style={{ padding: '20px', backgroundColor: '#140f24', borderTop: '2px solid #231b3a', boxShadow: '0 -4px 15px rgba(0,0,0,0.3)' }}>
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                  <ChevronRight style={{ position: 'absolute', left: '14px', color: '#da1b60' }} size={20} />
-                  <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={`Chiacchiera con il reparto ${activeRoom.toUpperCase()}...`} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '16px 50px 16px 42px', fontSize: '16px', color: '#ffffff', borderRadius: '8px', outline: 'none', fontWeight: '500' }} />
-                  <button onClick={handleSendMessage} disabled={isTyping} style={{ position: 'absolute', right: '16px', background: 'none', border: 'none', color: '#da1b60', cursor: 'pointer' }}><Send size={18} /></button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {(!isMobile || mobileViewTab === 'tools') && (
-            <div style={{ width: isMobile ? '100%' : '460px', backgroundColor: '#0f0c1b', padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', borderLeft: isMobile ? 'none' : '2px solid #231b3a', boxSizing: 'border-box', overflowY: 'auto' }}>
-              {activeRoom === 'board' && (
-                <div style={{ backgroundColor: '#140f24', border: '1px solid #231b3a', padding: '16px', borderRadius: '6px', fontSize: '14px', lineHeight: '1.6' }}>
-                  • Calciatori Schedati: <strong style={{ color: '#fff' }}>{players.length}</strong><br />
-                  • Cassa Club Globale: <strong style={{ color: '#10b981' }}>€{finances.balance.toLocaleString()}</strong>
-                </div>
-              )}
-
-              {activeRoom === 'vice' && (
-                <>
-                  <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#22d3ee', fontWeight: '900' }}>Laboratorio Tattico</h3>
-                  <textarea value={externalTacticInput} onChange={(e) => setExternalTacticInput(e.target.value)} placeholder="Incolla l'analisi della tattica o il link esterno..." style={{ width: '94%', height: '140px', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '12px', color: '#ffffff', fontSize: '15px', resize: 'none', borderRadius: '6px' }} />
-                  <button onClick={handleAnalyzeExternalTactic} disabled={isTyping} style={{ backgroundColor: '#22d3ee', color: '#0f0b1b', border: 'none', padding: '14px', fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer', width: '100%' }}>Avvia Convalida Modulo</button>
-                  <div style={{ marginTop: '15px', backgroundColor: '#140f24', padding: '14px', borderRadius: '8px', border: '1px solid #231b3a' }}>
-                    <span style={{ fontSize: '11px', color: '#22d3ee', fontWeight: 'bold', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>📂 Referti Rapidi Moduli Esaminati:</span>
-                    {tacticReports.length === 0 ? <div style={{ fontSize: '12px', color: '#475569', fontStyle: 'italic' }}>Nessun report.</div> : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {tacticReports.map((rep) => (
-                          <button key={rep?.id} onClick={() => setSelectedTacticReport(rep)} style={{ width: '100%', textAlign: 'left', backgroundColor: '#090710', border: '1px solid #231b3a', padding: '10px', borderRadius: '6px', color: '#fff', fontSize: '13px', cursor: 'pointer', fontWeight: 'bold' }}>⚡ {rep?.title}</button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-
-              {activeRoom === 'scout' && (
-                <>
-                  <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#f43f5e', fontWeight: '900' }}>Osservatorio Acquisti</h3>
-                  <input type="file" accept="image/*" ref={scoutInputRef} onChange={handleScoutImageUpload} style={{ display: 'none' }} />
-                  <button onClick={() => scoutInputRef.current.click()} disabled={isTyping} style={{ width: '100%', backgroundColor: '#f43f5e', color: '#ffffff', border: 'none', padding: '14px', fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer' }}>Carica Foto Profilo Obiettivo</button>
-                </>
-              )}
-
-              {activeRoom === 'cfo' && (
-                <>
-                  <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#10b981', fontWeight: '900' }}>Contabilità Moneyball</h3>
-                  <input type="file" accept="image/*" ref={financeInputRef} onChange={handleFinanceImageUpload} style={{ display: 'none' }} />
-                  <button onClick={() => financeInputRef.current.click()} disabled={isTyping} style={{ width: '100%', backgroundColor: '#10b981', color: '#0f0c1b', border: 'none', padding: '12px', fontSize: '12px', fontWeight: 'bold', borderRadius: '6px', cursor: 'pointer' }}>Carica Screen Finanze</button>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
-                    <div><label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 'bold' }}>Bilancio (€)</label><input type="number" value={finances.balance} onChange={(e) => updateFinancesCloud('balance', e.target.value)} style={{ width: '92%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '8px', color: '#10b981', fontWeight: 'bold', borderRadius: '4px' }} /></div>
-                    <div><label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 'bold' }}>Budget Mercato (€)</label><input type="number" value={finances.transfer_budget} onChange={(e) => updateFinancesCloud('transfer_budget', e.target.value)} style={{ width: '92%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '8px', color: '#fff', borderRadius: '4px' }} /></div>
-                  </div>
-                  <div style={{ backgroundColor: '#140f24', border: '1px solid #231b3a', padding: '14px', borderRadius: '6px', marginTop: '12px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#fff', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>📊 Simulatore di Ammortamento</span>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <input type="number" value={simCost} onChange={(e) => setSimCost(e.target.value)} placeholder="Costo" style={{ width: '45%', backgroundColor: '#090710', border: '1px solid #231b3a', padding: '6px', color: '#fff', fontSize: '12px', borderRadius: '4px' }} />
-                      <input type="number" value={simWage} onChange={(e) => setSimWage(e.target.value)} placeholder="Stip." style={{ width: '45%', backgroundColor: '#090710', border: '1px solid #231b3a', padding: '6px', color: '#fff', fontSize: '12px', borderRadius: '4px' }} />
-                    </div>
-                    <button onClick={handleSimulateTransfer} style={{ backgroundColor: '#10b981', color: '#0f0c1b', border: 'none', padding: '8px', fontSize: '11px', fontWeight: 'bold', borderRadius: '4px', marginTop: '10px', width: '100%' }}>Calcola Impatto</button>
-                    {simResult && <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#090710', borderLeft: `3px solid ${simResult.color}`, fontSize: '12px', color: '#fff' }}>{simResult.status}</div>}
-                  </div>
-                  <button onClick={handleFinanceAudit} disabled={isTyping} style={{ backgroundColor: '#da1b60', color: '#fff', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', borderRadius: '6px', marginTop: '12px', width: '100%' }}>Genera Audit Contabile</button>
-                </>
-              )}
-
-              {activeRoom === 'press' && (
-                <>
-                  <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#ec4899', fontWeight: '900' }}>Hub Carattere Mister</h3>
-                  <div style={{ backgroundColor: '#140f24', border: '1px solid #231b3a', padding: '12px', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <div>
-                      <label style={{ fontSize: '11px', color: '#ec4899', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>🎭 Personalità Base:</label>
-                      <select value={personality} onChange={(e) => setPersonality(e.target.value)} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '8px', color: '#fff', fontSize: '13px', borderRadius: '4px' }}>
-                        <option value="professional">💼 Professional (Diplomatico)</option>
-                        <option value="aggressive">🔥 Aggressive (Mourinhiano)</option>
-                        <option value="passionate">❤️ Passionate (Sanguigno)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ fontSize: '11px', color: '#ec4899', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>🎙️ Stile di Risposta (Media Style):</label>
-                      <select value={pressStyle} onChange={(e) => setPressStyle(e.target.value)} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '8px', color: '#fff', fontSize: '13px', borderRadius: '4px' }}>
-                        <option value="diplomatic">Istituzionale / Calmo</option>
-                        <option value="sardonic">Ironico / Sardonico (Frecciatine)</option>
-                        <option value="explosive">Furente / Schietto (Fuoco e Fiamme)</option>
-                        <option value="silent">Silenzio Stampa Tattico</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ fontSize: '11px', color: '#ec4899', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>🛡️ Gestione Spogliatoio:</label>
-                      <select value={squadShield} onChange={(e) => setSquadShield(e.target.value)} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '8px', color: '#fff', fontSize: '13px', borderRadius: '4px' }}>
-                        <option value="shield_total">Scudo Totale (La colpa è mia)</option>
-                        <option value="carot_stick">Bastone e Carota (Equilibrato)</option>
-                        <option value="public_audit">Strigliata Pubblica (Tribuna a chi sbaglia)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ fontSize: '11px', color: '#ec4899', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>🥊 Atteggiamento con i Rivali:</label>
-                      <select value={rivalRelation} onChange={(e) => setRivalRelation(e.target.value)} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '8px', color: '#fff', fontSize: '13px', borderRadius: '4px' }}>
-                        <option value="provocative">Provocatore Nato (Mind Games)</option>
-                        <option value="respectful">Signorile / Fair-play</option>
-                        <option value="indifferent">Totale Indifferenza</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ fontSize: '11px', color: '#ec4899', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>📐 Identità di Campo:</label>
-                      <select value={tacticalFocus} onChange={(e) => setTacticalFocus(e.target.value)} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '8px', color: '#fff', fontSize: '13px', borderRadius: '4px' }}>
-                        <option value="purist">Bel Gioco Purista (Zemaniano)</option>
-                        <option value="pragmatic">Risultatista (Corto Muso / 1-0)</option>
-                        <option value="nerd">Algoritmico (xG Nerd)</option>
-                      </select>
-                    </div>
-                  </div>
-                  <input type="file" accept="image/*" ref={pressInputRef} onChange={handlePressImageUpload} style={{ display: 'none' }} />
-                  <button onClick={() => pressInputRef.current.click()} disabled={isTyping} style={{ width: '100%', backgroundColor: '#ec4899', color: '#fff', border: 'none', padding: '14px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer', marginTop: '12px' }}>Carica Screenshot Conferenza</button>
-                </>
-              )}
-
-              {activeRoom === 'youth' && (
-                <>
-                  <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#ffaa00', fontWeight: '900' }}>Vivaio Under 20</h3>
-                  <input type="file" accept="image/*" ref={youthInputRef} onChange={handleYouthImageUpload} style={{ display: 'none' }} />
-                  <button onClick={() => youthInputRef.current.click()} disabled={isTyping} style={{ width: '100%', backgroundColor: '#ffaa00', color: '#0f0c1b', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer' }}>Carica Screen Profilo Giovane</button>
-                </>
-              )}
-
-              {activeRoom === 'analyst' && (
-                <>
-                  <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#3b82f6', fontWeight: '900' }}>Match Analysis Center</h3>
-                  <input type="file" accept="image/*" ref={analystInputRef} onChange={handleAnalystImageUpload} style={{ display: 'none' }} />
-                  <button onClick={() => analystInputRef.current.click()} disabled={isTyping} style={{ width: '100%', backgroundColor: '#3b82f6', color: '#fff', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer' }}>Carica Schermata Dati Partita</button>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  function renderMasterDatabase() {
-    const firstTeamPlayers = players.filter(p => p && p.type === 'player' && (p.age >= 20 || !p.age));
-    const youthPlayers = players.filter(p => p && p.type === 'player' && p.age && p.age < 20);
-    let visibleList = [];
-    if (dbSubTab === 'first_team') visibleList = firstTeamPlayers;
-    else if (dbSubTab === 'youth') visibleList = youthPlayers;
-
-    const getSortValue = (player, field) => {
-      if (!player) return '';
-      switch(field) {
-        case 'name': return (player.name || '').toLowerCase().trim();
-        case 'position': return (player.position || '').toLowerCase().trim();
-        case 'age': return parseInt(player.age) || 0;
-        case 'pres': return parseInt(String(player.attributes?.Presenze || '0').replace(/\D/g, '')) || 0;
-        case 'gol': return parseInt(String(player.attributes?.Gol || '0').replace(/\D/g, '')) || 0;
-        case 'mv': return parseFloat(String(player.attributes?.['Media Voto'] || '0').replace(',', '.')) || 0;
-        default: return '';
-      }
-    };
-
-    const sortedList = [...visibleList].sort((a, b) => {
-      const valA = getSortValue(a, sortField); const valB = getSortValue(b, sortField);
-      if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
-      if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
-      return 0;
-    });
-
-    return (
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#0f0c1b', height: '100%', overflow: 'hidden', width: '100%' }}>
-        <div style={{ height: 'auto', minHeight: '75px', padding: '12px 16px', borderBottom: '2px solid #231b3a', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', backgroundColor: '#161224', justifyContent: 'space-between', gap: '10px', boxShadow: '0 4px 12px rgba(0,0,0,0.4)' }}>
-          <div style={{ display: 'flex', gap: '8px', backgroundColor: '#090710', padding: '6px', border: '1px solid #231b3a', borderRadius: '6px', overflowX: 'auto', width: isMobile ? '100%' : 'auto' }}>
-            <button onClick={() => setDbSubTab('first_team')} style={{ padding: '8px 16px', border: 'none', fontSize: '13px', fontWeight: 'bold', backgroundColor: dbSubTab === 'first_team' ? '#da1b60' : 'transparent', color: '#fff', borderRadius: '4px', flexShrink: 0 }}>Prima Squadra ({firstTeamPlayers.length})</button>
-            <button onClick={() => setDbSubTab('youth')} style={{ padding: '8px 16px', border: 'none', fontSize: '13px', fontWeight: 'bold', backgroundColor: dbSubTab === 'youth' ? '#ffaa00' : 'transparent', color: '#fff', borderRadius: '4px', flexShrink: 0 }}>Under 20 ({youthPlayers.length})</button>
-            <button onClick={() => setDbSubTab('shortlist')} style={{ padding: '8px 16px', border: 'none', fontSize: '13px', fontWeight: 'bold', backgroundColor: dbSubTab === 'shortlist' ? '#f43f5e' : 'transparent', color: '#fff', borderRadius: '4px', flexShrink: 0 }}>🎯 Shortlist ({shortlist.length})</button>
-            <button onClick={() => setDbSubTab('matches')} style={{ padding: '8px 16px', border: 'none', fontSize: '13px', fontWeight: 'bold', backgroundColor: dbSubTab === 'matches' ? '#3b82f6' : 'transparent', color: '#fff', borderRadius: '4px', flexShrink: 0 }}>🏆 Storico Gare ({matches.length})</button>
-          </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUploadOCR} style={{ display: 'none' }} />
-            <button onClick={() => fileInputRef.current.click()} disabled={isUploading} style={{ backgroundColor: '#da1b60', color: '#fff', border: 'none', padding: '10px 20px', fontSize: '12px', fontWeight: 'bold', borderRadius: '6px' }}>Carica Foto Rosa</button>
-            {players.length > 0 && <button onClick={handleClearAllData} style={{ backgroundColor: 'transparent', border: '2px solid #ef4444', color: '#ef4444', padding: '10px 16px', fontSize: '12px', fontWeight: 'bold', borderRadius: '6px' }}>Azzera Sede</button>}
-          </div>
-        </div>
-
-        <div style={{ flex: 1, padding: isMobile ? '12px' : '24px', overflowY: 'auto', backgroundColor: '#090710', width: '100%', boxSizing: 'border-box' }}>
-          {dbSubTab === 'shortlist' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {shortlist.length === 0 ? <div style={{ color: '#475569', textAlign: 'center', padding: '40px' }}>Lista desideri vuota. Carica un profilo dall'Ufficio Scout.</div> : shortlist.map((s, i) => (
-                <div key={i} style={{ backgroundColor: '#140f24', border: '2px solid #f43f5e', padding: '16px', borderRadius: '8px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span style={{ fontSize: '18px', fontWeight: '900', color: '#fff' }}>{s?.name}</span>
-                    <span style={{ backgroundColor: '#f43f5e', color: '#fff', fontSize: '11px', padding: '4px 8px', borderRadius: '4px', fontWeight: '900' }}>{s?.verdict}</span>
-                  </div>
-                  <div style={{ color: '#22d3ee', fontSize: '14px', fontWeight: 'bold' }}>Ruolo: {s?.position}</div>
-                  <div style={{ color: '#cbd5e1', fontSize: '14px', whiteSpace: 'pre-line', marginTop: '6px' }}>{s?.analysis}</div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {dbSubTab === 'matches' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {matches.length === 0 ? <div style={{ color: '#475569', textAlign: 'center', padding: '40px' }}>Nessuna partita a referto. Carica un tabellino dall'Ufficio Analyst.</div> : matches.map((m, i) => (
-                <div key={i} style={{ backgroundColor: '#140f24', border: '2px solid #3b82f6', padding: '16px', borderRadius: '8px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                    <span style={{ fontSize: '18px', fontWeight: '900', color: '#fff' }}>SORA vs {m?.opponent?.toUpperCase()}</span>
-                    <span style={{ backgroundColor: '#3b82f6', color: '#fff', fontSize: '14px', padding: '4px 10px', borderRadius: '4px', fontWeight: '900' }}>{m?.result}</span>
-                  </div>
-                  <div style={{ color: '#34d399', fontSize: '13px', fontWeight: 'bold' }}>Metriche: xG {m?.xg_team} - {m?.xg_opp} xG Subiti</div>
-                  <div style={{ color: '#cbd5e1', fontSize: '14px', whiteSpace: 'pre-line', marginTop: '6px' }}>{m?.analysis}</div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {(dbSubTab === 'first_team' || dbSubTab === 'youth') && (
-            <div style={{ backgroundColor: '#140f24', border: '2px solid #231b3a', borderRadius: '8px', overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch' }}>
-              {visibleList.length === 0 ? <div style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>Nessun calciatore in archivio.</div> : (
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '700px' }}>
-                  <thead>
-                    <tr style={{ backgroundColor: '#1d1733', borderBottom: '3px solid #090710' }}>
-                      <th onClick={() => handleSort('name')} style={{ padding: '12px 10px', color: '#ffffff', cursor: 'pointer', fontWeight: '900' }}>Nome</th>
-                      <th onClick={() => handleSort('position')} style={{ padding: '12px 10px', color: '#ffffff', cursor: 'pointer', fontWeight: '900' }}>Ruolo</th>
-                      <th onClick={() => handleSort('age')} style={{ padding: '12px 10px', color: '#ffffff', cursor: 'pointer', textAlign: 'center', fontWeight: '900' }}>Età</th>
-                      <th onClick={() => handleSort('pres')} style={{ padding: '12px 10px', color: '#ffffff', cursor: 'pointer', textAlign: 'center', fontWeight: '900' }}>Pres</th>
-                      <th onClick={() => handleSort('gol')} style={{ padding: '12px 10px', color: '#ffffff', cursor: 'pointer', textAlign: 'center', fontWeight: '900' }}>Gol</th>
-                      <th onClick={() => handleSort('mv')} style={{ padding: '12px 10px', color: '#ffffff', cursor: 'pointer', textAlign: 'center', fontWeight: '900' }}>M.V.</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedList.map((p, idx) => (
-                      <tr key={idx} onClick={() => handleSelectPlayer(p)} style={{ borderBottom: '1px solid #231b3a', cursor: 'pointer', backgroundColor: selectedProfile?.id === p?.id ? '#271e44' : 'transparent' }}>
-                        <td style={{ padding: '14px 10px', fontWeight: 'bold', color: '#ffffff', fontSize: '15px' }}>{p?.name} {p?.notes && <span style={{ fontSize: '10px', backgroundColor: '#a855f7', padding: '2px 4px', borderRadius: '3px', marginLeft: '4px' }}>FASCICOLO</span>}</td>
-                        <td style={{ padding: '14px 10px', color: '#22d3ee', fontWeight: '700' }}>{p?.position || 'N/D'}</td>
-                        <td style={{ padding: '14px 10px', textAlign: 'center', color: '#fff' }}>{p?.age || '-'}</td>
-                        <td style={{ padding: '14px 10px', textAlign: 'center', color: '#cbd5e1' }}>{p?.attributes?.Presenze || '-'}</td>
-                        <td style={{ padding: '14px 10px', textAlign: 'center', color: '#ffffff', fontWeight: 'bold' }}>{p?.attributes?.Gol || '-'}</td>
-                        <td style={{ padding: '14px 10px', textAlign: 'center', color: '#34d399', fontWeight: 'bold' }}>{p?.attributes?.['Media Voto'] || '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  const navContainerStyle = isMobile ? {
-    position: 'fixed', bottom: 0, left: 0, right: 0, height: '70px', width: '100%',
-    backgroundColor: '#140f24', borderTop: '2px solid #231b3a', display: 'flex',
-    flexDirection: 'row', alignItems: 'center', padding: '0 10px', gap: '14px', overflowX: 'auto', zIndex: 1000
-  } : {
-    width: '90px', backgroundColor: '#140f24', borderRight: '2px solid #231b3a',
-    display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '20px', gap: '16px', zIndex: 10
-  };
-
-  const navButtonStyle = (room, color) => ({
-    background: activeRoom === room ? '#271e44' : 'none',
-    border: activeRoom === room ? `2px solid ${color}` : '2px solid transparent',
-    color: activeRoom === room ? color : '#475569', padding: '10px', borderRadius: '10px', cursor: 'pointer', flexShrink: 0
-  });
-
   return (
     <div style={{ display: 'flex', height: '100vh', flexDirection: isMobile ? 'column' : 'row', backgroundColor: '#090710', color: '#cbd5e1', fontFamily: 'system-ui, -apple-system, sans-serif', overflow: 'hidden' }}>
       
-      <div style={navContainerStyle}>
+      {/* SEZIONE NAV CONTAINER */}
+      <div style={isMobile ? { position: 'fixed', bottom: 0, left: 0, right: 0, height: '70px', width: '100%', backgroundColor: '#140f24', borderTop: '2px solid #231b3a', display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '0 10px', gap: '14px', overflowX: 'auto', zIndex: 1000 } : { width: '90px', backgroundColor: '#140f24', borderRight: '2px solid #231b3a', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '20px', gap: '16px', zIndex: 10 }}>
         {!isMobile && <div style={{ width: '52px', height: '52px', backgroundColor: '#da1b60', display: 'flex', alignItems: 'center', color: '#fff', fontWeight: '900', fontSize: '22px', borderRadius: '10px', justifyContent: 'center' }}>FM</div>}
         <button onClick={() => handleSidebarClick('board')} style={navButtonStyle('board', '#a855f7')}><Users size={22} /></button>
         <button onClick={() => handleSidebarClick('vice')} style={navButtonStyle('vice', '#22d3ee')}><Sliders size={22} /></button>
@@ -741,6 +419,7 @@ function App() {
         {activeRoom === 'database' && renderMasterDatabase()}
       </div>
 
+      {/* MODALE DI LETTURA ACCESSO DIRETTO REPORT TATTICI */}
       {selectedTacticReport && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(5, 3, 10, 0.95)', zIndex: 99999, display: 'flex', padding: isMobile ? '10px' : '40px' }}>
           <div style={{ margin: 'auto', width: '100%', maxWidth: '800px', backgroundColor: '#140f24', border: '3px solid #22d3ee', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
@@ -754,6 +433,7 @@ function App() {
         </div>
       )}
 
+      {/* FLYOUT SCHEDA ATTRIBUTI + NOTE */}
       {selectedProfile && (
         <div style={{ position: 'fixed', right: isMobile ? '10px' : '25px', bottom: isMobile ? '80px' : '25px', left: isMobile ? '10px' : 'auto', width: isMobile ? 'calc(100% - 20px)' : '340px', backgroundColor: '#140f24', border: '3px solid #da1b60', padding: '16px', borderRadius: '12px', boxShadow: '0 30px 60px rgba(0,0,0,0.9)', zIndex: 5000, boxSizing: 'border-box' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #231b3a', paddingBottom: '10px', marginBottom: '12px', alignItems: 'center' }}>
