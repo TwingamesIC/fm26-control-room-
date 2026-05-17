@@ -7,53 +7,119 @@ const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // ==========================================
-// IL CERVELLO ASSOLUTO DI FOOTBALL MANAGER 2026 (DIZIONARIO ITALIANO RIGIDO)
+// IL CERVELLO ASSOLUTO DI FOOTBALL MANAGER 2026 (DIZIONARIO INGLESE & DOPPIO MODULO)
 // ==========================================
 const FM26_CORE_ENGINE = `
-IL TUO CERVELLO È BASATO ESCLUSIVAMENTE SUL MOTORE DI GIOCO DI FOOTBALL MANAGER 2026 IN ITALIANO.
-Non dare consigli di calcio generico e NON INVENTARE TRADUZIONI INGLESI. Usa ESATTAMENTE e SOLAMENTE questi termini:
+IL TUO CERVELLO È BASATO ESCLUSIVAMENTE SUL MOTORE DI GIOCO DI FOOTBALL MANAGER 2026.
+IMPORTANTE: Parla in Italiano per dialogare con il Mister, ma usa ESCLUSIVAMENTE I TERMINI INGLESI UFFICIALI DI FM26 per Ruoli, Compiti e Istruzioni. 
+DEVI SEMPRE EVIDENZIARE I TERMINI TECNICI IN GRASSETTO (es: **Advanced Forward** su **Attack**).
 
-1. RUOLI UFFICIALI (Usa ESATTAMENTE queste parole, vietato inventare):
-- PORTIERI: Portiere, Portiere Libero.
-- DIFENSORI CENTRALI: Difensore Centrale, Difensore che Imposta, Difensore Roccioso, Braccetto, Libero.
-- ESTERNI DIFENSIVI: Terzino, Terzino Fluidificante, Terzino Invertito, Esterno Completo, Esterno Invertito.
-- MEDIANI: Mediano, Incontrista, Regista Arretrato, Centrocampista Difensivo, Secondo Mediano, Regista Mobile, Centromediano Metodista.
-- CENTROCAMPISTI: Centrocampista Centrale, Centrocampista di Quantità, Regista Avanzato, Mezzala, Centrocampista Offensivo, Carrilero.
-- TREQUARTISTI/ESTERNI: Trequartista, Rifinitore, Attaccante di Raccordo, Trequartista Incursore, Ala, Ala Invertita, Attaccante Esterno, Trovaspazi, Regista Largo, Esterno di Centrocampo.
-- ATTACCANTI: Centravanti, Falso Nueve, Attaccante che Pressa, Punta Completa, Uomo d'Area, Opportunista, Seconda Punta.
+IN FM26 ESISTONO DUE MODULI SEPARATI: "In Possession" (In Possesso) e "Out of Possession" (Non in Possesso). DEVI SEMPRE RAGIONARE TENENDO CONTO DI QUESTO SDOPPIAMENTO TATTICO.
 
-2. COMPITI: Difendere, Sostenere, Attaccare.
-
-3. ISTRUZIONI DI SQUADRA (Scegli da qui):
-- In Possesso: Passaggi Più corti/Più diretti, Ritmo Più basso/Più alto, Allarga il gioco/Stringi, Scavalca il centrocampo, Parti dalla difesa, Cross Bassi/Tesi/Morbidi, Puntate la difesa, Dribblate di meno.
-- In Transizione: Contropressing / Raggruppatevi, Contropiede / Mantenete la posizione, Distribuisci ai centrali / Distribuisci ai terzini / Rilancio lungo.
-- Non in Possesso: Linea di Ingaggio Bassa/Media/Alta, Linea Difensiva Bassa/Normale/Alta, Pressing Meno insistente/Più assiduo/Estremo, State in piedi / Contrasti Più duri, Trappola del fuorigioco.
+1. ROLES (Solo questi!): Sweeper Keeper, Central Defender, Ball Playing Defender, Libero, Full-Back, Wing-Back, Inverted Wing-Back, Inverted Full-Back, Defensive Midfielder, Deep Lying Playmaker, Ball Winning Midfielder, Anchor, Half Back, Segundo Volante, Roaming Playmaker, Central Midfielder, Box To Box Midfielder, Advanced Playmaker, Mezzala, Carrilero, Winger, Inside Forward, Inverted Winger, Trequartista, Raumdeuter, Attacking Midfielder, Advanced Forward, Poacher, Target Forward, Deep Lying Forward, Pressing Forward, False Nine, Complete Forward.
+2. DUTIES: Defend, Support, Attack, Auto.
+3. IN POSSESSION INSTRUCTIONS: Attacking Width (Narrow/Wide), Pass Into Space, Play Out Of Defence, Passing Directness (Shorter/More Direct), Tempo (Lower/Higher), Run At Defence, Work Ball Into Box, Overlap/Underlap.
+4. TRANSITION INSTRUCTIONS: Counter-Press / Regroup, Counter / Hold Shape, Distribute Quickly.
+5. OUT OF POSSESSION INSTRUCTIONS: Line of Engagement (Low/Mid/High), Defensive Line (Low/Standard/High), Trigger Press (Less Often/More Often), Prevent Short GK Distribution, Get Stuck In / Stay On Feet, Drop Off More / Step Up More.
 `;
 
 const TACTIC_JSON_INSTRUCTION = `
-\n\nQUANDO DESCRIVI, CREI O CONSIGLI UNA TATTICA (O SCHIERAMENTO), DEVI ASSOLUTAMENTE AGGIUNGERE ALLA FINE DEL MESSAGGIO UN BLOCCO JSON ESATTO COME QUESTO:
+\n\nQUANDO DESCRIVI O CONSIGLI UNA TATTICA, DEVI ASSOLUTAMENTE AGGIUNGERE ALLA FINE DEL MESSAGGIO UN BLOCCO JSON ESATTO COME QUESTO (I ruoli devono essere in inglese):
 \`\`\`json
 {
   "tattica_fm": true,
-  "in_possesso": ["Passaggi Più corti", "Ritmo Più alto", "Allarga il gioco"],
-  "in_transizione": ["Contropressing", "Contropiede", "Distribuisci ai centrali"],
-  "non_in_possesso": ["Linea di Ingaggio Alta", "Pressing Estremo", "Trappola del fuorigioco"],
-  "formazione": [
-    { "pos": "GK", "role": "Portiere Libero", "duty": "Dif", "name": "Cognome" },
-    { "pos": "DCR", "role": "Difensore che Imposta", "duty": "Dif", "name": "Cognome" },
-    { "pos": "DCL", "role": "Braccetto", "duty": "Dif", "name": "Cognome" },
-    { "pos": "DR", "role": "Terzino Invertito", "duty": "Sos", "name": "Cognome" },
-    { "pos": "DL", "role": "Esterno Completo", "duty": "Att", "name": "Cognome" },
-    { "pos": "MCR", "role": "Mezzala", "duty": "Att", "name": "Cognome" },
-    { "pos": "MCL", "role": "Regista Arretrato", "duty": "Dif", "name": "Cognome" },
-    { "pos": "AMR", "role": "Ala Invertita", "duty": "Att", "name": "Cognome" },
-    { "pos": "AML", "role": "Attaccante Esterno", "duty": "Sos", "name": "Cognome" },
-    { "pos": "AMC", "role": "Trequartista", "duty": "Att", "name": "Cognome" },
-    { "pos": "ST", "role": "Attaccante che Pressa", "duty": "Att", "name": "Cognome" }
+  "in_possesso": ["Shorter Passing", "Higher Tempo", "Play Out Of Defence"],
+  "in_transizione": ["Counter-Press", "Counter", "Distribute To Centre-Backs"],
+  "non_in_possesso": ["High Press", "High Defensive Line", "Step Up More"],
+  "formazione_in_possesso": [
+    { "pos": "GK", "role": "Sweeper Keeper", "duty": "Defend", "name": "Cognome" },
+    { "pos": "DCR", "role": "Ball Playing Defender", "duty": "Defend", "name": "Cognome" },
+    { "pos": "DCL", "role": "Central Defender", "duty": "Defend", "name": "Cognome" },
+    { "pos": "DM", "role": "Inverted Wing-Back", "duty": "Support", "name": "Terzino Destro Accentrato" },
+    { "pos": "AML", "role": "Winger", "duty": "Attack", "name": "Cognome" },
+    { "pos": "ST", "role": "Advanced Forward", "duty": "Attack", "name": "Cognome" }
+  ],
+  "formazione_non_in_possesso": [
+    { "pos": "GK", "role": "Sweeper Keeper", "duty": "Defend", "name": "Cognome" },
+    { "pos": "DCR", "role": "Ball Playing Defender", "duty": "Defend", "name": "Cognome" },
+    { "pos": "DCL", "role": "Central Defender", "duty": "Defend", "name": "Cognome" },
+    { "pos": "DR", "role": "Inverted Wing-Back", "duty": "Support", "name": "Terzino Destro Accentrato" },
+    { "pos": "ML", "role": "Winger", "duty": "Attack", "name": "Cognome" },
+    { "pos": "ST", "role": "Advanced Forward", "duty": "Attack", "name": "Cognome" }
   ]
 }
 \`\`\`
-Usa SOLO codici posizioni esatti di FM: GK, DL, DCL, DC, DCR, DR, WBL, WBR, DM, DML, DMR, ML, MCL, MC, MCR, MR, AML, AMC, AMR, STL, ST, STR. I NOMI DEI RUOLI DEVONO ESSERE QUELLI ITALIANI UFFICIALI (es: "Centrocampista di Quantità", NON "Box-to-box").`;
+NOTA BENE: DEVI compilare ENTRAMBI gli array (formazione_in_possesso e formazione_non_in_possesso) con gli 11 giocatori, spostandoli in base a come si difendono o come attaccano. Usa SOLO codici posizioni esatti di FM (es. per in possesso potresti usare DM, per non in possesso DR per lo stesso giocatore).`;
+
+// ==========================================
+// COMPONENTE LAVAGNA TATTICA (DOPPIA FASE)
+// ==========================================
+const TacticBoard = ({ data }) => {
+  const [phase, setPhase] = useState('in'); // 'in' o 'out'
+  
+  if (!data) return null;
+
+  const currentFormazione = phase === 'in' ? (data.formazione_in_possesso || data.formazione || []) : (data.formazione_non_in_possesso || data.formazione || []);
+
+  const POS_MAP = {
+    'GK': { top: '88%', left: '50%' },
+    'DL': { top: '72%', left: '15%' }, 'DCL': { top: '72%', left: '35%' }, 'DC': { top: '72%', left: '50%' }, 'DCR': { top: '72%', left: '65%' }, 'DR': { top: '72%', left: '85%' },
+    'WBL': { top: '60%', left: '12%' }, 'WBR': { top: '60%', left: '88%' },
+    'DM': { top: '55%', left: '50%' }, 'DML': { top: '55%', left: '35%' }, 'DMR': { top: '55%', left: '65%' },
+    'ML': { top: '40%', left: '15%' }, 'MCL': { top: '40%', left: '35%' }, 'MC': { top: '40%', left: '50%' }, 'MCR': { top: '40%', left: '65%' }, 'MR': { top: '40%', left: '85%' },
+    'AML': { top: '25%', left: '20%' }, 'AMC': { top: '25%', left: '50%' }, 'AMR': { top: '25%', left: '80%' },
+    'STL': { top: '10%', left: '35%' }, 'ST': { top: '10%', left: '50%' }, 'STR': { top: '10%', left: '65%' },
+  };
+
+  return (
+    <div style={{ marginTop: '20px', backgroundColor: '#0f0c1b', border: '2px solid #22d3ee', borderRadius: '12px', padding: '16px' }}>
+      <h3 style={{ color: '#22d3ee', marginTop: 0, textAlign: 'center', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px' }}>⚽ Lavagna Tattica FM26</h3>
+      
+      {/* SELETTORE FASE DI GIOCO */}
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '16px' }}>
+        <button onClick={() => setPhase('in')} style={{ backgroundColor: phase === 'in' ? '#34d399' : '#140f24', color: phase === 'in' ? '#000' : '#fff', border: '1px solid #34d399', padding: '8px 16px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s' }}>🟢 In Possession</button>
+        <button onClick={() => setPhase('out')} style={{ backgroundColor: phase === 'out' ? '#ef4444' : '#140f24', color: phase === 'out' ? '#fff' : '#fff', border: '1px solid #ef4444', padding: '8px 16px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s' }}>🔴 Out of Possession</button>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: window.innerWidth <= 768 ? 'column' : 'row', gap: '10px', marginBottom: '20px', fontSize: '12px' }}>
+        <div style={{ flex: 1, backgroundColor: '#140f24', padding: '10px', borderRadius: '6px', borderLeft: '3px solid #34d399' }}>
+          <strong style={{ color: '#34d399', textTransform: 'uppercase' }}>In Possession</strong>
+          <ul style={{ margin: '4px 0 0 0', paddingLeft: '16px', color: '#cbd5e1' }}>{data.in_possesso?.map((i, x) => <li key={x}>{i}</li>)}</ul>
+        </div>
+        <div style={{ flex: 1, backgroundColor: '#140f24', padding: '10px', borderRadius: '6px', borderLeft: '3px solid #fbbf24' }}>
+          <strong style={{ color: '#fbbf24', textTransform: 'uppercase' }}>In Transition</strong>
+          <ul style={{ margin: '4px 0 0 0', paddingLeft: '16px', color: '#cbd5e1' }}>{data.in_transizione?.map((i, x) => <li key={x}>{i}</li>)}</ul>
+        </div>
+        <div style={{ flex: 1, backgroundColor: '#140f24', padding: '10px', borderRadius: '6px', borderLeft: '3px solid #ef4444' }}>
+          <strong style={{ color: '#ef4444', textTransform: 'uppercase' }}>Out of Possession</strong>
+          <ul style={{ margin: '4px 0 0 0', paddingLeft: '16px', color: '#cbd5e1' }}>{data.non_in_possesso?.map((i, x) => <li key={x}>{i}</li>)}</ul>
+        </div>
+      </div>
+
+      <div style={{ position: 'relative', width: '100%', maxWidth: '380px', height: '480px', backgroundColor: '#10b981', margin: '0 auto', borderRadius: '8px', border: '2px solid #fff', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: '2px', backgroundColor: 'rgba(255,255,255,0.4)' }}></div>
+        <div style={{ position: 'absolute', top: '50%', left: '50%', width: '100px', height: '100px', border: '2px solid rgba(255,255,255,0.4)', borderRadius: '50%', transform: 'translate(-50%, -50%)' }}></div>
+        <div style={{ position: 'absolute', bottom: '-2px', left: '50%', width: '180px', height: '80px', border: '2px solid rgba(255,255,255,0.4)', transform: 'translateX(-50%)' }}></div>
+        <div style={{ position: 'absolute', bottom: '-2px', left: '50%', width: '80px', height: '40px', border: '2px solid rgba(255,255,255,0.4)', transform: 'translateX(-50%)' }}></div>
+        <div style={{ position: 'absolute', top: '-2px', left: '50%', width: '180px', height: '80px', border: '2px solid rgba(255,255,255,0.4)', transform: 'translateX(-50%)' }}></div>
+        <div style={{ position: 'absolute', top: '-2px', left: '50%', width: '80px', height: '40px', border: '2px solid rgba(255,255,255,0.4)', transform: 'translateX(-50%)' }}></div>
+
+        {currentFormazione.map((p, idx) => {
+          const pos = POS_MAP[p.pos] || { top: '50%', left: '50%' };
+          return (
+            <div key={`${phase}-${idx}`} style={{ position: 'absolute', top: pos.top, left: pos.left, transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '85px', zIndex: 10, transition: 'all 0.5s ease-in-out' }}>
+              <div style={{ width: '24px', height: '24px', backgroundColor: '#da1b60', borderRadius: '50%', border: '2px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '10px', fontWeight: '900', boxShadow: '0 4px 6px rgba(0,0,0,0.5)' }}>{p.pos}</div>
+              <div style={{ backgroundColor: 'rgba(0,0,0,0.85)', color: '#fff', fontSize: '9.5px', padding: '3px 5px', borderRadius: '4px', marginTop: '3px', textAlign: 'center', whiteSpace: 'nowrap', fontWeight: 'bold' }}>{p.name}</div>
+              <div style={{ color: '#fff', fontSize: '8.5px', textAlign: 'center', textShadow: '1px 1px 2px #000', lineHeight: '1.2', marginTop: '2px', wordWrap: 'break-word', width: '100%', padding: '0 2px' }}>{p.role}</div>
+              <div style={{ color: '#fbbf24', fontSize: '8.5px', textAlign: 'center', fontWeight: '900', textShadow: '1px 1px 2px #000' }}>({p.duty})</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 
 function App() {
   const [activeRoom, setActiveRoom] = useState('board') 
@@ -73,7 +139,7 @@ function App() {
   const [players, setPlayers] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_players')) || []; } catch(e) { return []; } })
   const [shortlist, setShortlist] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_shortlist')) || []; } catch(e) { return []; } })
   const [matches, setMatches] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_matches')) || []; } catch(e) { return []; } })
-  const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_messages')) || [{ sender_role: 'system', content: 'Cervello FM26 Inizializzato (Database Italiano).' }]; } catch(e) { return [{ sender_role: 'system', content: 'Centrale operativa allineata.' }]; } })
+  const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_messages')) || [{ sender_role: 'system', content: 'Cervello FM26 Attivo. Il Vice ora ragiona per doppie fasi: Possesso e Non Possesso.' }]; } catch(e) { return [{ sender_role: 'system', content: 'Centrale operativa allineata.' }]; } })
   const [tacticReports, setTacticReports] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_tactic_reports')) || []; } catch(e) { return []; } })
   const [finances, setFinances] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_finances')) || { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; } catch(e) { return { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; } })
 
@@ -134,61 +200,7 @@ function App() {
     return name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   };
 
-  const renderTacticBoard = (data) => {
-    if (!data || !data.formazione) return null;
-
-    const POS_MAP = {
-      'GK': { top: '88%', left: '50%' },
-      'DL': { top: '72%', left: '15%' }, 'DCL': { top: '72%', left: '35%' }, 'DC': { top: '72%', left: '50%' }, 'DCR': { top: '72%', left: '65%' }, 'DR': { top: '72%', left: '85%' },
-      'WBL': { top: '60%', left: '12%' }, 'WBR': { top: '60%', left: '88%' },
-      'DM': { top: '55%', left: '50%' }, 'DML': { top: '55%', left: '35%' }, 'DMR': { top: '55%', left: '65%' },
-      'ML': { top: '40%', left: '15%' }, 'MCL': { top: '40%', left: '35%' }, 'MC': { top: '40%', left: '50%' }, 'MCR': { top: '40%', left: '65%' }, 'MR': { top: '40%', left: '85%' },
-      'AML': { top: '25%', left: '20%' }, 'AMC': { top: '25%', left: '50%' }, 'AMR': { top: '25%', left: '80%' },
-      'STL': { top: '10%', left: '35%' }, 'ST': { top: '10%', left: '50%' }, 'STR': { top: '10%', left: '65%' },
-    };
-
-    return (
-      <div style={{ marginTop: '20px', backgroundColor: '#0f0c1b', border: '2px solid #22d3ee', borderRadius: '12px', padding: '16px' }}>
-        <h3 style={{ color: '#22d3ee', marginTop: 0, textAlign: 'center', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px' }}>⚽ Lavagna Tattica</h3>
-        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '10px', marginBottom: '20px', fontSize: '12px' }}>
-          <div style={{ flex: 1, backgroundColor: '#140f24', padding: '10px', borderRadius: '6px', borderLeft: '3px solid #34d399' }}>
-            <strong style={{ color: '#34d399', textTransform: 'uppercase' }}>🟢 In Possesso</strong>
-            <ul style={{ margin: '4px 0 0 0', paddingLeft: '16px', color: '#cbd5e1' }}>{data.in_possesso?.map((i, x) => <li key={x}>{i}</li>)}</ul>
-          </div>
-          <div style={{ flex: 1, backgroundColor: '#140f24', padding: '10px', borderRadius: '6px', borderLeft: '3px solid #fbbf24' }}>
-            <strong style={{ color: '#fbbf24', textTransform: 'uppercase' }}>🟠 In Transizione</strong>
-            <ul style={{ margin: '4px 0 0 0', paddingLeft: '16px', color: '#cbd5e1' }}>{data.in_transizione?.map((i, x) => <li key={x}>{i}</li>)}</ul>
-          </div>
-          <div style={{ flex: 1, backgroundColor: '#140f24', padding: '10px', borderRadius: '6px', borderLeft: '3px solid #ef4444' }}>
-            <strong style={{ color: '#ef4444', textTransform: 'uppercase' }}>🔴 Non in Possesso</strong>
-            <ul style={{ margin: '4px 0 0 0', paddingLeft: '16px', color: '#cbd5e1' }}>{data.non_in_possesso?.map((i, x) => <li key={x}>{i}</li>)}</ul>
-          </div>
-        </div>
-
-        <div style={{ position: 'relative', width: '100%', maxWidth: '380px', height: '480px', backgroundColor: '#10b981', margin: '0 auto', borderRadius: '8px', border: '2px solid #fff', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: '2px', backgroundColor: 'rgba(255,255,255,0.4)' }}></div>
-          <div style={{ position: 'absolute', top: '50%', left: '50%', width: '100px', height: '100px', border: '2px solid rgba(255,255,255,0.4)', borderRadius: '50%', transform: 'translate(-50%, -50%)' }}></div>
-          <div style={{ position: 'absolute', bottom: '-2px', left: '50%', width: '180px', height: '80px', border: '2px solid rgba(255,255,255,0.4)', transform: 'translateX(-50%)' }}></div>
-          <div style={{ position: 'absolute', bottom: '-2px', left: '50%', width: '80px', height: '40px', border: '2px solid rgba(255,255,255,0.4)', transform: 'translateX(-50%)' }}></div>
-          <div style={{ position: 'absolute', top: '-2px', left: '50%', width: '180px', height: '80px', border: '2px solid rgba(255,255,255,0.4)', transform: 'translateX(-50%)' }}></div>
-          <div style={{ position: 'absolute', top: '-2px', left: '50%', width: '80px', height: '40px', border: '2px solid rgba(255,255,255,0.4)', transform: 'translateX(-50%)' }}></div>
-
-          {data.formazione?.map((p, idx) => {
-            const pos = POS_MAP[p.pos] || { top: '50%', left: '50%' };
-            return (
-              <div key={idx} style={{ position: 'absolute', top: pos.top, left: pos.left, transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '85px', zIndex: 10 }}>
-                <div style={{ width: '24px', height: '24px', backgroundColor: '#da1b60', borderRadius: '50%', border: '2px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '10px', fontWeight: '900', boxShadow: '0 4px 6px rgba(0,0,0,0.5)' }}>{p.pos}</div>
-                <div style={{ backgroundColor: 'rgba(0,0,0,0.85)', color: '#fff', fontSize: '9.5px', padding: '3px 5px', borderRadius: '4px', marginTop: '3px', textAlign: 'center', whiteSpace: 'nowrap', fontWeight: 'bold' }}>{p.name}</div>
-                <div style={{ color: '#fff', fontSize: '8.5px', textAlign: 'center', textShadow: '1px 1px 2px #000', lineHeight: '1.2', marginTop: '2px', wordWrap: 'break-word', width: '100%', padding: '0 2px' }}>{p.role}</div>
-                <div style={{ color: '#fbbf24', fontSize: '8.5px', textAlign: 'center', fontWeight: '900', textShadow: '1px 1px 2px #000' }}>({p.duty})</div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
+  // PARSER GRAFICO: Rimuove i JSON dalla chat per renderizzarli come Lavagne Tattiche e illumina i termini FM26
   const formatMessageContent = (text) => {
     if (!text) return null;
     let displayString = text;
@@ -226,10 +238,9 @@ function App() {
       return <div key={index} style={{ marginTop: '4px', minHeight: '14px' }}>{renderedParts}</div>;
     });
 
-    return <div>{lines}{tacticData && renderTacticBoard(tacticData)}</div>;
+    return <div>{lines}{tacticData && <TacticBoard data={tacticData} />}</div>;
   };
 
-  // 7. FUNZIONI DI RETE SUPABASE
   const fetchCloudData = async () => {
     try {
       let { data: pData } = await supabase.from('players').select('*').order('name')
@@ -279,7 +290,6 @@ function App() {
     }
   };
 
-  // 8. AZIONI UTENTE
   const handleSidebarClick = (room) => { setActiveRoom(room); setMobileViewTab('chat'); };
   
   const handleSelectPlayer = (player, event) => {
@@ -327,7 +337,6 @@ function App() {
     else { setSortField(field); setSortDirection('asc'); }
   };
 
-  // 9. CORE AI CHAT CON INIEZIONE LAVAGNA TATTICA
   const handleSendMessage = async () => {
     if (!chatInput.trim()) return;
     const currentInputText = chatInput; setChatInput(''); setIsTyping(true);
@@ -359,16 +368,16 @@ function App() {
         - Stile Media: ${pressStyle.toUpperCase()} | Protezione Spogliatoio: ${squadShield.toUpperCase()}
         - Rapporto Rivali: ${rivalRelation.toUpperCase()} | Fede Tattica: ${tacticalFocus.toUpperCase()}
 
-        REGOLE INTERNE CARATTERE DELLO STAFF:
-        - VICE ALLENATORE: Uomo di campo, sanguigno, difende lo spogliatoio. E' un GENIO DELLA TATTICA DI FM26.
-        - DIRETTORE SPORTIVO: Cinico, pensa a soldi, esuberi, plusvalenze e agenti.
-        - CHIEF SCOUT: Fissato con i wonderkids esteri.
+        REGOLE INTERNE CARATTERE DELLO STAFF (Tutti esperti di FM26):
+        - VICE ALLENATORE: Uomo di campo, sanguigno, difende lo spogliatoio. E' un GENIO DELLA TATTICA DI FM26. Consiglia modifiche ai ruoli IN INGLESE, compiti e istruzioni esatte.
+        - DIRETTORE SPORTIVO: Cinico, pensa a soldi, esuberi e attributi CA/PA.
+        - CHIEF SCOUT: Fissato con i wonderkids. Analizza attributi tecnici e mentali.
         - CFO FINANZE: Tirchio, ironizza sempre sui soldi spesi.
-        - ADDETTO STAMPA: Pettegolo sui giornalisti.
+        - ADDETTO STAMPA: Pettegolo sui media e sulle reazioni della squadra.
         - RESPONSABILE GIOVANILI: Paterno con i giovani under 20.
-        - MATCH ANALYST: Nerd dei dati e dei grafici xG.
+        - MATCH ANALYST: Nerd dei dati. Parla solo di xG, Expected Assists e zone di campo.
 
-        FORMATTAZIONE: Usa sempre i pallini (inizia la riga con asterisco e spazio '* '). Evita muri di testo.
+        FORMATTAZIONE: Usa elenchi puntati con asterisco.
 
         CRONOLOGIA:
         ${businessChronology}
@@ -376,8 +385,6 @@ function App() {
         SITUAZIONE:
         - Cassa €${finances?.balance || 0}
         - ROSA SORA: ${JSON.stringify(squadContext.slice(0, 30))}
-        - OBIETTIVI: ${JSON.stringify(shortlistContext)}
-        - GARE: ${JSON.stringify(matchesContext)}
       `;
 
       if (activeRoom === 'board') { instructionPrompt += `\nREGOLE TAVOLO PLENARIA: Rispondi simulando un dibattito acceso.`; } 
@@ -394,15 +401,11 @@ function App() {
     } catch (error) { console.error(error); } finally { setIsTyping(false); }
   };
 
-  // UPLOAD IMMAGINI GLOBALE DALLA CHAT
   const handleChatImageUpload = async (event) => {
     const file = event.target.files[0]; 
     if (!file) return; 
     
-    const currentText = chatInput.trim();
-    setChatInput('');
-    setIsTyping(true); 
-    if (isMobile) setMobileViewTab('chat');
+    const currentText = chatInput.trim(); setChatInput(''); setIsTyping(true); if (isMobile) setMobileViewTab('chat');
     
     try {
       const reader = new FileReader(); 
@@ -410,7 +413,7 @@ function App() {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
         
         const userRole = `user:${activeRoom}`;
-        const displayMsg = currentText ? `📷 [Immagine allegata] ${currentText}` : `📷 [Immagine allegata] Guarda questo screen, cosa ne pensi?`;
+        const displayMsg = currentText ? `📷 [Immagine allegata] ${currentText}` : `📷 [Immagine allegata] Guarda questo screen di Football Manager, cosa ne pensi?`;
         
         const userMessageObj = { sender_role: userRole, content: displayMsg };
         setMessages(prev => [...prev, userMessageObj]);
@@ -421,24 +424,22 @@ function App() {
 
         let instructionPrompt = `
           ${FM26_CORE_ENGINE}
-          Il Mister ti ha appena allegato un'immagine e ti dice: "${currentText || 'Cosa ne pensi di questo screen?'}"
+          Il Mister ti ha appena allegato un'immagine del gioco e ti dice: "${currentText || 'Cosa ne pensi di questo screen?'}"
           
-          REGOLE DELLO STAFF: Reagisci all'immagine usando il carattere del tuo ruolo. E FORNISCI SEMPRE UN RISCONTRO TATTICO (LAVAGNA) SE SI TRATTA DI MODULI O GARE.
-          - VICE: Uomo di campo, genio tattico.
-          - DS: Squalo, pensa ai soldi/contratti.
-          - SCOUT: Fissato col potenziale.
-          - CFO: Tirchio.
-          - STAMPA: Pettegolo, ansioso.
-          - GIOVANILI: Difende gli under 20.
-          - ANALYST: Parla solo di algoritmi.
+          REGOLE DELLO STAFF: Reagisci all'immagine usando le meccaniche esatte di Football Manager 2026.
+          - VICE ALLENATORE: Se l'immagine è una tattica o un avversario, DEVI analizzarla dando consigli sui RUOLI e sulle ISTRUZIONI DI SQUADRA (in Inglese).
+          - DS: Pensa a contratti, valutazioni e CA/PA.
+          - SCOUT: Legge gli attributi e i report scouting.
+          - CFO: Pensa al bilancio.
+          - STAMPA: Analizza la schermata stampa/media.
+          - ANALYST: Legge i dati post-partita.
           
-          FORMATTAZIONE: Usa elenchi puntati con asterischi.
-          ROSA: ${JSON.stringify(squadContext.slice(0, 20))}
+          ROSA SORA: ${JSON.stringify(squadContext.slice(0, 20))}
         `;
 
-        if (activeRoom === 'board') { instructionPrompt += `\nRispondi simulando un dibattito tra i vari membri dello staff.`; } 
+        if (activeRoom === 'board') { instructionPrompt += `\nRispondi simulando un dibattito tra lo staff sull'immagine.`; } 
         else { 
-          instructionPrompt += `\nSei nell'ufficio '${activeRoom.toUpperCase()}'. Rispondi al Mister analizzando l'immagine come farebbe il tuo ruolo.`; 
+          instructionPrompt += `\nSei nell'ufficio '${activeRoom.toUpperCase()}'. Rispondi al Mister usando i termini esatti di FM26.`; 
           if (activeRoom === 'vice') instructionPrompt += TACTIC_JSON_INSTRUCTION;
         }
 
@@ -451,15 +452,9 @@ function App() {
         try { await supabase.from('club_messages').insert([aiMessageObj]); } catch(e) {}
       }; 
       reader.readAsDataURL(file);
-    } catch (err) { 
-      console.error(err); 
-    } finally { 
-      setIsTyping(false); 
-      if (chatImageInputRef.current) chatImageInputRef.current.value = ""; 
-    }
+    } catch (err) { console.error(err); } finally { setIsTyping(false); if (chatImageInputRef.current) chatImageInputRef.current.value = ""; }
   };
 
-  // 10. FUNZIONI MULTIMEDIALI STRUMENTI SPECIFICI
   const handlePreMatchAnalysis = async (event) => {
     const file = event.target.files[0]; if (!file) return; setIsTyping(true); if (isMobile) setMobileViewTab('chat');
     try {
@@ -470,14 +465,11 @@ function App() {
 
         const prompt = `
         ${FM26_CORE_ENGINE}
-        Sei il Vice Allenatore del club "${clubName}". Sei un TATTICO GENIALE, spietato nell'analisi calcistica e maestro di FM26.
-        Questo è lo screenshot della squadra avversaria.
-        Nostra rosa: ${JSON.stringify(squadContext.slice(0, 40))}.
-        
-        Fai un BRIEFING PRE-PARTITA DA ESPERTO (usa bene grassetti e liste puntate con asterisco):
-        1. Analisi Profonda dell'Avversario (Moduli, buchi difensivi, zone deboli e pericoli). NON DIRE BANALITÀ.
-        2. Formazione titolare nostra ideale da schierare oggi per annullare il loro gioco.
-        3. Istruzioni individuali tattiche per i nostri giocatori.
+        Sei il Vice Allenatore del club "${clubName}". Questo è lo screenshot della squadra avversaria. Nostra rosa: ${JSON.stringify(squadContext.slice(0, 40))}.
+        Fai un BRIEFING PRE-PARTITA FM26 evidenziando i ruoli IN INGLESE (es: **Box to Box**):
+        1. Istruzioni avversario (Es: Pressing, Contrasti).
+        2. Come impostare il nostro Modulo "In Possession" e "Out of Possession" per contrastarli.
+        3. Formazione titolare nostra ideale.
         ` + TACTIC_JSON_INSTRUCTION;
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
@@ -496,8 +488,8 @@ function App() {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
         const prompt = `
         ${FM26_CORE_ENGINE}
-        Sei il Vice Allenatore e GENIO TATTICO del club "${clubName}".
-        Il Mister ti ha mostrato questo screenshot di FM. Analizzalo attentamente con un'intelligenza calcistica superiore. Cogli i dettagli tecnici, capisci esattamente cosa sta succedendo e dai consigli di altissimo livello. Sii diretto, chiamalo "Mister", ma dimostra competenza.` + TACTIC_JSON_INSTRUCTION;
+        Sei il Vice Allenatore e TATTICO del club "${clubName}".
+        Il Mister ti ha mostrato questo screenshot di FM26. Analizzalo leggendo le meccaniche di gioco esatte. Dammi consigli su Istruzioni di Squadra e Ruoli (IN INGLESE).` + TACTIC_JSON_INSTRUCTION;
         
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]); const output = result.response.text();
@@ -514,7 +506,7 @@ function App() {
     try {
       const prompt = `
       ${FM26_CORE_ENGINE}
-      Analizza la tattica: """${inputBuffer}""" sulla rosa ${clubName}. Il Vice Allenatore (esperto tattico) deve fare un report avanzato. Metti all'inizio la dicitura TITOLO: [Nome breve della tattica]` + TACTIC_JSON_INSTRUCTION;
+      Analizza la tattica: """${inputBuffer}""" sulla rosa ${clubName}. Il Vice Allenatore (esperto tattico) deve fare un report usando il lessico INGLESE di FM26 per i ruoli. Inizia con TITOLO: [Nome breve della tattica]` + TACTIC_JSON_INSTRUCTION;
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(prompt); const outputText = result.response.text();
       const cleanTitle = (outputText.match(/TITOLO:\s*(.*)/i)?.[1] || `Tattica del ${new Date().toLocaleDateString()}`).replace('[', '').replace(']', '').trim();
@@ -533,12 +525,11 @@ function App() {
       const squadContext = safePlayers.map(p => ({ nome: p?.name, ruolo: p?.position, stats: p?.attributes }));
       const prompt = `
       ${FM26_CORE_ENGINE}
-      Sei il DS del "${clubName}". Tattica richiesta: "${inputBuffer}".
-      Rosa: ${JSON.stringify(squadContext.slice(0, 40))}.
-      Stila una lista spietata e ben formattata (liste puntate con asterisco) degli ESUBERI da cedere perché inutili per questa specifica tattica.`;
+      Sei il DS del "${clubName}". Tattica richiesta: "${inputBuffer}". Rosa: ${JSON.stringify(squadContext.slice(0, 40))}.
+      Stila una lista degli ESUBERI: dimmi esattamente quali giocatori vendere perché inadatti ai ruoli e compiti richiesti dalla tattica. Cita gli attributi mancanti.`;
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(prompt); const outputText = result.response.text();
-      const userMsg = { sender_role: `user:ds`, content: `📋 Direttore, valuta la rosa per la tattica: "${inputBuffer}". Chi dobbiamo cedere?` };
+      const userMsg = { sender_role: `user:ds`, content: `📋 Direttore, valuta la rosa per la tattica: "${inputBuffer}". Chi dobbiamo cedere? Fai l'epurazione.` };
       const aiMsg = { sender_role: 'ds', content: outputText }; setMessages(prev => [...prev, userMsg, aiMsg]);
       try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e) {}
     } catch (error) { console.error(error); } finally { setIsTyping(false); }
@@ -551,7 +542,7 @@ function App() {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
         const prompt = `
         ${FM26_CORE_ENGINE}
-        Sei il Scout del "${clubName}". Schedatura FM26. Output: VERDETTO: [ACQUISTARE, RISERVA, EVITARE] NOME: [Nome] RUOLO: [Ruolo] REPORT: [Analisi profonda e competente]`;
+        Sei il Scout del "${clubName}". Schedatura screenshot attributi FM26. Output: VERDETTO: [ACQUISTARE, RISERVA, EVITARE] NOME: [Nome] RUOLO: [Ruolo] REPORT: [Analisi profonda citando attributi chiave, personalità, CA/PA, costi]`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]); const output = result.response.text();
         const pName = (output.match(/NOME:\s*(.*)/i)?.[1] || 'Obiettivo Scansionato').trim();
@@ -576,7 +567,7 @@ function App() {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
         const prompt = `
         ${FM26_CORE_ENGINE}
-        Sei l'Addetto Stampa del "${clubName}". Screen conferenza di FM. Stile Mister: ${pressStyle}, Scudo: ${squadShield}, Rivali: ${rivalRelation}. Detta quale pulsante/frase cliccare nel gioco per modificare le Dinamiche e il Morale nel modo giusto.`;
+        Sei l'Addetto Stampa del "${clubName}". Screen conferenza di FM26. Stile Mister: ${pressStyle}, Scudo: ${squadShield}, Rivali: ${rivalRelation}. Detta quale pulsante/frase cliccare nel gioco per modificare le Dinamiche e il Morale nel modo giusto.`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]); const output = result.response.text();
         const userMsg = { sender_role: `user:press`, content: `📷 Mister ha inoltrato uno screenshot della conferenza stampa in corso.` };
@@ -593,7 +584,7 @@ function App() {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
         const prompt = `
         ${FM26_CORE_ENGINE}
-        Sei il Match Analyst del "${clubName}". Compila in chiaro i dati post-gara: AVVERSARIO: [Nome] RISULTATO: [Risultato] XG_TEAM: [xG] XG_OPP: [xG] ANALISI: [Analisi dati FM26: Passaggi completati, possesso, zone di azione, expected assists. Nessuna banalità]`;
+        Sei il Match Analyst del "${clubName}". Compila in chiaro i dati post-gara FM26: AVVERSARIO: [Nome] RISULTATO: [Risultato] XG_TEAM: [xG] XG_OPP: [xG] ANALISI: [Analisi dati FM: Passaggi completati, possesso, zone di azione, expected assists. Nessuna banalità]`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]); const output = result.response.text();
         const mOpp = (output.match(/AVVERSARIO:\s*(.*)/i)?.[1] || 'Gara').trim();
@@ -617,7 +608,7 @@ function App() {
     try {
       const reader = new FileReader(); reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
-        const prompt = `Sei il CFO taccagno del club "${clubName}". Estrai le finanze in JSON puro: { "balance": numero, "transfer_budget": numero, "wage_budget": numero, "analysis": "analisi sarcastica" }`;
+        const prompt = `Sei il CFO taccagno del club "${clubName}". Estrai le finanze in JSON puro (senza formattazione markdown): { "balance": numero, "transfer_budget": numero, "wage_budget": numero, "analysis": "analisi sul monte ingaggi e sul budget" }`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]);
         const cleanText = result.response.text().replace(/```json/gi, '').replace(/```/g, '').trim();
@@ -629,7 +620,7 @@ function App() {
             const aiMsg = { sender_role: 'cfo', content: parsed.analysis || "Audit completato." }; setMessages(prev => [...prev, userMsg, aiMsg]);
             try { await supabase.from('club_finances').update({ balance: parsed.balance || 0, transfer_budget: parsed.transfer_budget || 0, wage_budget: parsed.wage_budget || 0 }).eq('id', 1); await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch (e) {}
           }
-        } catch (jsonErr) { console.error(jsonErr); }
+        } catch (jsonErr) { console.error("JSON Error", jsonErr); }
       }; reader.readAsDataURL(file);
     } catch (e) { console.error(e); } finally { setIsTyping(false); }
   };
@@ -702,7 +693,7 @@ function App() {
     } catch (e) { console.error(e); } finally { setIsUploading(false); } 
   };
 
-  // 11. COMPONENTI DI RENDER: FINESTRE E TABELLE
+  // 11. COMPONENTI DI RENDER E LAYOUT
   function renderChatWindow() {
     const safeMessages = Array.isArray(messages) ? messages : [];
     const visibleMessages = safeMessages.filter(msg => {
@@ -764,7 +755,6 @@ function App() {
                 )}
               </div>
 
-              {/* BARRA CHAT CON UPLOAD FOTO GLOBALE */}
               <div style={{ padding: '20px', backgroundColor: '#140f24', borderTop: '2px solid #231b3a', boxShadow: '0 -4px 15px rgba(0,0,0,0.3)' }}>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <ChevronRight style={{ position: 'absolute', left: '14px', color: '#da1b60' }} size={20} />
@@ -781,7 +771,6 @@ function App() {
                       <Send size={22} />
                     </button>
                   </div>
-
                 </div>
               </div>
             </div>
@@ -1097,7 +1086,7 @@ function App() {
     );
   }
 
-  // 12. STRUTTURA PRINCIPALE E FLYOUT MODALI
+  // 12. STRUTTURA PRINCIPALE
   const navContainerStyle = isMobile ? {
     position: 'fixed', bottom: 0, left: 0, right: 0, height: '70px', width: '100%',
     backgroundColor: '#140f24', borderTop: '2px solid #231b3a', display: 'flex',
@@ -1136,7 +1125,7 @@ function App() {
         {activeRoom === 'database' && renderMasterDatabase()}
       </div>
 
-      {/* FLYOUT MODALE: REFERTO TATTICO CON CAMPO VERDE */}
+      {/* FLYOUT MODALE: REFERTO TATTICO */}
       {selectedTacticReport && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(5, 3, 10, 0.95)', zIndex: 99999, display: 'flex', padding: isMobile ? '10px' : '40px' }}>
           <div style={{ margin: 'auto', width: '100%', maxWidth: '800px', backgroundColor: '#140f24', border: '3px solid #22d3ee', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
