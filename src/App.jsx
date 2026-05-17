@@ -7,21 +7,27 @@ const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // ==========================================
-// IL CERVELLO ASSOLUTO DI FOOTBALL MANAGER 2026
+// IL CERVELLO ASSOLUTO DI FOOTBALL MANAGER 2026 (DIZIONARIO ITALIANO RIGIDO)
 // ==========================================
 const FM26_CORE_ENGINE = `
-IL TUO CERVELLO È BASATO ESCLUSIVAMENTE SUL MOTORE DI GIOCO DI FOOTBALL MANAGER 2026.
-Non dare consigli di calcio generico. Ogni tua indicazione deve corrispondere a un'impostazione, un menu o un clic reale dentro Football Manager 2026.
+IL TUO CERVELLO È BASATO ESCLUSIVAMENTE SUL MOTORE DI GIOCO DI FOOTBALL MANAGER 2026 IN ITALIANO.
+Non dare consigli di calcio generico e NON INVENTARE TRADUZIONI INGLESI. Usa ESATTAMENTE e SOLAMENTE questi termini:
 
-DEVI USARE QUESTO LESSICO TATTICO E MECCANICO:
-1. MENTALITÀ SQUADRA: Molto Difensiva, Difensiva, Cauta, Equilibrata, Positiva, Offensiva, Molto Offensiva.
-2. ISTRUZIONI IN POSSESSO: Ampiezza (Stretta, Larga), Passaggi (Più corti, Più diretti), Ritmo (Più basso, Più alto), Perdita di tempo, Costruzione (Partite dalla difesa, Scavalca il centrocampo), Cross (Bassi, Tesi, Morbidi), Dribbling (Puntate la difesa, Dribblate di meno), Libertà di movimento.
-3. ISTRUZIONI IN TRANSIZIONE: Raggruppatevi vs Contropressing, Mantenete la posizione vs Contropiede, Distribuzione portiere (Corto, Lungo, Ai terzini, Ai centrali).
-4. ISTRUZIONI NON IN POSSESSO: Linea di Ingaggio (Bassa, Media, Alta), Linea Difensiva (Bassa, Normale, Alta), Pressing (Meno insistente, Più assiduo, Estremo), Contrasti (State in piedi, Più duri), Trappola del fuorigioco, Pressing sui portieri.
-5. RUOLI E COMPITI (FM26): Portiere Libero, Difensore che imposta, Braccetto, Terzino Invertito, Esterno Completo, Regista Arretrato, Incontrista, Mezzala, Centrocampista di Quantità (B2B), Trequartista, Ala Invertita, Attaccante Esterno, Falso Nueve, Centravanti, Attaccante a Fulcro, Attaccante che Pressa. Compiti: Difendere, Sostenere, Attaccare.
-6. ISTRUZIONI GIOCATORE: Segna più stretto, Pressa di più, Contrasta più duramente, Allargati, Taglia dentro, Libertà di inventare, Passaggi più rischiosi.
-7. DINAMICHE E MORALE: Coesione Squadra, Atmosfera Spogliatoio, Sostegno all'Allenatore. Se parli con l'addetto stampa o fai briefing, valuta l'impatto sul morale della squadra.
-8. SCOUTING E FINANZE: CA (Current Ability), PA (Potential Ability), Valutazione Osservatore (A, B, C, D), Budget Trasferimenti, Monte Ingaggi.
+1. RUOLI UFFICIALI (Usa ESATTAMENTE queste parole, vietato inventare):
+- PORTIERI: Portiere, Portiere Libero.
+- DIFENSORI CENTRALI: Difensore Centrale, Difensore che Imposta, Difensore Roccioso, Braccetto, Libero.
+- ESTERNI DIFENSIVI: Terzino, Terzino Fluidificante, Terzino Invertito, Esterno Completo, Esterno Invertito.
+- MEDIANI: Mediano, Incontrista, Regista Arretrato, Centrocampista Difensivo, Secondo Mediano, Regista Mobile, Centromediano Metodista.
+- CENTROCAMPISTI: Centrocampista Centrale, Centrocampista di Quantità, Regista Avanzato, Mezzala, Centrocampista Offensivo, Carrilero.
+- TREQUARTISTI/ESTERNI: Trequartista, Rifinitore, Attaccante di Raccordo, Trequartista Incursore, Ala, Ala Invertita, Attaccante Esterno, Trovaspazi, Regista Largo, Esterno di Centrocampo.
+- ATTACCANTI: Centravanti, Falso Nueve, Attaccante che Pressa, Punta Completa, Uomo d'Area, Opportunista, Seconda Punta.
+
+2. COMPITI: Difendere, Sostenere, Attaccare.
+
+3. ISTRUZIONI DI SQUADRA (Scegli da qui):
+- In Possesso: Passaggi Più corti/Più diretti, Ritmo Più basso/Più alto, Allarga il gioco/Stringi, Scavalca il centrocampo, Parti dalla difesa, Cross Bassi/Tesi/Morbidi, Puntate la difesa, Dribblate di meno.
+- In Transizione: Contropressing / Raggruppatevi, Contropiede / Mantenete la posizione, Distribuisci ai centrali / Distribuisci ai terzini / Rilancio lungo.
+- Non in Possesso: Linea di Ingaggio Bassa/Media/Alta, Linea Difensiva Bassa/Normale/Alta, Pressing Meno insistente/Più assiduo/Estremo, State in piedi / Contrasti Più duri, Trappola del fuorigioco.
 `;
 
 const TACTIC_JSON_INSTRUCTION = `
@@ -29,13 +35,13 @@ const TACTIC_JSON_INSTRUCTION = `
 \`\`\`json
 {
   "tattica_fm": true,
-  "in_possesso": ["Passaggi Corti", "Ritmo Alto", "Allarga il gioco"],
+  "in_possesso": ["Passaggi Più corti", "Ritmo Più alto", "Allarga il gioco"],
   "in_transizione": ["Contropressing", "Contropiede", "Distribuisci ai centrali"],
-  "non_in_possesso": ["Linea alta", "Pressing estremo", "Usa la trappola del fuorigioco"],
+  "non_in_possesso": ["Linea di Ingaggio Alta", "Pressing Estremo", "Trappola del fuorigioco"],
   "formazione": [
     { "pos": "GK", "role": "Portiere Libero", "duty": "Dif", "name": "Cognome" },
-    { "pos": "DCR", "role": "Dif. Impostare", "duty": "Dif", "name": "Cognome" },
-    { "pos": "DCL", "role": "Dif. Centrale", "duty": "Dif", "name": "Cognome" },
+    { "pos": "DCR", "role": "Difensore che Imposta", "duty": "Dif", "name": "Cognome" },
+    { "pos": "DCL", "role": "Braccetto", "duty": "Dif", "name": "Cognome" },
     { "pos": "DR", "role": "Terzino Invertito", "duty": "Sos", "name": "Cognome" },
     { "pos": "DL", "role": "Esterno Completo", "duty": "Att", "name": "Cognome" },
     { "pos": "MCR", "role": "Mezzala", "duty": "Att", "name": "Cognome" },
@@ -43,11 +49,11 @@ const TACTIC_JSON_INSTRUCTION = `
     { "pos": "AMR", "role": "Ala Invertita", "duty": "Att", "name": "Cognome" },
     { "pos": "AML", "role": "Attaccante Esterno", "duty": "Sos", "name": "Cognome" },
     { "pos": "AMC", "role": "Trequartista", "duty": "Att", "name": "Cognome" },
-    { "pos": "ST", "role": "Attaccante che pressa", "duty": "Att", "name": "Cognome" }
+    { "pos": "ST", "role": "Attaccante che Pressa", "duty": "Att", "name": "Cognome" }
   ]
 }
 \`\`\`
-Usa SOLO codici posizioni di FM: GK, DL, DCL, DC, DCR, DR, WBL, WBR, DM, DML, DMR, ML, MCL, MC, MCR, MR, AML, AMC, AMR, STL, ST, STR.`;
+Usa SOLO codici posizioni esatti di FM: GK, DL, DCL, DC, DCR, DR, WBL, WBR, DM, DML, DMR, ML, MCL, MC, MCR, MR, AML, AMC, AMR, STL, ST, STR. I NOMI DEI RUOLI DEVONO ESSERE QUELLI ITALIANI UFFICIALI (es: "Centrocampista di Quantità", NON "Box-to-box").`;
 
 function App() {
   const [activeRoom, setActiveRoom] = useState('board') 
@@ -67,7 +73,7 @@ function App() {
   const [players, setPlayers] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_players')) || []; } catch(e) { return []; } })
   const [shortlist, setShortlist] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_shortlist')) || []; } catch(e) { return []; } })
   const [matches, setMatches] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_matches')) || []; } catch(e) { return []; } })
-  const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_messages')) || [{ sender_role: 'system', content: 'Cervello FM26 inizializzato. Lo staff ora ragiona esclusivamente con le meccaniche di gioco.' }]; } catch(e) { return [{ sender_role: 'system', content: 'Centrale operativa allineata.' }]; } })
+  const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_messages')) || [{ sender_role: 'system', content: 'Cervello FM26 Inizializzato (Database Italiano).' }]; } catch(e) { return [{ sender_role: 'system', content: 'Centrale operativa allineata.' }]; } })
   const [tacticReports, setTacticReports] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_tactic_reports')) || []; } catch(e) { return []; } })
   const [finances, setFinances] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_finances')) || { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; } catch(e) { return { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; } })
 
@@ -170,11 +176,11 @@ function App() {
           {data.formazione?.map((p, idx) => {
             const pos = POS_MAP[p.pos] || { top: '50%', left: '50%' };
             return (
-              <div key={idx} style={{ position: 'absolute', top: pos.top, left: pos.left, transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '80px' }}>
-                <div style={{ width: '22px', height: '22px', backgroundColor: '#da1b60', borderRadius: '50%', border: '2px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '9px', fontWeight: '900', boxShadow: '0 4px 6px rgba(0,0,0,0.5)' }}>{p.pos}</div>
-                <div style={{ backgroundColor: 'rgba(0,0,0,0.75)', color: '#fff', fontSize: '9px', padding: '2px 4px', borderRadius: '4px', marginTop: '2px', textAlign: 'center', whiteSpace: 'nowrap', fontWeight: 'bold' }}>{p.name}</div>
-                <div style={{ color: '#fff', fontSize: '9px', textAlign: 'center', textShadow: '1px 1px 2px #000', lineHeight: '1', marginTop: '2px' }}>{p.role}</div>
-                <div style={{ color: '#fbbf24', fontSize: '8px', textAlign: 'center', fontWeight: 'bold', textShadow: '1px 1px 2px #000' }}>({p.duty})</div>
+              <div key={idx} style={{ position: 'absolute', top: pos.top, left: pos.left, transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '85px', zIndex: 10 }}>
+                <div style={{ width: '24px', height: '24px', backgroundColor: '#da1b60', borderRadius: '50%', border: '2px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '10px', fontWeight: '900', boxShadow: '0 4px 6px rgba(0,0,0,0.5)' }}>{p.pos}</div>
+                <div style={{ backgroundColor: 'rgba(0,0,0,0.85)', color: '#fff', fontSize: '9.5px', padding: '3px 5px', borderRadius: '4px', marginTop: '3px', textAlign: 'center', whiteSpace: 'nowrap', fontWeight: 'bold' }}>{p.name}</div>
+                <div style={{ color: '#fff', fontSize: '8.5px', textAlign: 'center', textShadow: '1px 1px 2px #000', lineHeight: '1.2', marginTop: '2px', wordWrap: 'break-word', width: '100%', padding: '0 2px' }}>{p.role}</div>
+                <div style={{ color: '#fbbf24', fontSize: '8.5px', textAlign: 'center', fontWeight: '900', textShadow: '1px 1px 2px #000' }}>({p.duty})</div>
               </div>
             );
           })}
@@ -223,6 +229,7 @@ function App() {
     return <div>{lines}{tacticData && renderTacticBoard(tacticData)}</div>;
   };
 
+  // 7. FUNZIONI DI RETE SUPABASE
   const fetchCloudData = async () => {
     try {
       let { data: pData } = await supabase.from('players').select('*').order('name')
@@ -272,6 +279,7 @@ function App() {
     }
   };
 
+  // 8. AZIONI UTENTE
   const handleSidebarClick = (room) => { setActiveRoom(room); setMobileViewTab('chat'); };
   
   const handleSelectPlayer = (player, event) => {
@@ -309,7 +317,7 @@ function App() {
     const cost = parseFloat(simCost) || 0; const weeklyWage = parseFloat(simWage) || 0; const years = parseInt(simYears) || 1;
     const annualAmortization = cost / years; const annualWageCost = weeklyWage * 52; const totalAnnualImpact = annualAmortization + annualWageCost;
     let status = 'APPROVATO'; let color = '#34d399'; let notes = `Operazione sostenibile. Impatto annuo: €${totalAnnualImpact.toLocaleString()}.`;
-    if (cost > finances.transfer_budget) { status = 'BLOCCATO'; color = '#ef4444'; notes = `Fondi insufficienti.`; }
+    if (cost > finances.transfer_budget) { status = 'BLOCCATO'; color = '#ef4444'; notes = `Fondi insufficienti nel budget trasferimenti.`; }
     else if (weeklyWage > (finances.wage_budget * 0.3)) { status = 'RISCHIO SPOGLIATOIO'; color = '#ffaa00'; notes = `L'ingaggio supera il 30% del tetto salariale.`; }
     setSimResult({ status, color, annualAmortization, annualWageCost, notes });
   };
@@ -319,6 +327,7 @@ function App() {
     else { setSortField(field); setSortDirection('asc'); }
   };
 
+  // 9. CORE AI CHAT CON INIEZIONE LAVAGNA TATTICA
   const handleSendMessage = async () => {
     if (!chatInput.trim()) return;
     const currentInputText = chatInput; setChatInput(''); setIsTyping(true);
@@ -346,18 +355,20 @@ function App() {
         ${FM26_CORE_ENGINE}
         Il tuo Mister (Omiserez) ti dice: "${currentInputText}"
         
-        ⚠️ IDENTITÀ CARATTERIALE DEL MISTER:
+        ⚠️ PARAMETRI IDENTITÀ CARATTERIALE DEL MISTER:
         - Stile Media: ${pressStyle.toUpperCase()} | Protezione Spogliatoio: ${squadShield.toUpperCase()}
         - Rapporto Rivali: ${rivalRelation.toUpperCase()} | Fede Tattica: ${tacticalFocus.toUpperCase()}
 
-        REGOLE INTERNE CARATTERE DELLO STAFF (Tutti esperti di FM26):
-        - VICE ALLENATORE: Uomo di campo, sanguigno, difende lo spogliatoio. E' un GENIO DELLA TATTICA DI FM26. Consiglia modifiche ai ruoli, compiti e istruzioni esatte.
-        - DIRETTORE SPORTIVO: Cinico, pensa a soldi, esuberi e attributi CA/PA.
-        - CHIEF SCOUT: Fissato con i wonderkids. Analizza attributi tecnici e mentali.
+        REGOLE INTERNE CARATTERE DELLO STAFF:
+        - VICE ALLENATORE: Uomo di campo, sanguigno, difende lo spogliatoio. E' un GENIO DELLA TATTICA DI FM26.
+        - DIRETTORE SPORTIVO: Cinico, pensa a soldi, esuberi, plusvalenze e agenti.
+        - CHIEF SCOUT: Fissato con i wonderkids esteri.
         - CFO FINANZE: Tirchio, ironizza sempre sui soldi spesi.
-        - ADDETTO STAMPA: Pettegolo sui media e sulle reazioni della squadra.
+        - ADDETTO STAMPA: Pettegolo sui giornalisti.
         - RESPONSABILE GIOVANILI: Paterno con i giovani under 20.
-        - MATCH ANALYST: Nerd dei dati. Parla solo di xG, Expected Assists e zone di campo.
+        - MATCH ANALYST: Nerd dei dati e dei grafici xG.
+
+        FORMATTAZIONE: Usa sempre i pallini (inizia la riga con asterisco e spazio '* '). Evita muri di testo.
 
         CRONOLOGIA:
         ${businessChronology}
@@ -371,7 +382,7 @@ function App() {
 
       if (activeRoom === 'board') { instructionPrompt += `\nREGOLE TAVOLO PLENARIA: Rispondi simulando un dibattito acceso.`; } 
       else { 
-        instructionPrompt += `\nSTANZA SINGOLA ATTIVA: SEI NELL'UFFICIO PRIVATO DI '${activeRoom.toUpperCase()}'. Rispondi al Mister interpretando esclusivamente il tuo personaggio con istruzioni REALI di Football Manager 2026.`; 
+        instructionPrompt += `\nSTANZA SINGOLA ATTIVA: SEI NELL'UFFICIO PRIVATO DI '${activeRoom.toUpperCase()}'. Rispondi al Mister interpretando esclusivamente il tuo personaggio.`; 
         if (activeRoom === 'vice') instructionPrompt += TACTIC_JSON_INSTRUCTION;
       }
 
@@ -383,11 +394,15 @@ function App() {
     } catch (error) { console.error(error); } finally { setIsTyping(false); }
   };
 
+  // UPLOAD IMMAGINI GLOBALE DALLA CHAT
   const handleChatImageUpload = async (event) => {
     const file = event.target.files[0]; 
     if (!file) return; 
     
-    const currentText = chatInput.trim(); setChatInput(''); setIsTyping(true); if (isMobile) setMobileViewTab('chat');
+    const currentText = chatInput.trim();
+    setChatInput('');
+    setIsTyping(true); 
+    if (isMobile) setMobileViewTab('chat');
     
     try {
       const reader = new FileReader(); 
@@ -395,7 +410,7 @@ function App() {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
         
         const userRole = `user:${activeRoom}`;
-        const displayMsg = currentText ? `📷 [Immagine allegata] ${currentText}` : `📷 [Immagine allegata] Guarda questo screen di Football Manager, cosa ne pensi?`;
+        const displayMsg = currentText ? `📷 [Immagine allegata] ${currentText}` : `📷 [Immagine allegata] Guarda questo screen, cosa ne pensi?`;
         
         const userMessageObj = { sender_role: userRole, content: displayMsg };
         setMessages(prev => [...prev, userMessageObj]);
@@ -406,22 +421,24 @@ function App() {
 
         let instructionPrompt = `
           ${FM26_CORE_ENGINE}
-          Il Mister ti ha appena allegato un'immagine del gioco e ti dice: "${currentText || 'Cosa ne pensi di questo screen?'}"
+          Il Mister ti ha appena allegato un'immagine e ti dice: "${currentText || 'Cosa ne pensi di questo screen?'}"
           
-          REGOLE DELLO STAFF: Reagisci all'immagine usando le meccaniche esatte di Football Manager 2026.
-          - VICE ALLENATORE: Se l'immagine è una tattica, DEVI analizzarla dando consigli sui RUOLI e sulle ISTRUZIONI DI SQUADRA. Usa il lessico esatto di FM26.
-          - DS: Pensa a contratti, valutazioni e CA/PA.
-          - SCOUT: Legge gli attributi e i report scouting.
-          - CFO: Pensa al bilancio.
-          - STAMPA: Analizza la schermata stampa/media.
-          - ANALYST: Legge i dati post-partita.
+          REGOLE DELLO STAFF: Reagisci all'immagine usando il carattere del tuo ruolo. E FORNISCI SEMPRE UN RISCONTRO TATTICO (LAVAGNA) SE SI TRATTA DI MODULI O GARE.
+          - VICE: Uomo di campo, genio tattico.
+          - DS: Squalo, pensa ai soldi/contratti.
+          - SCOUT: Fissato col potenziale.
+          - CFO: Tirchio.
+          - STAMPA: Pettegolo, ansioso.
+          - GIOVANILI: Difende gli under 20.
+          - ANALYST: Parla solo di algoritmi.
           
-          ROSA SORA: ${JSON.stringify(squadContext.slice(0, 20))}
+          FORMATTAZIONE: Usa elenchi puntati con asterischi.
+          ROSA: ${JSON.stringify(squadContext.slice(0, 20))}
         `;
 
-        if (activeRoom === 'board') { instructionPrompt += `\nRispondi simulando un dibattito tra lo staff sull'immagine.`; } 
+        if (activeRoom === 'board') { instructionPrompt += `\nRispondi simulando un dibattito tra i vari membri dello staff.`; } 
         else { 
-          instructionPrompt += `\nSei nell'ufficio '${activeRoom.toUpperCase()}'. Rispondi al Mister usando termini di FM26.`; 
+          instructionPrompt += `\nSei nell'ufficio '${activeRoom.toUpperCase()}'. Rispondi al Mister analizzando l'immagine come farebbe il tuo ruolo.`; 
           if (activeRoom === 'vice') instructionPrompt += TACTIC_JSON_INSTRUCTION;
         }
 
@@ -434,9 +451,15 @@ function App() {
         try { await supabase.from('club_messages').insert([aiMessageObj]); } catch(e) {}
       }; 
       reader.readAsDataURL(file);
-    } catch (err) { console.error(err); } finally { setIsTyping(false); if (chatImageInputRef.current) chatImageInputRef.current.value = ""; }
+    } catch (err) { 
+      console.error(err); 
+    } finally { 
+      setIsTyping(false); 
+      if (chatImageInputRef.current) chatImageInputRef.current.value = ""; 
+    }
   };
 
+  // 10. FUNZIONI MULTIMEDIALI STRUMENTI SPECIFICI
   const handlePreMatchAnalysis = async (event) => {
     const file = event.target.files[0]; if (!file) return; setIsTyping(true); if (isMobile) setMobileViewTab('chat');
     try {
@@ -447,13 +470,14 @@ function App() {
 
         const prompt = `
         ${FM26_CORE_ENGINE}
-        Sei il Vice Allenatore del club "${clubName}". Questo è lo screenshot della squadra avversaria.
+        Sei il Vice Allenatore del club "${clubName}". Sei un TATTICO GENIALE, spietato nell'analisi calcistica e maestro di FM26.
+        Questo è lo screenshot della squadra avversaria.
         Nostra rosa: ${JSON.stringify(squadContext.slice(0, 40))}.
         
-        Fai un BRIEFING PRE-PARTITA FM26:
-        1. Quali istruzioni sull'avversario usare (Es: Pressing sempre su X, Contrasti duri su Y).
-        2. Come impostare il nostro Modulo e Istruzioni di squadra per contrastarli (Es: Abbassare la linea, Togliere il contropressing).
-        3. Formazione titolare nostra ideale da schierare oggi.
+        Fai un BRIEFING PRE-PARTITA DA ESPERTO (usa bene grassetti e liste puntate con asterisco):
+        1. Analisi Profonda dell'Avversario (Moduli, buchi difensivi, zone deboli e pericoli). NON DIRE BANALITÀ.
+        2. Formazione titolare nostra ideale da schierare oggi per annullare il loro gioco.
+        3. Istruzioni individuali tattiche per i nostri giocatori.
         ` + TACTIC_JSON_INSTRUCTION;
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
@@ -472,8 +496,8 @@ function App() {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
         const prompt = `
         ${FM26_CORE_ENGINE}
-        Sei il Vice Allenatore e TATTICO del club "${clubName}".
-        Il Mister ti ha mostrato questo screenshot di FM26. Analizzalo leggendo le meccaniche di gioco esatte. Dammi consigli su Istruzioni di Squadra e Ruoli.` + TACTIC_JSON_INSTRUCTION;
+        Sei il Vice Allenatore e GENIO TATTICO del club "${clubName}".
+        Il Mister ti ha mostrato questo screenshot di FM. Analizzalo attentamente con un'intelligenza calcistica superiore. Cogli i dettagli tecnici, capisci esattamente cosa sta succedendo e dai consigli di altissimo livello. Sii diretto, chiamalo "Mister", ma dimostra competenza.` + TACTIC_JSON_INSTRUCTION;
         
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]); const output = result.response.text();
@@ -490,7 +514,7 @@ function App() {
     try {
       const prompt = `
       ${FM26_CORE_ENGINE}
-      Analizza la tattica o il testo: """${inputBuffer}""" in base alla nostra rosa ${clubName}. Il Vice Allenatore deve fare un report usando il lessico di FM26 (Ruoli, Compiti, Istruzioni In Possesso/Non In Possesso). Inizia con TITOLO: [Nome breve della tattica]` + TACTIC_JSON_INSTRUCTION;
+      Analizza la tattica: """${inputBuffer}""" sulla rosa ${clubName}. Il Vice Allenatore (esperto tattico) deve fare un report avanzato. Metti all'inizio la dicitura TITOLO: [Nome breve della tattica]` + TACTIC_JSON_INSTRUCTION;
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(prompt); const outputText = result.response.text();
       const cleanTitle = (outputText.match(/TITOLO:\s*(.*)/i)?.[1] || `Tattica del ${new Date().toLocaleDateString()}`).replace('[', '').replace(']', '').trim();
@@ -511,7 +535,7 @@ function App() {
       ${FM26_CORE_ENGINE}
       Sei il DS del "${clubName}". Tattica richiesta: "${inputBuffer}".
       Rosa: ${JSON.stringify(squadContext.slice(0, 40))}.
-      Stila una lista degli ESUBERI: dimmi esattamente quali giocatori vendere perché inadatti ai ruoli e compiti richiesti dalla tattica. Cita gli attributi mancanti.`;
+      Stila una lista spietata e ben formattata (liste puntate con asterisco) degli ESUBERI da cedere perché inutili per questa specifica tattica.`;
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(prompt); const outputText = result.response.text();
       const userMsg = { sender_role: `user:ds`, content: `📋 Direttore, valuta la rosa per la tattica: "${inputBuffer}". Chi dobbiamo cedere?` };
@@ -527,7 +551,7 @@ function App() {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
         const prompt = `
         ${FM26_CORE_ENGINE}
-        Sei il Scout del "${clubName}". Schedatura screenshot attributi FM26. Output: VERDETTO: [ACQUISTARE, RISERVA, EVITARE] NOME: [Nome] RUOLO: [Ruolo] REPORT: [Analisi profonda citando attributi chiave, personalità, CA/PA, costi]`;
+        Sei il Scout del "${clubName}". Schedatura FM26. Output: VERDETTO: [ACQUISTARE, RISERVA, EVITARE] NOME: [Nome] RUOLO: [Ruolo] REPORT: [Analisi profonda e competente]`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]); const output = result.response.text();
         const pName = (output.match(/NOME:\s*(.*)/i)?.[1] || 'Obiettivo Scansionato').trim();
@@ -552,7 +576,7 @@ function App() {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
         const prompt = `
         ${FM26_CORE_ENGINE}
-        Sei l'Addetto Stampa del "${clubName}". Screen conferenza di FM26. Stile Mister: ${pressStyle}, Scudo: ${squadShield}, Rivali: ${rivalRelation}. Detta quale pulsante/frase cliccare nel gioco per modificare le Dinamiche e il Morale nel modo giusto.`;
+        Sei l'Addetto Stampa del "${clubName}". Screen conferenza di FM. Stile Mister: ${pressStyle}, Scudo: ${squadShield}, Rivali: ${rivalRelation}. Detta quale pulsante/frase cliccare nel gioco per modificare le Dinamiche e il Morale nel modo giusto.`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]); const output = result.response.text();
         const userMsg = { sender_role: `user:press`, content: `📷 Mister ha inoltrato uno screenshot della conferenza stampa in corso.` };
@@ -569,7 +593,7 @@ function App() {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
         const prompt = `
         ${FM26_CORE_ENGINE}
-        Sei il Match Analyst del "${clubName}". Compila in chiaro i dati post-gara FM26: AVVERSARIO: [Nome] RISULTATO: [Risultato] XG_TEAM: [xG] XG_OPP: [xG] ANALISI: [Analisi dati FM: Passaggi completati, possesso, zone di azione, expected assists. Nessuna banalità]`;
+        Sei il Match Analyst del "${clubName}". Compila in chiaro i dati post-gara: AVVERSARIO: [Nome] RISULTATO: [Risultato] XG_TEAM: [xG] XG_OPP: [xG] ANALISI: [Analisi dati FM26: Passaggi completati, possesso, zone di azione, expected assists. Nessuna banalità]`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]); const output = result.response.text();
         const mOpp = (output.match(/AVVERSARIO:\s*(.*)/i)?.[1] || 'Gara').trim();
@@ -593,7 +617,7 @@ function App() {
     try {
       const reader = new FileReader(); reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
-        const prompt = `Sei il CFO taccagno del club "${clubName}". Estrai le finanze in JSON puro (senza formattazione markdown): { "balance": numero, "transfer_budget": numero, "wage_budget": numero, "analysis": "analisi sul monte ingaggi e sul budget" }`;
+        const prompt = `Sei il CFO taccagno del club "${clubName}". Estrai le finanze in JSON puro: { "balance": numero, "transfer_budget": numero, "wage_budget": numero, "analysis": "analisi sarcastica" }`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]);
         const cleanText = result.response.text().replace(/```json/gi, '').replace(/```/g, '').trim();
@@ -605,7 +629,7 @@ function App() {
             const aiMsg = { sender_role: 'cfo', content: parsed.analysis || "Audit completato." }; setMessages(prev => [...prev, userMsg, aiMsg]);
             try { await supabase.from('club_finances').update({ balance: parsed.balance || 0, transfer_budget: parsed.transfer_budget || 0, wage_budget: parsed.wage_budget || 0 }).eq('id', 1); await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch (e) {}
           }
-        } catch (jsonErr) { console.error("JSON Error", jsonErr); }
+        } catch (jsonErr) { console.error(jsonErr); }
       }; reader.readAsDataURL(file);
     } catch (e) { console.error(e); } finally { setIsTyping(false); }
   };
@@ -678,7 +702,7 @@ function App() {
     } catch (e) { console.error(e); } finally { setIsUploading(false); } 
   };
 
-  // 11. COMPONENTI DI RENDER E LAYOUT
+  // 11. COMPONENTI DI RENDER: FINESTRE E TABELLE
   function renderChatWindow() {
     const safeMessages = Array.isArray(messages) ? messages : [];
     const visibleMessages = safeMessages.filter(msg => {
