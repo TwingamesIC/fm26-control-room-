@@ -75,20 +75,17 @@ function App() {
   const [rivalRelation, setRivalRelation] = useState(() => localStorage.getItem('hq_rival_relation') || 'respectful')
   const [tacticalFocus, setTacticalFocus] = useState(() => localStorage.getItem('hq_tactical_focus') || 'pragmatic')
 
-  // 4. STATI DEGLI STRUMENTI, INPUT E INTERFACCIA
+  // 4. STATI DEGLI STRUMENTI E INTERFACCIA
   const [simCost, setSimCost] = useState('500000')
   const [simWage, setSimWage] = useState('2000')
   const [simYears, setSimYears] = useState('3')
   const [simResult, setSimResult] = useState(null)
-  
   const [externalTacticInput, setExternalTacticInput] = useState('')
-  const [dsTacticInput, setDsTacticInput] = useState('') // NUOVO STATO PER IL MODULO EPURAZIONE DS
-  
+  const [dsTacticInput, setDsTacticInput] = useState('')
   const [selectedProfile, setSelectedProfile] = useState(null) 
   const [selectedTacticReport, setSelectedTacticReport] = useState(null)
   const [editingNotes, setEditingNotes] = useState('')
   const [isSavingNotes, setIsSavingNotes] = useState(false)
-  
   const [isUploading, setIsUploading] = useState(false)
   const [isTyping, setIsTyping] = useState(false)
   const [chatInput, setChatInput] = useState('')
@@ -162,6 +159,7 @@ function App() {
     } catch (e) { setCloudStatus('offline') }
   }
 
+  // TASTO MAGICO FORZA SINCRO
   async function handleForceSync() {
     try {
       const safePlayers = Array.isArray(players) ? players : [];
@@ -239,7 +237,6 @@ function App() {
     } catch (e) { console.error(e); } finally { setIsSavingNotes(false); }
   }
 
-  // NUOVA FUNZIONE: ELIMINA GIOCATORE DALLA SHORTLIST
   async function handleRemoveFromShortlist(id) {
     setShortlist(prev => prev.filter(s => s.id !== id));
     try { await supabase.from('shortlist').delete().eq('id', id); } catch(e) {}
@@ -307,7 +304,7 @@ function App() {
         SEI LO STAFF REALE, PASSIONALE E CHIACCHIERONE DEL CLUB "${clubName.toUpperCase()}" SU FOOTBALL MANAGER 2026.
         Il tuo Mister (Omiserez) ti dice: "${currentInputText}"
         
-        ⚠️ PARAMETRI IDENTITÀ CARATTERIALE DEL MISTER (REAGISCI DI CONSEGUENZA):
+        ⚠️ PARAMETRI IDENTITÀ CARATTERIALE DEL MISTER:
         - Stile nei Media con la Stampa: ${pressStyle.toUpperCase()}
         - Livello Protezione Spogliatoio: ${squadShield.toUpperCase()}
         - Rapporti psicologici con i Rivali: ${rivalRelation.toUpperCase()}
@@ -346,7 +343,6 @@ function App() {
     } catch (error) { console.error(error); } finally { setIsTyping(false); }
   }
 
-  // NUOVA FUNZIONE: DS VALUTA LA ROSA ED ESTRAE GLI ESUBERI IN BASE ALLA TATTICA
   async function handleAnalyzeSquadEsuberi() {
     if (!dsTacticInput.trim()) return;
     setIsTyping(true);
@@ -376,7 +372,7 @@ function App() {
     } catch (error) { console.error(error); } finally { setIsTyping(false); }
   }
 
-  // 9. FUNZIONI MULTIMEDIALI AVANZATE E OCR
+  // 9. FUNZIONI MULTIMEDIALI AVANZATE
   async function handleAnalyzeExternalTactic() {
     if (!externalTacticInput.trim()) return; 
     setIsTyping(true); 
@@ -414,14 +410,14 @@ function App() {
       const reader = new FileReader(); 
       reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
-        const prompt = `Sei il Capo Osservatore del club "${clubName}". Schedatura FM26. Restituisci l'output strutturato così: VERDETTO: [Mettere solo ACQUISTARE, RISERVA o EVITARE] NOME: [Nome] RUOLO: [Ruolo] REPORT: [Analisi ruspante e dettagliata per il Mister]`;
+        const prompt = `Sei il Capo Osservatore del club "${clubName}". Schedatura FM26. Restituisci l'output strutturato così: VERDETTO: [Mettere solo ACQUISTARE, RISERVA o EVITARE] NOME: [Nome] RUOLO: [Ruolo] REPORT: [Analisi ruspante e dettagliata]`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]); 
         const output = result.response.text();
         
         const pName = (output.match(/NOME:\s*(.*)/i)?.[1] || 'Obiettivo Scansionato').trim();
         const pRole = (output.match(/RUOLO:\s*(.*)/i)?.[1] || 'N/D').trim();
-        const pVerdict = (output.match(/VERDETTO:\s*(.*)/i)?.[1] || 'VALUTATO').trim();
+        const pVerdict = (output.match(/VERDETTO:\s*(.*)/i)?.[1] || 'VALUTAZIONE').trim();
         
         const userMsg = { sender_role: `user:scout`, content: `📷 Mister ha messo sul tavolo la scheda di un calciatore esterno da visionare.` };
         const aiMsg = { sender_role: 'scout', content: output }; 
@@ -507,7 +503,7 @@ function App() {
       const reader = new FileReader(); 
       reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
-        const prompt = `Sei il CFO taccagno del club "${clubName}". Estrai le finanze in JSON puro (senza formattazione markdown): { "balance": numero, "transfer_budget": numero, "wage_budget": numero, "analysis": "analisi sarcastica e protettiva delle casse societarie" }`;
+        const prompt = `Sei il CFO taccagno del club "${clubName}". Estrai le finanze in JSON puro (senza formattazione markdown): { "balance": numero, "transfer_budget": numero, "wage_budget": numero, "analysis": "analisi sarcastica e protettiva delle casse" }`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]);
         const cleanText = result.response.text().replace(/```json/gi, '').replace(/```/g, '').trim();
@@ -561,7 +557,7 @@ function App() {
       const reader = new FileReader(); 
       reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
-        const prompt = `Sei il Responsabile Giovanili del club "${clubName}". Esamina lo screen profilo Under 20 di FM26 e dai una valutazione entusiasta, paterna e protettiva delle potenzialità reali del ragazzo.`;
+        const prompt = `Sei il Responsabile Giovanili del club "${clubName}". Esamina lo screen profilo Under 20 di FM26 e dai una valutazione entusiasta, paterna e protettiva delle potenzialità.`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]);
         const output = result.response.text();
@@ -575,10 +571,11 @@ function App() {
     } catch (e) { console.error(e); } finally { setIsTyping(false); }
   }
 
+  // 10. LETTORE OCR DELLA ROSA RIGIDO E SICURO CON FEEDBACK VISIVO GIGANTE AGGIUNTO
   async function handleImageUploadOCR(event) {
     const file = event.target.files[0]; 
     if (!file) return; 
-    setIsUploading(true);
+    setIsUploading(true); 
     
     try {
       const reader = new FileReader(); 
@@ -634,10 +631,12 @@ function App() {
       reader.readAsDataURL(file);
     } catch (e) {
       console.error(e);
-    } finally { setIsUploading(false); }
+    } finally { 
+      setIsUploading(false); 
+    } 
   }
 
-  // 10. COMPONENTI DI RENDER: FINESTRE E TABELLE
+  // 11. COMPONENTI DI RENDER: FINESTRE, TABELLE E MODALI
   function renderChatWindow() {
     const safeMessages = Array.isArray(messages) ? messages : [];
     const visibleMessages = safeMessages.filter(msg => {
@@ -750,7 +749,6 @@ function App() {
                   <input type="file" accept="image/*" ref={scoutInputRef} onChange={handleScoutImageUpload} style={{ display: 'none' }} />
                   <button onClick={() => scoutInputRef.current.click()} disabled={isTyping} style={{ width: '100%', backgroundColor: '#f43f5e', color: '#ffffff', border: 'none', padding: '14px', fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(244,63,94,0.3)' }}>Scansiona e Aggiungi in Shortlist</button>
                   
-                  {/* TABELLA ESTRAZIONE RAPIDA SHORTLIST */}
                   <div style={{ marginTop: '15px', backgroundColor: '#140f24', padding: '14px', borderRadius: '8px', border: '1px solid #231b3a' }}>
                     <span style={{ fontSize: '11px', color: '#f43f5e', fontWeight: 'bold', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>🎯 Obiettivi Inseriti (Shortlist):</span>
                     {(!Array.isArray(shortlist) || shortlist.length === 0) ? <div style={{ fontSize: '12px', color: '#475569', fontStyle: 'italic' }}>Lista vuota.</div> : (
@@ -782,9 +780,11 @@ function App() {
               {activeRoom === 'cfo' && (
                 <>
                   <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#10b981', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Contabilità Moneyball</h3>
-                  <input type="file" accept="image/*" ref={financeInputRef} onChange={handleFinanceImageUpload} style={{ display: 'none' }} />
-                  <button onClick={() => financeInputRef.current.click()} disabled={isTyping} style={{ width: '100%', backgroundColor: '#10b981', color: '#0f0c1b', border: 'none', padding: '12px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '4px' }}>Carica Screen Finanze</button>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
+                  <div style={{ backgroundColor: '#140f24', border: '1px solid #231b3a', padding: '14px', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <input type="file" accept="image/*" ref={financeInputRef} onChange={handleFinanceImageUpload} style={{ display: 'none' }} />
+                    <button onClick={() => financeInputRef.current.click()} disabled={isTyping} style={{ width: '100%', backgroundColor: '#10b981', color: '#0f0c1b', border: 'none', padding: '12px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '4px' }}>Carica Screen Finanze</button>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
                     <div><label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 'bold' }}>Bilancio Societario (€)</label><input type="number" value={finances?.balance || 0} onChange={(e) => updateFinancesCloud('balance', e.target.value)} style={{ width: '92%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '8px', color: '#10b981', fontWeight: 'bold', borderRadius: '4px' }} /></div>
                     <div><label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 'bold' }}>Budget Mercato (€)</label><input type="number" value={finances?.transfer_budget || 0} onChange={(e) => updateFinancesCloud('transfer_budget', e.target.value)} style={{ width: '92%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '8px', color: '#fff', borderRadius: '4px' }} /></div>
                   </div>
@@ -797,7 +797,7 @@ function App() {
                     <button onClick={handleSimulateTransfer} style={{ backgroundColor: '#10b981', color: '#0f0c1b', border: 'none', padding: '8px', fontSize: '11px', fontWeight: 'bold', borderRadius: '4px', marginTop: '10px', width: '100%' }}>Calcola Impatto</button>
                     {simResult && <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#090710', borderLeft: `3px solid ${simResult.color}`, fontSize: '12px', color: '#fff' }}>{simResult.notes}</div>}
                   </div>
-                  <button onClick={handleFinanceAudit} disabled={isTyping} style={{ backgroundColor: '#da1b60', color: '#fff', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '6px', marginTop: '12px', width: '100%' }}>Genera Audit Contabile</button>
+                  <button onClick={handleFinanceAudit} disabled={isTyping} style={{ backgroundColor: '#da1b60', color: '#fff', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', marginTop: '12px', width: '100%', cursor: 'pointer' }}>Genera Audit Contabile</button>
                 </>
               )}
 
@@ -917,9 +917,12 @@ function App() {
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
             <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUploadOCR} style={{ display: 'none' }} />
+            
             {!isMobile && safePlayers.length > 0 && (
               <button onClick={handleForceSync} disabled={isUploading} style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none', padding: '10px 16px', fontSize: '12px', fontWeight: 'bold', borderRadius: '6px', cursor: 'pointer' }}>{isUploading ? 'Sincro...' : '☁️ Forza Sincro Cloud'}</button>
             )}
+
+            {/* FEEDBACK VISIVO GIGANTE SUL TASTO DI CARICAMENTO ROSA */}
             <button onClick={() => fileInputRef.current.click()} disabled={isUploading} style={{ backgroundColor: isUploading ? '#fbbf24' : '#da1b60', color: isUploading ? '#0f0c1b' : '#fff', border: 'none', padding: '10px 20px', fontSize: '12px', fontWeight: 'bold', borderRadius: '6px', cursor: isUploading ? 'not-allowed' : 'pointer' }}>
               {isUploading ? '⏳ SCANSIONE...' : 'Carica Foto Rosa'}
             </button>
@@ -929,6 +932,7 @@ function App() {
 
         <div style={{ flex: 1, padding: isMobile ? '12px' : '24px', overflowY: 'auto', backgroundColor: '#090710', width: '100%', boxSizing: 'border-box' }}>
           
+          {/* PANNELLO GIGANTE CENTRALE DI CARICAMENTO OCR IN CORSO */}
           {isUploading && (dbSubTab === 'first_team' || dbSubTab === 'youth') ? (
             <div style={{ textAlign: 'center', padding: '64px', color: '#fbbf24', fontSize: '16px', fontWeight: 'bold', border: '2px dashed #fbbf24', backgroundColor: '#140f24', borderRadius: '8px' }}>
               ⏳ Lettura Ottica in corso... Estrazione attributi tattici e valori. Non ricaricare la pagina!
