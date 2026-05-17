@@ -80,12 +80,15 @@ function App() {
   const [simWage, setSimWage] = useState('2000')
   const [simYears, setSimYears] = useState('3')
   const [simResult, setSimResult] = useState(null)
+  
   const [externalTacticInput, setExternalTacticInput] = useState('')
   const [dsTacticInput, setDsTacticInput] = useState('')
+  
   const [selectedProfile, setSelectedProfile] = useState(null) 
   const [selectedTacticReport, setSelectedTacticReport] = useState(null)
   const [editingNotes, setEditingNotes] = useState('')
   const [isSavingNotes, setIsSavingNotes] = useState(false)
+  
   const [isUploading, setIsUploading] = useState(false)
   const [isTyping, setIsTyping] = useState(false)
   const [chatInput, setChatInput] = useState('')
@@ -100,7 +103,7 @@ function App() {
   const scoutInputRef = useRef(null)
   const chatContainerRef = useRef(null)
 
-  // 5. SALVATAGGIO LOCALE AUTOMATICO (FAIL-SAFE)
+  // 5. SALVATAGGIO LOCALE AUTOMATICO (FAIL-SAFE) E AUTO-SCROLL
   useEffect(() => { localStorage.setItem('hq_players', JSON.stringify(players)) }, [players])
   useEffect(() => { localStorage.setItem('hq_shortlist', JSON.stringify(shortlist)) }, [shortlist])
   useEffect(() => { localStorage.setItem('hq_matches', JSON.stringify(matches)) }, [matches])
@@ -114,19 +117,30 @@ function App() {
   useEffect(() => { localStorage.setItem('hq_tactical_focus', tacticalFocus) }, [tacticalFocus])
   useEffect(() => { localStorage.setItem('hq_club_name', clubName) }, [clubName])
 
-  // AUTO-SCROLL CHAT
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [messages, isTyping])
 
-  // RECUPERO DATI INIZIALE DA SUPABASE
   useEffect(() => {
     fetchCloudData();
   }, []);
 
-  // 6. FUNZIONI DI RETE SUPABASE
+  // ==========================================
+  // FUNZIONE CHIAVE: NORMALIZZATORE DI ACCENTI E SPAZI
+  // Questa funzione pialla gli accenti (ò diventa o, é diventa e) per evitare doppioni.
+  // ==========================================
+  const normalizeName = (name) => {
+    if (!name) return '';
+    return name
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // Rimuove gli accenti
+      .toLowerCase()
+      .trim();
+  };
+
+  // 6. FUNZIONI DI RETE SUPABASE E SYNC
   async function fetchCloudData() {
     try {
       let { data: pData } = await supabase.from('players').select('*').order('name')
@@ -159,7 +173,6 @@ function App() {
     } catch (e) { setCloudStatus('offline') }
   }
 
-  // TASTO MAGICO FORZA SINCRO
   async function handleForceSync() {
     try {
       const safePlayers = Array.isArray(players) ? players : [];
@@ -178,9 +191,11 @@ function App() {
           notes: p.notes || ''
         };
         
-        let { data: existing } = await supabase.from('players').select('*').ilike('name', p.name);
-        if (existing && existing.length > 0) {
-          await supabase.from('players').update(toInsert).eq('id', existing[0].id);
+        let { data: existing } = await supabase.from('players').select('*');
+        const match = (existing || []).find(x => normalizeName(x.name) === normalizeName(p.name));
+        
+        if (match) {
+          await supabase.from('players').update(toInsert).eq('id', match.id);
         } else {
           await supabase.from('players').insert([toInsert]);
         }
@@ -195,7 +210,7 @@ function App() {
   }
 
   async function handleClearAllData() {
-    if (window.confirm("Vuoi azzerare la sede societaria e ricominciare da zero?")) {
+    if (window.confirm("Vuoi azzerare la sede societaria e ricominciare da zero? (Consigliato per pulire i vecchi doppioni)")) {
       setPlayers([]); setShortlist([]); setMatches([]); setTacticReports([]);
       setMessages([{ sender_role: 'system', content: 'Centrale resettata con successo. Sede pulita.' }]);
       setFinances({ balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }); 
@@ -250,8 +265,7 @@ function App() {
     const annualWageCost = weeklyWage * 52; 
     const totalAnnualImpact = annualAmortization + annualWageCost;
     
-    let status = 'APPROVATO'; 
-    let color = '#34d399'; 
+    let status = 'APPROVATO'; let color = '#34d399'; 
     let notes = `Operazione sostenibile per il club. Impatto annuo complessivo: €${totalAnnualImpact.toLocaleString()}.`;
     
     if (cost > finances.transfer_budget) { 
@@ -301,38 +315,36 @@ function App() {
       }).join('\n');
 
       let instructionPrompt = `
-        SEI LO STAFF REALE, PASSIONALE E CHIACCHIERONE DEL CLUB "${clubName.toUpperCase()}" SU FOOTBALL MANAGER 2026.
+        SEI LO STAFF REALE E PASSIONALE DEL CLUB "${clubName.toUpperCase()}" SU FOOTBALL MANAGER 2026.
         Il tuo Mister (Omiserez) ti dice: "${currentInputText}"
         
         ⚠️ PARAMETRI IDENTITÀ CARATTERIALE DEL MISTER:
-        - Stile nei Media con la Stampa: ${pressStyle.toUpperCase()}
-        - Livello Protezione Spogliatoio: ${squadShield.toUpperCase()}
-        - Rapporti psicologici con i Rivali: ${rivalRelation.toUpperCase()}
-        - Filosofia di Campo: ${tacticalFocus.toUpperCase()}
+        - Stile Media: ${pressStyle.toUpperCase()} | Protezione Spogliatoio: ${squadShield.toUpperCase()}
+        - Rapporto Rivali: ${rivalRelation.toUpperCase()} | Fede Tattica: ${tacticalFocus.toUpperCase()}
 
-        REGOLE INTERNE CARATTERE DELLO STAFF (VIETATO COMPORTARSI DA BOT):
-        - VICE ALLENATORE: Dice "Mister", è un uomo di campo verace, odia i nerd dei dati, usa metafore spavalde, difende lo spogliatoio.
-        - DIRETTORE SPORTIVO: Squalo del calciomercato, parla sempre di plusvalenze, agenti avidi, scadenze contrattuali e furbate.
-        - CHIEF SCOUT: Stravede per i ragazzi prodigio tecnici (wonderkids), si gasa per i dribbling e disprezza i vecchi bidoni.
-        - CFO FINANZE: Ironico, sardonico, tirchio fino al midollo, ti rimprovera se spendi troppo e si lamenta dei budget.
-        - ADDETTO STAMPA: Pettegolo, sa le trappole dei giornalisti locali e adora la tensione dei titoli sui giornali.
-        - RESPONSABILE GIOVANILI: Tratta i ragazzi Under 20 del Sora come figli suoi, vuole vederli tutti in prima squadra subito.
-        - MATCH ANALYST: Parla solo di xG, tiri e statistiche matematiche fredde, ma viene preso in giro dal Vice di continuo.
+        REGOLE INTERNE CARATTERE DELLO STAFF:
+        - VICE ALLENATORE: Uomo di campo, difende lo spogliatoio.
+        - DIRETTORE SPORTIVO: Cinico, parla di plusvalenze e agenti.
+        - CHIEF SCOUT: Fissato con i wonderkids.
+        - CFO FINANZE: Tirchio, ironizza sui soldi spesi.
+        - ADDETTO STAMPA: Pettegolo sui giornalisti.
+        - RESPONSABILE GIOVANILI: Paterno con i giovani.
+        - MATCH ANALYST: Parla solo di xG e statistiche.
 
-        CRONOLOGIA DISCUSSIONI PRECEDENTI:
+        CRONOLOGIA:
         ${businessChronology}
         
-        SITUAZIONE PATRIMONIALE ED ORGANICO REALE:
-        - Cassa €${finances?.balance || 0} | Budget Mercato €${finances?.transfer_budget || 0}
-        - ROSA REALE SORA: ${JSON.stringify(squadContext.slice(0, 30))}
-        - LISTA DESIDERI OBIETTIVI (SHORTLIST): ${JSON.stringify(shortlistContext)}
-        - ARCHIVIO GARE E PARTITE GIOCATE: ${JSON.stringify(matchesContext)}
+        SITUAZIONE:
+        - Cassa €${finances?.balance || 0}
+        - ROSA SORA: ${JSON.stringify(squadContext.slice(0, 30))}
+        - OBIETTIVI: ${JSON.stringify(shortlistContext)}
+        - GARE: ${JSON.stringify(matchesContext)}
       `;
 
       if (activeRoom === 'board') {
-        instructionPrompt += `\nREGOLE TAVOLO PLENARIA: Rispondi simulando un dibattito acceso e divertente al tavolone in cui TUTTI E 7 i collaboratori intervengono uno dopo l'altro con scambi di battute spontanei ed ironici tra di loro.`;
+        instructionPrompt += `\nREGOLE TAVOLO PLENARIA: Rispondi simulando un dibattito acceso e divertente al tavolone in cui TUTTI E 7 i collaboratori intervengono uno dopo l'altro.`;
       } else {
-        instructionPrompt += `\nSTANZA SINGOLA ATTIVA: SEI NELL'UFFICIO PRIVATO DI '${activeRoom.toUpperCase()}'. Rispondi al Mister interpretando esclusivamente il tuo personaggio a quattrocchi senza mezzi termini.`;
+        instructionPrompt += `\nSTANZA SINGOLA ATTIVA: SEI NELL'UFFICIO PRIVATO DI '${activeRoom.toUpperCase()}'. Rispondi al Mister interpretando esclusivamente il tuo personaggio a quattrocchi.`;
       }
 
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
@@ -343,36 +355,7 @@ function App() {
     } catch (error) { console.error(error); } finally { setIsTyping(false); }
   }
 
-  async function handleAnalyzeSquadEsuberi() {
-    if (!dsTacticInput.trim()) return;
-    setIsTyping(true);
-    if (isMobile) setMobileViewTab('chat');
-    
-    const inputBuffer = dsTacticInput;
-    setDsTacticInput('');
-    
-    try {
-      const safePlayers = Array.isArray(players) ? players : [];
-      const squadContext = safePlayers.map(p => ({ nome: p?.name, ruolo: p?.position, stats: p?.attributes }));
-      
-      const prompt = `Sei il Direttore Sportivo squalo e cinico del club "${clubName}".
-      Il Mister ha deciso che giocheremo con questa tattica/modulo: "${inputBuffer}".
-      Analizza la nostra rosa attuale: ${JSON.stringify(squadContext.slice(0, 40))}.
-      Stila una lista spietata degli ESUBERI: dimmi esattamente quali giocatori dobbiamo vendere o svincolare perché sono inutili, scarsi o inadatti per questa tattica. Metti all'inizio la dicitura TITOLO: [Lista Esuberi Tattica]`;
-
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-      const result = await model.generateContent(prompt);
-      const outputText = result.response.text();
-
-      const userMsg = { sender_role: `user:ds`, content: `📋 Direttore, valuta la rosa per la tattica: "${inputBuffer}". Chi dobbiamo cedere? Fai l'epurazione.` };
-      const aiMsg = { sender_role: 'ds', content: outputText };
-      
-      setMessages(prev => [...prev, userMsg, aiMsg]);
-      try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e) {}
-    } catch (error) { console.error(error); } finally { setIsTyping(false); }
-  }
-
-  // 9. FUNZIONI MULTIMEDIALI AVANZATE
+  // 9. FUNZIONI MULTIMEDIALI AVANZATE CON LETTURA E SALVATAGGIO
   async function handleAnalyzeExternalTactic() {
     if (!externalTacticInput.trim()) return; 
     setIsTyping(true); 
@@ -400,6 +383,35 @@ function App() {
     } catch (error) { console.error(error); } finally { setIsTyping(false); }
   }
 
+  async function handleAnalyzeSquadEsuberi() {
+    if (!dsTacticInput.trim()) return;
+    setIsTyping(true);
+    if (isMobile) setMobileViewTab('chat');
+    
+    const inputBuffer = dsTacticInput;
+    setDsTacticInput('');
+    
+    try {
+      const safePlayers = Array.isArray(players) ? players : [];
+      const squadContext = safePlayers.map(p => ({ nome: p?.name, ruolo: p?.position, stats: p?.attributes }));
+      
+      const prompt = `Sei il Direttore Sportivo squalo e cinico del club "${clubName}".
+      Il Mister ha deciso che giocheremo con questa tattica/modulo: "${inputBuffer}".
+      Analizza la nostra rosa attuale: ${JSON.stringify(squadContext.slice(0, 40))}.
+      Stila una lista spietata degli ESUBERI: dimmi esattamente quali giocatori dobbiamo vendere o svincolare perché sono inutili, scarsi o inadatti per questa tattica.`;
+
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const result = await model.generateContent(prompt);
+      const outputText = result.response.text();
+
+      const userMsg = { sender_role: `user:ds`, content: `📋 Direttore, valuta la rosa per la tattica: "${inputBuffer}". Chi dobbiamo cedere? Fai l'epurazione.` };
+      const aiMsg = { sender_role: 'ds', content: outputText };
+      
+      setMessages(prev => [...prev, userMsg, aiMsg]);
+      try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e) {}
+    } catch (error) { console.error(error); } finally { setIsTyping(false); }
+  }
+
   async function handleScoutImageUpload(event) {
     const file = event.target.files[0]; 
     if (!file) return; 
@@ -410,14 +422,14 @@ function App() {
       const reader = new FileReader(); 
       reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
-        const prompt = `Sei il Capo Osservatore del club "${clubName}". Schedatura FM26. Restituisci l'output strutturato così: VERDETTO: [Mettere solo ACQUISTARE, RISERVA o EVITARE] NOME: [Nome] RUOLO: [Ruolo] REPORT: [Analisi ruspante e dettagliata]`;
+        const prompt = `Sei il Capo Osservatore del club "${clubName}". Schedatura FM26. Restituisci l'output strutturato così: VERDETTO: [Mettere solo ACQUISTARE, RISERVA o EVITARE] NOME: [Nome] RUOLO: [Ruolo] REPORT: [Analisi ruspante e dettagliata per il Mister]`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]); 
         const output = result.response.text();
         
         const pName = (output.match(/NOME:\s*(.*)/i)?.[1] || 'Obiettivo Scansionato').trim();
         const pRole = (output.match(/RUOLO:\s*(.*)/i)?.[1] || 'N/D').trim();
-        const pVerdict = (output.match(/VERDETTO:\s*(.*)/i)?.[1] || 'VALUTAZIONE').trim();
+        const pVerdict = (output.match(/VERDETTO:\s*(.*)/i)?.[1] || 'VALUTATO').trim();
         
         const userMsg = { sender_role: `user:scout`, content: `📷 Mister ha messo sul tavolo la scheda di un calciatore esterno da visionare.` };
         const aiMsg = { sender_role: 'scout', content: output }; 
@@ -503,7 +515,7 @@ function App() {
       const reader = new FileReader(); 
       reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
-        const prompt = `Sei il CFO taccagno del club "${clubName}". Estrai le finanze in JSON puro (senza formattazione markdown): { "balance": numero, "transfer_budget": numero, "wage_budget": numero, "analysis": "analisi sarcastica e protettiva delle casse" }`;
+        const prompt = `Sei il CFO taccagno del club "${clubName}". Estrai le finanze in JSON puro (senza formattazione markdown): { "balance": numero, "transfer_budget": numero, "wage_budget": numero, "analysis": "analisi sarcastica e protettiva delle casse societarie" }`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]);
         const cleanText = result.response.text().replace(/```json/gi, '').replace(/```/g, '').trim();
@@ -557,7 +569,7 @@ function App() {
       const reader = new FileReader(); 
       reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
-        const prompt = `Sei il Responsabile Giovanili del club "${clubName}". Esamina lo screen profilo Under 20 di FM26 e dai una valutazione entusiasta, paterna e protettiva delle potenzialità.`;
+        const prompt = `Sei il Responsabile Giovanili del club "${clubName}". Esamina lo screen profilo Under 20 di FM26 e dai una valutazione entusiasta, paterna e protettiva delle potenzialità reali del ragazzo.`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]);
         const output = result.response.text();
@@ -571,7 +583,7 @@ function App() {
     } catch (e) { console.error(e); } finally { setIsTyping(false); }
   }
 
-  // 10. LETTORE OCR DELLA ROSA RIGIDO E SICURO CON FEEDBACK VISIVO GIGANTE AGGIUNTO
+  // LETTORE OCR DELLA ROSA: INCLUDE IL FILTRO DEGLI ACCENTI PER EVITARE I DOPPIONI
   async function handleImageUploadOCR(event) {
     const file = event.target.files[0]; 
     if (!file) return; 
@@ -603,7 +615,8 @@ function App() {
             setPlayers(prev => {
               const list = Array.isArray(prev) ? [...prev] : []; 
               sanitizedData.forEach(np => {
-                const idx = list.findIndex(x => (x?.name || '').toLowerCase().trim() === (np.name).toLowerCase().trim());
+                // IL NORMALIZZATORE E' QUI PER IL CONFRONTO IN LOCALE
+                const idx = list.findIndex(x => normalizeName(x?.name) === normalizeName(np.name));
                 if (idx >= 0) {
                   list[idx] = { ...list[idx], ...np, attributes: { ...(list[idx]?.attributes || {}), ...(np.attributes || {}) } }; 
                 } else {
@@ -617,7 +630,8 @@ function App() {
               let { data: dbPlayers } = await supabase.from('players').select('*');
               const safeDbPlayers = Array.isArray(dbPlayers) ? dbPlayers : [];
               for (const p of sanitizedData) {
-                const match = safeDbPlayers.find(x => (x?.name || '').toLowerCase().trim() === (p.name).toLowerCase().trim());
+                // IL NORMALIZZATORE E' QUI PER IL CONFRONTO CON IL DATABASE CLOUD
+                const match = safeDbPlayers.find(x => normalizeName(x?.name) === normalizeName(p.name));
                 if (match) {
                   await supabase.from('players').update({ age: p.age, position: p.position, attributes: { ...(match.attributes || {}), ...p.attributes } }).eq('id', match.id);
                 } else {
@@ -636,7 +650,7 @@ function App() {
     } 
   }
 
-  // 11. COMPONENTI DI RENDER: FINESTRE, TABELLE E MODALI
+  // 11. COMPONENTI DI RENDER: FINESTRE E TABELLE
   function renderChatWindow() {
     const safeMessages = Array.isArray(messages) ? messages : [];
     const visibleMessages = safeMessages.filter(msg => {
@@ -922,7 +936,6 @@ function App() {
               <button onClick={handleForceSync} disabled={isUploading} style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none', padding: '10px 16px', fontSize: '12px', fontWeight: 'bold', borderRadius: '6px', cursor: 'pointer' }}>{isUploading ? 'Sincro...' : '☁️ Forza Sincro Cloud'}</button>
             )}
 
-            {/* FEEDBACK VISIVO GIGANTE SUL TASTO DI CARICAMENTO ROSA */}
             <button onClick={() => fileInputRef.current.click()} disabled={isUploading} style={{ backgroundColor: isUploading ? '#fbbf24' : '#da1b60', color: isUploading ? '#0f0c1b' : '#fff', border: 'none', padding: '10px 20px', fontSize: '12px', fontWeight: 'bold', borderRadius: '6px', cursor: isUploading ? 'not-allowed' : 'pointer' }}>
               {isUploading ? '⏳ SCANSIONE...' : 'Carica Foto Rosa'}
             </button>
@@ -932,7 +945,6 @@ function App() {
 
         <div style={{ flex: 1, padding: isMobile ? '12px' : '24px', overflowY: 'auto', backgroundColor: '#090710', width: '100%', boxSizing: 'border-box' }}>
           
-          {/* PANNELLO GIGANTE CENTRALE DI CARICAMENTO OCR IN CORSO */}
           {isUploading && (dbSubTab === 'first_team' || dbSubTab === 'youth') ? (
             <div style={{ textAlign: 'center', padding: '64px', color: '#fbbf24', fontSize: '16px', fontWeight: 'bold', border: '2px dashed #fbbf24', backgroundColor: '#140f24', borderRadius: '8px' }}>
               ⏳ Lettura Ottica in corso... Estrazione attributi tattici e valori. Non ricaricare la pagina!
