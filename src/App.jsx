@@ -7,64 +7,54 @@ const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // ==========================================
-// CERVELLI ISOLATI: OGNI RUOLO HA IL SUO PROMPT SPECIFICO
+// IL CERVELLO ASSOLUTO DI FOOTBALL MANAGER 2026 (SINTESI ESTREMA)
 // ==========================================
+const FM26_CORE_ENGINE = `
+IL TUO CERVELLO È BASATO ESCLUSIVAMENTE SUL MOTORE DI GIOCO DI FOOTBALL MANAGER 2026.
+IMPORTANTE: Parla in Italiano, ma usa ESCLUSIVAMENTE I TERMINI INGLESI UFFICIALI DI FM26 per Ruoli, Compiti e Istruzioni. Evidenziali in **GRASSETTO**.
+IN FM26 ESISTONO DUE MODULI SEPARATI: "In Possession" e "Out of Possession".
+
+[!!! REGOLA D'ORO SULLA LUNGHEZZA !!!]
+DEVI ESSERE ESTREMAMENTE SINTETICO. SEI UN PROFESSIONISTA IN PANCHINA, NON UN ROMANZIERE. Usa al massimo 3-4 frasi dritte al punto o una brevissima lista puntata. Niente preamboli inutili o saluti lunghi.
+
+1. ROLES: Sweeper Keeper, Central Defender, Ball Playing Defender, Libero, Full-Back, Wing-Back, Inverted Wing-Back, Inverted Full-Back, Defensive Midfielder, Deep Lying Playmaker, Ball Winning Midfielder, Anchor, Half Back, Segundo Volante, Roaming Playmaker, Central Midfielder, Box To Box Midfielder, Advanced Playmaker, Mezzala, Carrilero, Winger, Inside Forward, Inverted Winger, Trequartista, Raumdeuter, Attacking Midfielder, Advanced Forward, Poacher, Target Forward, Deep Lying Forward, Pressing Forward, False Nine, Complete Forward.
+2. DUTIES: Defend, Support, Attack, Auto.
+3. IN POSSESSION INSTRUCTIONS: Attacking Width, Pass Into Space, Play Out Of Defence, Passing Directness, Tempo, Run At Defence, Work Ball Into Box, Overlap/Underlap.
+4. TRANSITION INSTRUCTIONS: Counter-Press / Regroup, Counter / Hold Shape, Distribute Quickly.
+5. OUT OF POSSESSION INSTRUCTIONS: Line of Engagement, Defensive Line, Trigger Press, Prevent Short GK Distribution, Get Stuck In / Stay On Feet, Drop Off More / Step Up More.
+`;
+
 const TACTIC_JSON_INSTRUCTION = `
-SE CREI, MODIFICHI O CONSIGLI UNA TATTICA, AGGIUNGI ALLA FINE DEL MESSAGGIO QUESTO BLOCCO JSON ESATTO (I ruoli in inglese):
+\n\n[!!! REGOLA CRITICA SUL JSON !!!]
+INSERISCI IL SEGUENTE BLOCCO JSON SOLO E SOLTANTO SE IL MISTER TI CHIEDE ESPLICITAMENTE UNA "FORMAZIONE", UNA "TATTICA COMPLETA" O DI "SCHIERARE" I GIOCATORI SUL CAMPO. 
+SE FA UNA SEMPLICE DOMANDA O CHIEDE UN CONSIGLIO GENERALE, **NON INSERIRE ASSOLUTAMENTE IL BLOCCO JSON**.
+SE devi inserirlo, usa questo formato esatto (non aggiungere altro dentro il json):
 \`\`\`json
 {
   "tattica_fm": true,
-  "in_possesso": ["Shorter Passing", "Higher Tempo", "Play Out Of Defence"],
+  "in_possesso": ["Shorter Passing", "Higher Tempo"],
   "in_transizione": ["Counter-Press", "Counter"],
   "non_in_possesso": ["High Press", "High Defensive Line"],
   "formazione_in_possesso": [
-    { "pos": "GK", "role": "Sweeper Keeper", "duty": "Defend", "name": "Cognome" },
-    { "pos": "DCR", "role": "Ball Playing Defender", "duty": "Defend", "name": "Cognome" }
+    { "pos": "GK", "role": "Sweeper Keeper", "duty": "Defend", "name": "Cognome" }
   ],
   "formazione_non_in_possesso": [
-    { "pos": "GK", "role": "Sweeper Keeper", "duty": "Defend", "name": "Cognome" },
-    { "pos": "DCR", "role": "Ball Playing Defender", "duty": "Defend", "name": "Cognome" }
+    { "pos": "GK", "role": "Sweeper Keeper", "duty": "Defend", "name": "Cognome" }
   ]
 }
 \`\`\`
-Usa SOLO codici: GK, DL, DCL, DC, DCR, DR, WBL, WBR, DM, DML, DMR, ML, MCL, MC, MCR, MR, AML, AMC, AMR, STL, ST, STR. 11 giocatori in In_Possesso e 11 in Non_In_Possesso.`;
-
-const getRolePrompt = (role, clubName, finances, squadContext, shortlistContext, matchesContext, tacticalFocus) => {
-  const baseRules = `
-SEI UN ASSISTENTE PROFESSIONISTA DI FOOTBALL MANAGER 2026. CLUB: ${clubName.toUpperCase()}.
-PARLA IN ITALIANO, MA USA SOLO TERMINI INGLESI UFFICIALI DI FM26 PER I RUOLI E LE ISTRUZIONI.
-EVIDENZIA IN **GRASSETTO** I TERMINI TATTICI (es: **Box To Box Midfielder** su **Support**).
-FORMATTAZIONE: Usa liste puntate con l'asterisco (*). Evita muri di testo. Sii sintetico e analitico.
-VALUTAZIONE STATISTICHE: Quando valuti la nostra rosa, GUARDA SEMPRE LA MEDIA VOTO, I GOL E LE PRESENZE. Un giocatore con Media Voto sotto 6.70 sta giocando male. Giudica in base ai DATI.
-  `;
-
-  const contextData = `
-DATI ATTUALI:
-- Cassa: €${finances?.balance || 0}
-- ROSA (Analizza bene le statistiche): ${JSON.stringify(squadContext.slice(0, 30))}
-- GARE: ${JSON.stringify(matchesContext)}
-  `;
-
-  if (role === 'vice') return baseRules + `\nRUOLO: VICE ALLENATORE. Sei un tattico d'élite. Conosci alla perfezione il match engine di FM26 (Fase di Possesso e Non Possesso). Ignora il mercato, concentrati su ruoli, compiti, istruzioni di squadra e rendimento in campo dei giocatori (Media Voto). Usa un tono diretto e spietato se un giocatore sta rendendo sotto le aspettative.` + contextData + TACTIC_JSON_INSTRUCTION;
-  
-  if (role === 'ds') return baseRules + `\nRUOLO: DIRETTORE SPORTIVO. Sei freddo e calcolatore. Il tuo compito è individuare gli ESUBERI basandoti sulle brutte statistiche (Media Voto, scarso impiego) e suggerire mosse di mercato intelligenti. Analizza l'impatto a bilancio.` + contextData;
-  
-  if (role === 'scout') return baseRules + `\nRUOLO: CAPO OSSERVATORE. Leggi gli screenshot degli attributi e consiglia se comprare un giocatore basandoti sugli attributi chiave per il suo ruolo in FM26. Sii severo. \nSHORTLIST: ${JSON.stringify(shortlistContext)}`;
-  
-  if (role === 'analyst') return baseRules + `\nRUOLO: MATCH ANALYST. Sei un nerd dei dati. Valuta solo xG, Expected Assists, possesso palla e dati analitici del Data Hub.` + contextData;
-  
-  if (role === 'cfo') return baseRules + `\nRUOLO: CFO FINANZE. Sei taccagno. Analizza gli stipendi della rosa e la cassa del club dicendo chi ci costa troppo per quello che rende.` + contextData;
-  
-  return baseRules + `\nRUOLO: STAFF. Partecipa alla discussione in modo professionale, basandoti sui dati della squadra.` + contextData;
-};
+Usa SOLO codici posizioni esatti di FM: GK, DL, DCL, DC, DCR, DR, WBL, WBR, DM, DML, DMR, ML, MCL, MC, MCR, MR, AML, AMC, AMR, STL, ST, STR. 11 giocatori.`;
 
 // ==========================================
-// COMPONENTE LAVAGNA TATTICA
+// COMPONENTE LAVAGNA TATTICA (DOPPIA FASE)
 // ==========================================
 const TacticBoard = ({ data }) => {
   const [phase, setPhase] = useState('in'); 
+  
   if (!data) return null;
+
   const currentFormazione = phase === 'in' ? (data.formazione_in_possesso || data.formazione || []) : (data.formazione_non_in_possesso || data.formazione || []);
+
   const POS_MAP = {
     'GK': { top: '88%', left: '50%' },
     'DL': { top: '72%', left: '15%' }, 'DCL': { top: '72%', left: '35%' }, 'DC': { top: '72%', left: '50%' }, 'DCR': { top: '72%', left: '65%' }, 'DR': { top: '72%', left: '85%' },
@@ -142,7 +132,7 @@ function App() {
   const [players, setPlayers] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_players')) || []; } catch(e) { return []; } })
   const [shortlist, setShortlist] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_shortlist')) || []; } catch(e) { return []; } })
   const [matches, setMatches] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_matches')) || []; } catch(e) { return []; } })
-  const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_messages')) || [{ sender_role: 'system', content: 'Cervello Riavviato. Lo staff analizzerà i dati statistici reali.' }]; } catch(e) { return [{ sender_role: 'system', content: 'Centrale operativa allineata.' }]; } })
+  const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_messages')) || [{ sender_role: 'system', content: 'Filtro Sintesi e No-Lavagna attivato. Lo staff risponderà in modo rapido e dritto al punto.' }]; } catch(e) { return [{ sender_role: 'system', content: 'Centrale operativa allineata.' }]; } })
   const [tacticReports, setTacticReports] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_tactic_reports')) || []; } catch(e) { return []; } })
   const [finances, setFinances] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_finances')) || { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; } catch(e) { return { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; } })
 
@@ -356,7 +346,6 @@ function App() {
     else { setSortField(field); setSortDirection('asc'); }
   };
 
-  // CORE AI CHAT CON INIEZIONE PROMPT SPECIFICI E DATI
   const handleSendMessage = async () => {
     if (!chatInput.trim()) return;
     const currentInputText = chatInput; setChatInput(''); setIsTyping(true);
@@ -367,12 +356,48 @@ function App() {
 
     try {
       const safePlayers = Array.isArray(players) ? players : [];
-      const squadContext = safePlayers.map(p => ({ nome: p?.name, ruoli: p?.position, stats: p?.attributes || {} }));
-      const shortlistContext = Array.isArray(shortlist) ? shortlist.slice(0, 15) : [];
-      const matchesContext = Array.isArray(matches) ? matches.slice(0, 5) : [];
+      const safeShortlist = Array.isArray(shortlist) ? shortlist : [];
+      const safeMatches = Array.isArray(matches) ? matches : [];
 
-      const instructionPrompt = getRolePrompt(activeRoom, clubName, finances, squadContext, shortlistContext, matchesContext, tacticalFocus) + 
-        `\n\nIL MISTER TI DICE: "${currentInputText}"`;
+      const squadContext = safePlayers.map(p => ({ nome: p?.name || 'Sconosciuto', ruolo: p?.position || 'N/D', stats: p?.attributes || {}, note_mister: p?.notes || '' }));
+      const shortlistContext = safeShortlist.slice(0, 15).map(s => ({ nome: s?.name || 'Target', ruolo: s?.position || 'N/D', verdetto: s?.verdict || 'VAGLIATO' }));
+      const matchesContext = safeMatches.slice(0, 5).map(m => ({ avversario: m?.opponent || 'Gara', risultato: m?.result || 'N/D', analisi: m?.analysis || '' }));
+
+      const businessChronology = updatedMessages.slice(-45).map(m => {
+        let roleLabel = m?.sender_role ? String(m.sender_role).toUpperCase() : 'MISTER';
+        if (roleLabel.startsWith('USER:')) roleLabel = `MISTER (nella stanza ${roleLabel.split(':')[1]})`;
+        return `${roleLabel}: ${m?.content || ''}`;
+      }).join('\n');
+
+      let instructionPrompt = `
+        ${FM26_CORE_ENGINE}
+        Il tuo Mister ti dice: "${currentInputText}"
+        
+        ⚠️ PARAMETRI DEL MISTER:
+        - Stile: ${pressStyle.toUpperCase()} | Scudo: ${squadShield.toUpperCase()}
+        - Rivali: ${rivalRelation.toUpperCase()} | Tattica: ${tacticalFocus.toUpperCase()}
+
+        REGOLE INTERNE STAFF:
+        - VICE: Genio tattico FM26. Breve e diretto.
+        - DS: Analizza soldi e CA/PA. Esuberi su base Media Voto.
+        - SCOUT: Wonderkids.
+        - CFO: Bilancio e stipendi.
+        - STAMPA: Media.
+        - ANALYST: Dati e xG.
+
+        CRONOLOGIA:
+        ${businessChronology}
+        
+        SITUAZIONE:
+        - Cassa €${finances?.balance || 0}
+        - ROSA SORA: ${JSON.stringify(squadContext.slice(0, 30))}
+      `;
+
+      if (activeRoom === 'board') { instructionPrompt += `\nREGOLE PLENARIA: Sintesi estrema. Risposta breve da dibattito.`; } 
+      else { 
+        instructionPrompt += `\nSTANZA SINGOLA: Sei nell'ufficio '${activeRoom.toUpperCase()}'. Rispondi al Mister in modo diretto e molto sintetico.`; 
+        if (activeRoom === 'vice') instructionPrompt += TACTIC_JSON_INSTRUCTION;
+      }
 
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(instructionPrompt);
@@ -382,29 +407,42 @@ function App() {
     } catch (error) { console.error(error); } finally { setIsTyping(false); }
   };
 
-  // UPLOAD IMMAGINI GLOBALE DALLA CHAT
   const handleChatImageUpload = async (event) => {
-    const file = event.target.files[0]; if (!file) return; 
+    const file = event.target.files[0]; 
+    if (!file) return; 
+    
     const currentText = chatInput.trim(); setChatInput(''); setIsTyping(true); if (isMobile) setMobileViewTab('chat');
     
     try {
       const reader = new FileReader(); 
       reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
+        
         const userRole = `user:${activeRoom}`;
-        const displayMsg = currentText ? `📷 [Immagine allegata] ${currentText}` : `📷 [Immagine allegata] Guarda questo screen, analizzalo.`;
+        const displayMsg = currentText ? `📷 [Immagine allegata] ${currentText}` : `📷 [Immagine allegata] Analizza questo screen in modo sintetico.`;
         
         const userMessageObj = { sender_role: userRole, content: displayMsg };
         setMessages(prev => [...prev, userMessageObj]);
         try { await supabase.from('club_messages').insert([userMessageObj]); } catch(e) {}
 
         const safePlayers = Array.isArray(players) ? players : [];
-        const squadContext = safePlayers.map(p => ({ nome: p?.name, ruoli: p?.position, stats: p?.attributes || {} }));
-        const shortlistContext = Array.isArray(shortlist) ? shortlist.slice(0, 15) : [];
-        const matchesContext = Array.isArray(matches) ? matches.slice(0, 5) : [];
+        const squadContext = safePlayers.map(p => ({ nome: p?.name || 'Sconosciuto', ruolo: p?.position || 'N/D', stats: p?.attributes || {} }));
 
-        let instructionPrompt = getRolePrompt(activeRoom, clubName, finances, squadContext, shortlistContext, matchesContext, tacticalFocus) + 
-        `\n\nIL MISTER TI HA ALLEGATO UN'IMMAGINE E DICE: "${currentText || 'Analizza questo screen basandoti sulle tue competenze e sui dati.'}"`;
+        let instructionPrompt = `
+          ${FM26_CORE_ENGINE}
+          Il Mister ti ha allegato un'immagine e dice: "${currentText || 'Analizza sinteticamente questo screen.'}"
+          
+          REGOLE DELLO STAFF: Reagisci in base al tuo ruolo (Vice, DS, CFO, etc). 
+          SII ESTREMAMENTE SINTETICO. Vai dritto al sodo con 3-4 righe o una breve lista.
+          
+          ROSA SORA: ${JSON.stringify(squadContext.slice(0, 20))}
+        `;
+
+        if (activeRoom === 'board') { instructionPrompt += `\nRispondi simulando un dibattito tra lo staff sull'immagine.`; } 
+        else { 
+          instructionPrompt += `\nSei nell'ufficio '${activeRoom.toUpperCase()}'. Rispondi al Mister.`; 
+          if (activeRoom === 'vice') instructionPrompt += TACTIC_JSON_INSTRUCTION;
+        }
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([instructionPrompt, imagePart]); 
@@ -418,19 +456,25 @@ function App() {
     } catch (err) { console.error(err); } finally { setIsTyping(false); if (chatImageInputRef.current) chatImageInputRef.current.value = ""; }
   };
 
-  // FUNZIONI STRUMENTI (USANO IL NUOVO PROMPT)
   const handlePreMatchAnalysis = async (event) => {
     const file = event.target.files[0]; if (!file) return; setIsTyping(true); if (isMobile) setMobileViewTab('chat');
     try {
       const reader = new FileReader(); reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
         const safePlayers = Array.isArray(players) ? players : [];
-        const squadContext = safePlayers.map(p => ({ nome: p?.name, ruoli: p?.position, stats: p?.attributes || {} }));
-        const instructionPrompt = getRolePrompt('vice', clubName, finances, squadContext, [], [], tacticalFocus) + 
-        `\n\nIL MISTER TI HA DATO LO SCREEN DELL'AVVERSARIO. FAI UN BRIEFING PRE-PARTITA FM26. Dammi la formazione titolare nostra ideale considerando chi sta giocando meglio (Media Voto alta).`;
+        const squadContext = safePlayers.map(p => ({ nome: p?.name, ruolo: p?.position, stats: p?.attributes }));
+
+        const prompt = `
+        ${FM26_CORE_ENGINE}
+        Sei il Vice Allenatore. Questo è l'avversario. Nostra rosa: ${JSON.stringify(squadContext.slice(0, 40))}.
+        Fai un BRIEFING PRE-PARTITA FM26 molto conciso:
+        1. Punti deboli.
+        2. Modulo "In Possession" e "Out of Possession".
+        3. Formazione titolare nostra (generami il blocco JSON per la lavagna, DEVI FARLO PERCHÉ È STATO RICHIESTO).
+        ` + TACTIC_JSON_INSTRUCTION;
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        const result = await model.generateContent([instructionPrompt, imagePart]); const output = result.response.text();
+        const result = await model.generateContent([prompt, imagePart]); const output = result.response.text();
         const userMsg = { sender_role: `user:vice`, content: `📷 Mister ha appeso alla lavagna lo schieramento degli avversari.` };
         const aiMsg = { sender_role: 'vice', content: output }; setMessages(prev => [...prev, userMsg, aiMsg]);
         try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e) {}
@@ -443,13 +487,12 @@ function App() {
     try {
       const reader = new FileReader(); reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
-        const safePlayers = Array.isArray(players) ? players : [];
-        const squadContext = safePlayers.map(p => ({ nome: p?.name, ruoli: p?.position, stats: p?.attributes || {} }));
-        const instructionPrompt = getRolePrompt('vice', clubName, finances, squadContext, [], [], tacticalFocus) + 
-        `\n\nIL MISTER TI HA MOSTRATO UNO SCREEN. Analizzalo e dammi consigli tattici di alto livello.`;
+        const prompt = `
+        ${FM26_CORE_ENGINE}
+        Sei il Vice Allenatore. Il Mister ti ha mostrato questo screenshot. Sii sintetico e analitico.` + TACTIC_JSON_INSTRUCTION;
         
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        const result = await model.generateContent([instructionPrompt, imagePart]); const output = result.response.text();
+        const result = await model.generateContent([prompt, imagePart]); const output = result.response.text();
         const userMsg = { sender_role: `user:vice`, content: `📷 Mister ha mostrato uno screen di gioco al Vice.` };
         const aiMsg = { sender_role: 'vice', content: output }; setMessages(prev => [...prev, userMsg, aiMsg]);
         try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e) {}
@@ -461,12 +504,11 @@ function App() {
     if (!externalTacticInput.trim()) return; setIsTyping(true); if (isMobile) setMobileViewTab('chat');
     const inputBuffer = externalTacticInput; setExternalTacticInput('');
     try {
-      const safePlayers = Array.isArray(players) ? players : [];
-      const squadContext = safePlayers.map(p => ({ nome: p?.name, ruoli: p?.position, stats: p?.attributes || {} }));
-      const instructionPrompt = getRolePrompt('vice', clubName, finances, squadContext, [], [], tacticalFocus) + 
-      `\n\nANALIZZA QUESTA TATTICA O IDEA DEL MISTER: """${inputBuffer}""". Inizia con TITOLO: [Nome breve della tattica]`;
+      const prompt = `
+      ${FM26_CORE_ENGINE}
+      Analizza la tattica: """${inputBuffer}""" sulla rosa ${clubName}. Sii sintetico e diretto. Inizia con TITOLO: [Nome breve della tattica] GENERANDO OBBLIGATORIAMENTE IL BLOCCO JSON DELLA FORMAZIONE (è stato richiesto esplicitamente).` + TACTIC_JSON_INSTRUCTION;
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-      const result = await model.generateContent(instructionPrompt); const outputText = result.response.text();
+      const result = await model.generateContent(prompt); const outputText = result.response.text();
       const cleanTitle = (outputText.match(/TITOLO:\s*(.*)/i)?.[1] || `Tattica del ${new Date().toLocaleDateString()}`).replace('[', '').replace(']', '').trim();
       const userMsg = { sender_role: `user:vice`, content: `📋 Mister ha inoltrato una nuova tattica esterna per la convalida.` };
       const aiMsg = { sender_role: 'vice', content: outputText }; setMessages(prev => [...prev, userMsg, aiMsg]);
@@ -481,11 +523,14 @@ function App() {
     try {
       const safePlayers = Array.isArray(players) ? players : [];
       const squadContext = safePlayers.map(p => ({ nome: p?.name, ruolo: p?.position, stats: p?.attributes }));
-      const instructionPrompt = getRolePrompt('ds', clubName, finances, squadContext, [], [], tacticalFocus) + 
-      `\n\nIL MISTER VUOLE GIOCARE COSÌ: "${inputBuffer}". Cerca in squadra chi ha Media Voto bassa o non c'entra niente con questa tattica e dimmi di venderli. Sii spietato.`;
+      const prompt = `
+      ${FM26_CORE_ENGINE}
+      Sei il DS del "${clubName}". Tattica: "${inputBuffer}".
+      Rosa: ${JSON.stringify(squadContext.slice(0, 40))}.
+      Stila una breve e spietata lista degli ESUBERI da cedere. Usa elenchi puntati. NESSUN JSON.`;
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-      const result = await model.generateContent(instructionPrompt); const outputText = result.response.text();
-      const userMsg = { sender_role: `user:ds`, content: `📋 Direttore, valuta la rosa per la tattica: "${inputBuffer}". Chi dobbiamo cedere in base ai dati?` };
+      const result = await model.generateContent(prompt); const outputText = result.response.text();
+      const userMsg = { sender_role: `user:ds`, content: `📋 Direttore, valuta la rosa per la tattica: "${inputBuffer}". Chi dobbiamo cedere?` };
       const aiMsg = { sender_role: 'ds', content: outputText }; setMessages(prev => [...prev, userMsg, aiMsg]);
       try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e) {}
     } catch (error) { console.error(error); } finally { setIsTyping(false); }
@@ -496,7 +541,9 @@ function App() {
     try {
       const reader = new FileReader(); reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
-        const prompt = `Sei il Scout del "${clubName}". Schedatura screenshot attributi FM26. Output rigido: VERDETTO: [ACQUISTARE, RISERVA, EVITARE] NOME: [Nome] RUOLO: [Ruolo] REPORT: [Analisi profonda citando attributi chiave, personalità, CA/PA, costi]`;
+        const prompt = `
+        ${FM26_CORE_ENGINE}
+        Sei il Scout del "${clubName}". Schedatura FM26 in modo molto sintetico. Output: VERDETTO: [ACQUISTARE, RISERVA, EVITARE] NOME: [Nome] RUOLO: [Ruolo] REPORT: [Breve analisi]`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]); const output = result.response.text();
         const pName = (output.match(/NOME:\s*(.*)/i)?.[1] || 'Obiettivo Scansionato').trim();
@@ -519,10 +566,12 @@ function App() {
     try {
       const reader = new FileReader(); reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
-        const prompt = `Sei l'Addetto Stampa del "${clubName}". Screen conferenza di FM26. Stile Mister: ${pressStyle}, Scudo: ${squadShield}, Rivali: ${rivalRelation}. Detta quale pulsante/frase cliccare nel gioco per modificare le Dinamiche e il Morale nel modo giusto.`;
+        const prompt = `
+        ${FM26_CORE_ENGINE}
+        Sei l'Addetto Stampa del "${clubName}". Sii sintetico e detta solo il pulsante/frase da cliccare.`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]); const output = result.response.text();
-        const userMsg = { sender_role: `user:press`, content: `📷 Mister ha inoltrato uno screenshot della conferenza stampa in corso.` };
+        const userMsg = { sender_role: `user:press`, content: `📷 Mister ha inoltrato uno screenshot della conferenza stampa.` };
         const aiMsg = { sender_role: 'press', content: output }; setMessages(prev => [...prev, userMsg, aiMsg]);
         try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e){}
       }; reader.readAsDataURL(file);
@@ -534,7 +583,9 @@ function App() {
     try {
       const reader = new FileReader(); reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
-        const prompt = `Sei il Match Analyst del "${clubName}". Compila in chiaro i dati post-gara FM26: AVVERSARIO: [Nome] RISULTATO: [Risultato] XG_TEAM: [xG] XG_OPP: [xG] ANALISI: [Analisi dati FM: Passaggi completati, possesso, zone di azione, expected assists. Nessuna banalità]`;
+        const prompt = `
+        ${FM26_CORE_ENGINE}
+        Sei il Match Analyst del "${clubName}". Compila: AVVERSARIO: [Nome] RISULTATO: [Risultato] XG_TEAM: [xG] XG_OPP: [xG] ANALISI: [Solo numeri crudi e sintetici, niente papiri]`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]); const output = result.response.text();
         const mOpp = (output.match(/AVVERSARIO:\s*(.*)/i)?.[1] || 'Gara').trim();
@@ -558,7 +609,7 @@ function App() {
     try {
       const reader = new FileReader(); reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
-        const prompt = `Sei il CFO taccagno del club "${clubName}". Estrai le finanze in JSON puro (senza formattazione markdown): { "balance": numero, "transfer_budget": numero, "wage_budget": numero, "analysis": "analisi sul monte ingaggi e sul budget" }`;
+        const prompt = `Sei il CFO del "${clubName}". Estrai finanze in JSON puro (no papiri): { "balance": numero, "transfer_budget": numero, "wage_budget": numero, "analysis": "analisi sintetica" }`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]);
         const cleanText = result.response.text().replace(/```json/gi, '').replace(/```/g, '').trim();
@@ -566,11 +617,11 @@ function App() {
           const parsed = JSON.parse(cleanText);
           if (parsed) {
             setFinances({ balance: parsed.balance || 0, transfer_budget: parsed.transfer_budget || 0, wage_budget: parsed.wage_budget || 0 });
-            const userMsg = { sender_role: `user:cfo`, content: `📷 Mister ha inserito il rendiconto finanziario FM26.` };
+            const userMsg = { sender_role: `user:cfo`, content: `📷 Mister ha inserito il rendiconto finanziario.` };
             const aiMsg = { sender_role: 'cfo', content: parsed.analysis || "Audit completato." }; setMessages(prev => [...prev, userMsg, aiMsg]);
             try { await supabase.from('club_finances').update({ balance: parsed.balance || 0, transfer_budget: parsed.transfer_budget || 0, wage_budget: parsed.wage_budget || 0 }).eq('id', 1); await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch (e) {}
           }
-        } catch (jsonErr) { console.error("JSON Error", jsonErr); }
+        } catch (jsonErr) { console.error(jsonErr); }
       }; reader.readAsDataURL(file);
     } catch (e) { console.error(e); } finally { setIsTyping(false); }
   };
@@ -579,12 +630,11 @@ function App() {
     setIsTyping(true); if (isMobile) setMobileViewTab('chat');
     try {
       const safePlayers = Array.isArray(players) ? players : [];
-      const squadContext = safePlayers.map(p => ({ nome: p?.name, ruolo: p?.position, stats: p?.attributes || {} }));
-      const instructionPrompt = getRolePrompt('cfo', clubName, finances, squadContext, [], [], tacticalFocus) + 
-      `\n\nFAI UN AUDIT FINANZIARIO. Critica chi prende troppo e ha una Media Voto bassa. Usa elenchi puntati con asterisco.`;
+      const soraPlayersContext = safePlayers.map(p => ({ nome: p?.name, stipendio: p?.attributes?.Ingaggio || '-' }));
+      const prompt = `${FM26_CORE_ENGINE} CFO Club ${clubName}. Redigi audit sui costi della rosa e il Monte Ingaggi. Sii breve e diretto, no papiri. Cassa €${finances?.balance || 0}. Contratti: ${JSON.stringify(soraPlayersContext.slice(0, 30))}`;
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-      const result = await model.generateContent(instructionPrompt); const auditOutput = result.response.text();
-      const userMsg = { sender_role: `user:cfo`, content: `📊 Mister ha richiesto un Audit sui contratti basato sul rendimento.` };
+      const result = await model.generateContent(prompt); const auditOutput = result.response.text();
+      const userMsg = { sender_role: `user:cfo`, content: `📊 Mister ha richiesto un Audit sui contratti.` };
       const aiMsg = { sender_role: 'cfo', content: auditOutput }; setMessages(prev => [...prev, userMsg, aiMsg]);
       try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e) {}
     } catch (e) { console.error(e); } finally { setIsTyping(false); }
@@ -595,27 +645,22 @@ function App() {
     try {
       const reader = new FileReader(); reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
-        const prompt = `Sei il Resp. Giovanili del "${clubName}". Valuta il wonderkid in modo entusiasta analizzando le Stats chiave per il suo ruolo in FM26.`;
+        const prompt = `${FM26_CORE_ENGINE} Sei il Resp. Giovanili. Sii molto breve e schematico.`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]); const output = result.response.text();
-        const userMsg = { sender_role: `user:youth`, content: `📷 Mister ha scansionato il cartellino di un giovane wonderkid del vivaio.` };
+        const userMsg = { sender_role: `user:youth`, content: `📷 Mister ha scansionato il cartellino di un giovane.` };
         const aiMsg = { sender_role: 'youth', content: output }; setMessages(prev => [...prev, userMsg, aiMsg]);
         try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e){}
       }; reader.readAsDataURL(file);
     } catch (e) { console.error(e); } finally { setIsTyping(false); }
   };
 
-  // IL NUOVO ESTRATTORE OCR (Raschiamo tutte le statistiche: Presenze, Gol, Assist, Media Voto)
   const handleImageUploadOCR = async (event) => {
     const file = event.target.files[0]; if (!file) return; setIsUploading(true); 
     try {
       const reader = new FileReader(); reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
-        const prompt = `Estrai TUTTI i dati dei calciatori da questo screenshot di Football Manager 2026.
-        Voglio statistiche super dettagliate: Età, Presenze, Gol, Assist, Media Voto, Valore, Ingaggio. 
-        Se mancano dati, metti "0" o "N/D".
-        Rispondi SOLO con un array JSON puro, senza formattazione Markdown:
-        [ { "type": "player", "name": "Nome", "age": "num", "position": "Ruolo", "attributes": { "Presenze": "num", "Gol": "num", "Assist": "num", "Media Voto": "float", "Ingaggio": "txt", "Valore": "txt" } } ]`;
+        const prompt = `Estrai calciatori in array JSON puro: [ { "type": "player", "name": "Nome", "age": "num", "position": "Ruolo", "attributes": { "Gol": "num", "Media Voto": "num", "Presenze": "num", "Ingaggio": "txt", "Valore": "txt" } } ]`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]);
         const cleanText = result.response.text().replace(/```json/gi, '').replace(/```/g, '').trim();
