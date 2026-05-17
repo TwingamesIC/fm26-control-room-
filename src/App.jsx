@@ -3,7 +3,6 @@ import { supabase } from './supabaseClient'
 import { MessageSquare, Database, Settings, Send, Users, Sliders, TrendingUp, ImageIcon, X, CloudOff, Briefcase, ChevronRight, HelpCircle, Award, Activity, Search } from 'lucide-react'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
-// CONFIGURAZIONE CHIAVE GEMINI PRO-GRADE PROTETTA DA VARIABILE D'AMBIENTE PER VERCEL
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
@@ -26,7 +25,7 @@ function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
-  // STATI STRUTTURALI COMPLETI CON DOPPIO AGGANCIO (LOCALSTORAGE CACHE + LIVE CLOUD SUPABASE)
+  // BLINDATURA INIZIALIZZAZIONE LOCALSTORAGE CONTRO I CRASH DI LETTURA
   const [clubName, setClubName] = useState(() => localStorage.getItem('hq_club_name') || 'Sora')
   const [players, setPlayers] = useState(() => {
     try { return JSON.parse(localStorage.getItem('hq_players')) || []; } catch(e) { return []; }
@@ -49,7 +48,7 @@ function App() {
     try { return JSON.parse(localStorage.getItem('hq_finances')) || { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; } catch(e) { return { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; }
   })
 
-  // PARAMETRI DEL PROFILO CARATTERIALE AVANZATO E MODULABILE DEL MISTER
+  // PARAMETRI DEL PROFILO CARATTERIALE AVANZATO DEL MISTER
   const [personality, setPersonality] = useState(() => localStorage.getItem('hq_coach_personality') || 'professional')
   const [pressStyle, setPressStyle] = useState(() => localStorage.getItem('hq_press_style') || 'diplomatic')
   const [squadShield, setSquadShield] = useState(() => localStorage.getItem('hq_squad_shield') || 'shield_total')
@@ -84,7 +83,7 @@ function App() {
   const scoutInputRef = useRef(null)
   const chatContainerRef = useRef(null)
 
-  // SALVATAGGIO REATTIVO LOCALE CONTRO LA PERDITA DI FOCUS SUI REBOOT
+  // MONITORAGGIO LOCALE FAIL-SAFE SUL BROWSER SUI CAMBIAMENTI DI STATO
   useEffect(() => { localStorage.setItem('hq_players', JSON.stringify(players)) }, [players])
   useEffect(() => { localStorage.setItem('hq_shortlist', JSON.stringify(shortlist)) }, [shortlist])
   useEffect(() => { localStorage.setItem('hq_matches', JSON.stringify(matches)) }, [matches])
@@ -109,7 +108,7 @@ function App() {
     }
   }, [messages, isTyping])
 
-  // SCARICAMENTO E SINCRONIZZAZIONE DATI ORIZZONTALE DAL CLOUD DI SUPABASE
+  // SINCRONIZZAZIONE DI RETE GLOBALE DEL DATABASE SOCIETARIO SUL CLOUD
   async function fetchCloudData() {
     try {
       let { data: pData } = await supabase.from('players').select('*').order('name')
@@ -142,7 +141,7 @@ function App() {
     } catch (e) { setCloudStatus('offline') }
   }
 
-  // AGGIORNAMENTO DEL DIARIO DI BORDO NOTE DEL GIOCATORE CON NOTIFICA DI SPOGLIATOIO
+  // AGGIORNAMENTO DELLE NOTE DEL CALCIATORE IN RETE CLOUD
   async function handleSavePlayerNotes() {
     if (!selectedProfile) return;
     setIsSavingNotes(true);
@@ -152,12 +151,13 @@ function App() {
       setSelectedProfile(prev => ({ ...prev, notes: editingNotes }));
       await supabase.from('players').update({ notes: editingNotes }).eq('id', selectedProfile.id);
       
-      const systemNote = { sender_role: 'system', content: `📝 Il Mister ha aggiornato il fascicolo segreto di ${selectedProfile.name}: "${editingNotes}"` };
+      const systemNote = { sender_role: 'system', content: `📝 Il Mister ha aggiornato il fascicolo di ${selectedProfile.name}: "${editingNotes}"` };
       setMessages(prev => [...prev, systemNote]);
     } catch (e) { console.error(e); } finally { setIsSavingNotes(false); }
   }
 
   function handleSelectPlayer(player) {
+    if (!player) return;
     setSelectedProfile(player);
     setEditingNotes(player.notes || '');
   }
@@ -170,13 +170,13 @@ function App() {
   function handleSimulateTransfer() {
     const cost = parseFloat(simCost) || 0; const weeklyWage = parseFloat(simWage) || 0; const years = parseInt(simYears) || 1;
     const annualAmortization = cost / years; const annualWageCost = weeklyWage * 52; const totalAnnualImpact = annualAmortization + annualWageCost;
-    let status = 'APPROVATO'; let color = '#34d399'; let notes = `Operazione sostenibile per il Sora. Impatto annuo: €${totalAnnualImpact.toLocaleString()}.`;
+    let status = 'APPROVATO'; let color = '#34d399'; let notes = `Operazione sostenibile per il Sora. Impatto annuo complessivo: €${totalAnnualImpact.toLocaleString()}.`;
     if (cost > finances.transfer_budget) { status = 'BLOCCATO'; color = '#ef4444'; notes = `Fondi insufficienti nel budget trasferimenti del club.`; }
     else if (weeklyWage > (finances.wage_budget * 0.3)) { status = 'RISCHIO CRISI SPOGLIATOIO'; color = '#ffaa00'; notes = `L'ingaggio supera il 30% del tetto salariale rimasto.`; }
     setSimResult({ status, color, annualAmortization, annualWageCost, notes });
   }
 
-  // CORE ENGINE CHAT: GESTIONE BANTER, RELAZIONI E STORICO AZIENDALE CONGIUNTO (45 MESSAGGI)
+  // CORE ENGINE CHAT CON COMPLIANCE TOTALE AI FILTRI CONTRO I CRASH VALORI NULLI
   async function handleSendMessage() {
     if (!chatInput.trim()) return;
     const currentInputText = chatInput;
@@ -191,9 +191,9 @@ function App() {
     try { await supabase.from('club_messages').insert([userMessageObj]); } catch(e) { setCloudStatus('offline') }
 
     try {
-      const squadContext = players.map(p => ({ nome: p.name, ruolo: p.position, stats: p.attributes, note_mister: p.notes || '' }));
-      const shortlistContext = shortlist.slice(0, 15).map(s => ({ nome: s.name, ruolo: s.position, verdetto: s.verdict }));
-      const matchesContext = matches.slice(0, 5).map(m => ({ avversario: m.opponent, risultato: m.result, analisi: m.analysis }));
+      const squadContext = players.map(p => ({ nome: p?.name, ruolo: p?.position, stats: p?.attributes, note_mister: p?.notes || '' }));
+      const shortlistContext = shortlist.slice(0, 15).map(s => ({ nome: s?.name, ruolo: s?.position, verdetto: s?.verdict }));
+      const matchesContext = matches.slice(0, 5).map(m => ({ avversario: m?.opponent, risultato: m?.result, analisi: m?.analysis }));
 
       const businessChronology = updatedMessages.slice(-45).map(m => {
         let roleLabel = m.sender_role ? String(m.sender_role).toUpperCase() : 'MISTER';
@@ -202,7 +202,7 @@ function App() {
       }).join('\n');
 
       let instructionPrompt = `
-        SEI LO STAFF REALE, PASSIONALE E RUSPANTE DEL CLUB "${clubName.toUpperCase()}" SU FOOTBALL MANAGER 2026.
+        SEI LO STAFF REALE, PASSIONALE E CHIACCHIERONE DEL CLUB "${clubName.toUpperCase()}" SU FOOTBALL MANAGER 2026.
         Il tuo Mister (Omiserez) ti dice: "${currentInputText}"
         
         ⚠️ PARAMETRI IDENTITÀ CARATTERIALE DEL MISTER (REAGISCI DI CONSEGUENZA):
@@ -216,11 +216,11 @@ function App() {
         - DIRETTORE SPORTIVO: Squalo del calciomercato, parla di commissioni, procuratori avidi, e sotterfugi da Hotel Gallia.
         - CHIEF SCOUT: Stravede per i ragazzi prodigio tecnici (wonderkids), si gasa per i dribbling e disprezza i vecchi bidoni.
         - CFO FINANZE: Ironico, sardonico, tirchio fino al midollo, ti rimprovera se spendi troppo e si lamenta dei budget.
-        - ADDETTO STAMPA: Pettegolo, sa tutte le trappole dei giornalisti locali e adora la tensione dei titoli sui giornali.
+        - ADDETTO STAMPA: Pettegolo, sa le trappole dei giornalisti locali e adora la tensione dei titoli sui giornali.
         - RESPONSABILE GIOVANILI: Tratta i ragazzi Under 20 del Sora come figli suoi, vuole vederli tutti in prima squadra subito.
-        - MATCH ANALYST: Parla solo di xG, tabelle e statistiche matematiche fredde, ma viene sempre preso in giro dal Vice.
+        - MATCH ANALYST: Parla solo di xG, tiri e statistiche matematiche fredde, ma viene preso in giro dal Vice di continuo.
 
-        CRONOLOGIA SINDACALE DEI BRIEFING:
+        CRONOLOGIA DISCUSSIONI PRECEDENTI:
         ${businessChronology}
         
         SITUAZIONE PATRIMONIALE ED ORGANICO REALE:
@@ -244,9 +244,7 @@ function App() {
     } catch (error) { console.error(error); } finally { setIsTyping(false); }
   }
 
-  // ==========================================
-  // FUNZIONI MULTIMEDIALI CON SCRITTURA E NOTIFICA AUTOMATICA IN CHAT CENTRALE
-  // ==========================================
+  // CARICAMENTI MULTIMEDIALI CON SCRITTURA LIVE IN CHAT E RE-DIRECT SMARTPHONE
   async function handleScoutImageUpload(event) {
     const file = event.target.files[0]; if (!file) return; setIsTyping(true); if (isMobile) setMobileViewTab('chat');
     try {
@@ -326,15 +324,15 @@ function App() {
         const prompt = `Sei il Responsabile Giovanili del club "${clubName}". Esamina lo screen profilo Under 20 di FM26 e dai una valutazione entusiasta, paterna e protettiva delle potenzialità reali del ragazzo.`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]);
-        const userMsg = { sender_role: `user:youth`, content: `📷 Mister ha scansionato il cartellino di un giovane wonderkid del vivaio.` };
-        const aiMsg = { sender_role: 'youth', content: result.response.text() }; setMessages(prev => [...prev, userMsg, aiMsg]);
+        const userMsg = { sender_role: `user:youth`, content: `📷 Mister ha scansionato il cartellino di un... giovane wonderkid del vivaio.` };
+        const aiMsg = { sender_role: 'youth', content: result.response.text(); }; setMessages(prev => [...prev, userMsg, aiMsg]);
         try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e){}
       }; reader.readAsDataURL(file);
     } catch (e) { console.error(e); } finally { setIsTyping(false); }
   }
 
   // ==========================================
-  // BLINDATURA DINAMICA OCR: CAST OBBLIGATORIO DI AGE AD INT PER EVITARE I CRASH CLOUD SUL TELEFONO
+  // PROTEZIONE SYNC INTERFACCIA: SANITIZZAZIONE FORZATA DI ETA/AGE AD INT CONTRO I CRASH DI SMARTPHONE
   // ==========================================
   async function handleImageUploadOCR(event) {
     const file = event.target.files[0]; if (!file) return; setIsUploading(true);
@@ -347,11 +345,11 @@ function App() {
         const extractedData = JSON.parse(result.response.text().replace(/```json/g, '').replace(/```/g, '').trim());
         
         if (Array.isArray(extractedData)) {
-          // SANITIZZAZIONE FORZATA DEL FORMATO: TRASFORMA L'ETÀ IN NUMERO REALE PRIMA DI EXPEDIRE AL DATABASE CLOUD
+          // PROVVEDIMENTO ANTICRASH: CAST FORZATO DEL NUMERO INTERO PER SUPABASE
           const sanitizedData = extractedData.map(p => ({
             name: p.name || 'Sconosciuto',
             position: p.position || 'N/D',
-            age: parseInt(p.age) ? parseInt(p.age) : null, // Mappa a numero intero pulito sbloccando la sincro con lo smartphone
+            age: parseInt(p.age) ? parseInt(p.age) : null, 
             type: p.type || 'player',
             attributes: p.attributes || {}
           }));
@@ -379,16 +377,15 @@ function App() {
     } finally { setIsUploading(false); }
   }
 
-  // INTERCETTAZIONE E ARCHIVIO RAPIDO DELLE TATTICHE CON COMPILAZIONE DI LINK RAPIDO
   async function handleAnalyzeExternalTactic() {
     if (!externalTacticInput.trim()) return; setIsTyping(true); if (isMobile) setMobileViewTab('chat');
     const inputBuffer = externalTacticInput; setExternalTacticInput('');
     try {
-      const prompt = `Analizza la tattica: """${inputBuffer}""" sulla rosa ${clubName}. Il Vice Allenatore deve fare un report sfacciato e da spogliatoio. Metti all'inizio la dicitura TITOLO: [Nome breve della tattica]`;
+      const prompt = `Analizza la tattica: """${inputBuffer}""" sulla rosa ${clubName}. Il Vice Allenatore deve fare un report sfacciato di spogliatoio. Metti all'inizio la dicitura TITOLO: [Nome breve]`;
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(prompt); const outputText = result.response.text();
       const cleanTitle = (outputText.match(/TITOLO:\s*(.*)/i)?.[1] || `Tattica del ${new Date().toLocaleDateString()}`).replace('[', '').replace(']', '').trim();
-      const userMsg = { sender_role: `user:vice`, content: `📋 Mister ha inoltrato una nuova tattica esterna per la convalida del modulo.` };
+      const userMsg = { sender_role: `user:vice`, content: `📋 Mister ha inoltrato una nuova tattica per la convalida rapida.` };
       const aiMsg = { sender_role: 'vice', content: outputText }; setMessages(prev => [...prev, userMsg, aiMsg]);
       setTacticReports(prev => [{ title: cleanTitle, content: outputText, id: Date.now() }, ...prev]);
       try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e) {}
@@ -408,9 +405,6 @@ function App() {
     } catch (e) { console.error(e); } finally { setIsTyping(false); }
   }
 
-  // ==========================================
-  // BLOCCHI DI RENDERING INTERFACCIA COMPLETA
-  // ==========================================
   function renderChatWindow() {
     const visibleMessages = messages.filter(msg => {
       if (!msg || !msg.sender_role) return false;
@@ -421,7 +415,6 @@ function App() {
 
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#0d0a16', width: '100%', height: '100%' }}>
-        {/* BARRA INTESTAZIONE STANZA */}
         <div style={{ height: '75px', padding: '0 24px', borderBottom: '2px solid #231b3a', display: 'flex', alignItems: 'center', backgroundColor: '#140f24', justifyContent: 'space-between', boxShadow: '0 4px 12px rgba(0,0,0,0.4)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <MessageSquare size={24} color="#da1b60" /> 
@@ -431,7 +424,6 @@ function App() {
           </div>
         </div>
 
-        {/* CONTROLLO TAB TOTALI PER SMARTPHONE CONTRO LO SCHERMO DIVISO A METÀ */}
         {isMobile && (
           <div style={{ display: 'flex', backgroundColor: '#140f24', borderBottom: '2px solid #231b3a', padding: '8px', gap: '8px' }}>
             <button onClick={() => setMobileViewTab('chat')} style={{ flex: 1, padding: '12px', fontSize: '14px', fontWeight: '900', border: 'none', borderRadius: '6px', backgroundColor: mobileViewTab === 'chat' ? '#da1b60' : '#090710', color: '#fff', textTransform: 'uppercase' }}>💬 Leggi Dialogo</button>
@@ -440,8 +432,6 @@ function App() {
         )}
 
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden', flexDirection: isMobile ? 'column' : 'row' }}>
-          
-          {/* GRIGLIA MESSAGGI CHAT A SCHERMO INTERO (FONT 16PX INTERLINEA ALTA) */}
           {(!isMobile || mobileViewTab === 'chat') && (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', borderRight: isMobile ? 'none' : '2px solid #231b3a', backgroundColor: '#090710' }}>
               <div ref={chatContainerRef} style={{ flex: 1, padding: isMobile ? '16px' : '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -468,21 +458,18 @@ function App() {
               <div style={{ padding: '20px', backgroundColor: '#140f24', borderTop: '2px solid #231b3a', boxShadow: '0 -4px 15px rgba(0,0,0,0.3)' }}>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <ChevronRight style={{ position: 'absolute', left: '14px', color: '#da1b60' }} size={20} />
-                  <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={`Chiacchiera con lo staff del Sora...`} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '16px 50px 16px 42px', fontSize: '16px', color: '#ffffff', borderRadius: '8px', outline: 'none', fontWeight: '500' }} />
-                  <button onClick={handleSendMessage} disabled={isTyping} style={{ position: 'absolute', right: '16px', background: 'none', border: 'none', color: '#da1b60', cursor: 'pointer', display: 'flex', alignItems: 'center' }}><Send size={18} /></button>
+                  <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={`Chiacchiera con il reparto ${activeRoom.toUpperCase()}...`} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '16px 50px 16px 42px', fontSize: '16px', color: '#ffffff', borderRadius: '8px', outline: 'none', fontWeight: '500' }} />
+                  <button onClick={handleSendMessage} disabled={isTyping} style={{ position: 'absolute', right: '16px', background: 'none', border: 'none', color: '#da1b60', cursor: 'pointer' }}><Send size={18} /></button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* COLONNA STRUMENTI REPARTO (LARGHEZZA ESTESA A 460PX PER EVITARE SCHIACCIAMENTI) */}
           {(!isMobile || mobileViewTab === 'tools') && (
             <div style={{ width: isMobile ? '100%' : '460px', backgroundColor: '#0f0c1b', padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', borderLeft: isMobile ? 'none' : '2px solid #231b3a', boxSizing: 'border-box', overflowY: 'auto' }}>
-              
               {activeRoom === 'board' && (
                 <div style={{ backgroundColor: '#140f24', border: '1px solid #231b3a', padding: '16px', borderRadius: '6px', fontSize: '14px', lineHeight: '1.6' }}>
-                  <span style={{ color: '#22d3ee', display: 'block', fontWeight: 'bold', marginBottom: '6px' }}>📊 REGISTRO CASSA SORA:</span>
-                  • Calciatori in Memoria: <strong style={{ color: '#fff' }}>{players.length}</strong><br />
+                  • Calciatori Schedati: <strong style={{ color: '#fff' }}>{players.length}</strong><br />
                   • Cassa Club Globale: <strong style={{ color: '#10b981' }}>€{finances.balance.toLocaleString()}</strong>
                 </div>
               )}
@@ -490,14 +477,14 @@ function App() {
               {activeRoom === 'vice' && (
                 <>
                   <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#22d3ee', fontWeight: '900' }}>Laboratorio Tattico</h3>
-                  <textarea value={externalTacticInput} onChange={(e) => setExternalTacticInput(e.target.value)} placeholder="Incolla l'analisi della tattica o il link esterno (es. da Magicomonta o FMScout)..." style={{ width: '94%', height: '140px', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '12px', color: '#ffffff', fontSize: '15px', resize: 'none', borderRadius: '6px' }} />
+                  <textarea value={externalTacticInput} onChange={(e) => setExternalTacticInput(e.target.value)} placeholder="Incolla l'analisi della tattica o il link esterno..." style={{ width: '94%', height: '140px', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '12px', color: '#ffffff', fontSize: '15px', resize: 'none', borderRadius: '6px' }} />
                   <button onClick={handleAnalyzeExternalTactic} disabled={isTyping} style={{ backgroundColor: '#22d3ee', color: '#0f0b1b', border: 'none', padding: '14px', fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer', width: '100%' }}>Avvia Convalida Modulo</button>
                   <div style={{ marginTop: '15px', backgroundColor: '#140f24', padding: '14px', borderRadius: '8px', border: '1px solid #231b3a' }}>
                     <span style={{ fontSize: '11px', color: '#22d3ee', fontWeight: 'bold', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>📂 Referti Rapidi Moduli Esaminati:</span>
-                    {tacticReports.length === 0 ? <div style={{ fontSize: '12px', color: '#475569', fontStyle: 'italic' }}>Nessun report salvato nell'accesso rapido.</div> : (
+                    {tacticReports.length === 0 ? <div style={{ fontSize: '12px', color: '#475569', fontStyle: 'italic' }}>Nessun report.</div> : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {tacticReports.map((rep) => (
-                          <button key={rep.id} onClick={() => setSelectedTacticReport(rep)} style={{ width: '100%', textAlign: 'left', backgroundColor: '#090710', border: '1px solid #231b3a', padding: '10px', borderRadius: '6px', color: '#fff', fontSize: '13px', cursor: 'pointer', fontWeight: 'bold' }}>⚡ {rep.title}</button>
+                          <button key={rep?.id} onClick={() => setSelectedTacticReport(rep)} style={{ width: '100%', textAlign: 'left', backgroundColor: '#090710', border: '1px solid #231b3a', padding: '10px', borderRadius: '6px', color: '#fff', fontSize: '13px', cursor: 'pointer', fontWeight: 'bold' }}>⚡ {rep?.title}</button>
                         ))}
                       </div>
                     )}
@@ -509,21 +496,21 @@ function App() {
                 <>
                   <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#f43f5e', fontWeight: '900' }}>Osservatorio Acquisti</h3>
                   <input type="file" accept="image/*" ref={scoutInputRef} onChange={handleScoutImageUpload} style={{ display: 'none' }} />
-                  <button onClick={() => scoutInputRef.current.click()} disabled={isTyping} style={{ width: '100%', backgroundColor: '#f43f5e', color: '#ffffff', border: 'none', padding: '14px', fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer' }}>Carica Foto Profilo Calciatore</button>
+                  <button onClick={() => scoutInputRef.current.click()} disabled={isTyping} style={{ width: '100%', backgroundColor: '#f43f5e', color: '#ffffff', border: 'none', padding: '14px', fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer' }}>Carica Foto Profilo Obiettivo</button>
                 </>
               )}
 
               {activeRoom === 'cfo' && (
                 <>
-                  <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#10b981', fontWeight: '900' }}>Ufficio Contabilità</h3>
+                  <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#10b981', fontWeight: '900' }}>Contabilità Moneyball</h3>
                   <input type="file" accept="image/*" ref={financeInputRef} onChange={handleFinanceImageUpload} style={{ display: 'none' }} />
-                  <button onClick={() => financeInputRef.current.click()} disabled={isTyping} style={{ width: '100%', backgroundColor: '#10b981', color: '#0f0c1b', border: 'none', padding: '12px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '4px' }}>Carica Screen Finanze</button>
+                  <button onClick={() => financeInputRef.current.click()} disabled={isTyping} style={{ width: '100%', backgroundColor: '#10b981', color: '#0f0c1b', border: 'none', padding: '12px', fontSize: '12px', fontWeight: 'bold', borderRadius: '6px', cursor: 'pointer' }}>Carica Screen Finanze</button>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
-                    <div><label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 'bold' }}>Bilancio Societario (€)</label><input type="number" value={finances.balance} onChange={(e) => updateFinancesCloud('balance', e.target.value)} style={{ width: '92%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '8px', color: '#10b981', fontWeight: 'bold', borderRadius: '4px' }} /></div>
+                    <div><label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 'bold' }}>Bilancio (€)</label><input type="number" value={finances.balance} onChange={(e) => updateFinancesCloud('balance', e.target.value)} style={{ width: '92%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '8px', color: '#10b981', fontWeight: 'bold', borderRadius: '4px' }} /></div>
                     <div><label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 'bold' }}>Budget Mercato (€)</label><input type="number" value={finances.transfer_budget} onChange={(e) => updateFinancesCloud('transfer_budget', e.target.value)} style={{ width: '92%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '8px', color: '#fff', borderRadius: '4px' }} /></div>
                   </div>
                   <div style={{ backgroundColor: '#140f24', border: '1px solid #231b3a', padding: '14px', borderRadius: '6px', marginTop: '12px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#fff', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>📊 Simulatore di Ammortamento Moneyball</span>
+                    <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#fff', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>📊 Simulatore di Ammortamento</span>
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <input type="number" value={simCost} onChange={(e) => setSimCost(e.target.value)} placeholder="Costo" style={{ width: '45%', backgroundColor: '#090710', border: '1px solid #231b3a', padding: '6px', color: '#fff', fontSize: '12px', borderRadius: '4px' }} />
                       <input type="number" value={simWage} onChange={(e) => setSimWage(e.target.value)} placeholder="Stip." style={{ width: '45%', backgroundColor: '#090710', border: '1px solid #231b3a', padding: '6px', color: '#fff', fontSize: '12px', borderRadius: '4px' }} />
@@ -531,13 +518,13 @@ function App() {
                     <button onClick={handleSimulateTransfer} style={{ backgroundColor: '#10b981', color: '#0f0c1b', border: 'none', padding: '8px', fontSize: '11px', fontWeight: 'bold', borderRadius: '4px', marginTop: '10px', width: '100%' }}>Calcola Impatto</button>
                     {simResult && <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#090710', borderLeft: `3px solid ${simResult.color}`, fontSize: '12px', color: '#fff' }}>{simResult.status}</div>}
                   </div>
-                  <button onClick={handleFinanceAudit} disabled={isTyping} style={{ backgroundColor: '#da1b60', color: '#fff', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '6px', marginTop: '12px', width: '100%' }}>Genera Audit Contabile</button>
+                  <button onClick={handleFinanceAudit} disabled={isTyping} style={{ backgroundColor: '#da1b60', color: '#fff', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', borderRadius: '6px', marginTop: '12px', width: '100%' }}>Genera Audit Contabile</button>
                 </>
               )}
 
               {activeRoom === 'press' && (
                 <>
-                  <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#ec4899', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Hub Carattere Mister</h3>
+                  <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#ec4899', fontWeight: '900' }}>Hub Carattere Mister</h3>
                   <div style={{ backgroundColor: '#140f24', border: '1px solid #231b3a', padding: '12px', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     <div>
                       <label style={{ fontSize: '11px', color: '#ec4899', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>🎭 Personalità Base:</label>
@@ -609,13 +596,14 @@ function App() {
   }
 
   function renderMasterDatabase() {
-    const firstTeamPlayers = players.filter(p => p.type === 'player' && (p.age >= 20 || !p.age));
-    const youthPlayers = players.filter(p => p.type === 'player' && p.age && p.age < 20);
+    const firstTeamPlayers = players.filter(p => p && p.type === 'player' && (p.age >= 20 || !p.age));
+    const youthPlayers = players.filter(p => p && p.type === 'player' && p.age && p.age < 20);
     let visibleList = [];
     if (dbSubTab === 'first_team') visibleList = firstTeamPlayers;
     else if (dbSubTab === 'youth') visibleList = youthPlayers;
 
     const getSortValue = (player, field) => {
+      if (!player) return '';
       switch(field) {
         case 'name': return (player.name || '').toLowerCase().trim();
         case 'position': return (player.position || '').toLowerCase().trim();
@@ -656,11 +644,11 @@ function App() {
               {shortlist.length === 0 ? <div style={{ color: '#475569', textAlign: 'center', padding: '40px' }}>Lista desideri vuota. Carica un profilo dall'Ufficio Scout.</div> : shortlist.map((s, i) => (
                 <div key={i} style={{ backgroundColor: '#140f24', border: '2px solid #f43f5e', padding: '16px', borderRadius: '8px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span style={{ fontSize: '18px', fontWeight: '900', color: '#fff' }}>{s.name}</span>
-                    <span style={{ backgroundColor: '#f43f5e', color: '#fff', fontSize: '11px', padding: '4px 8px', borderRadius: '4px', fontWeight: '900' }}>{s.verdict}</span>
+                    <span style={{ fontSize: '18px', fontWeight: '900', color: '#fff' }}>{s?.name}</span>
+                    <span style={{ backgroundColor: '#f43f5e', color: '#fff', fontSize: '11px', padding: '4px 8px', borderRadius: '4px', fontWeight: '900' }}>{s?.verdict}</span>
                   </div>
-                  <div style={{ color: '#22d3ee', fontSize: '14px', fontWeight: 'bold' }}>Ruolo: {s.position}</div>
-                  <div style={{ color: '#cbd5e1', fontSize: '14px', whiteSpace: 'pre-line', marginTop: '6px' }}>{s.analysis}</div>
+                  <div style={{ color: '#22d3ee', fontSize: '14px', fontWeight: 'bold' }}>Ruolo: {s?.position}</div>
+                  <div style={{ color: '#cbd5e1', fontSize: '14px', whiteSpace: 'pre-line', marginTop: '6px' }}>{s?.analysis}</div>
                 </div>
               ))}
             </div>
@@ -671,11 +659,11 @@ function App() {
               {matches.length === 0 ? <div style={{ color: '#475569', textAlign: 'center', padding: '40px' }}>Nessuna partita a referto. Carica un tabellino dall'Ufficio Analyst.</div> : matches.map((m, i) => (
                 <div key={i} style={{ backgroundColor: '#140f24', border: '2px solid #3b82f6', padding: '16px', borderRadius: '8px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                    <span style={{ fontSize: '18px', fontWeight: '900', color: '#fff' }}>SORA vs {m.opponent?.toUpperCase()}</span>
-                    <span style={{ backgroundColor: '#3b82f6', color: '#fff', fontSize: '14px', padding: '4px 10px', borderRadius: '4px', fontWeight: '900' }}>{m.result}</span>
+                    <span style={{ fontSize: '18px', fontWeight: '900', color: '#fff' }}>SORA vs {m?.opponent?.toUpperCase()}</span>
+                    <span style={{ backgroundColor: '#3b82f6', color: '#fff', fontSize: '14px', padding: '4px 10px', borderRadius: '4px', fontWeight: '900' }}>{m?.result}</span>
                   </div>
-                  <div style={{ color: '#34d399', fontSize: '13px', fontWeight: 'bold' }}>Metriche: xG {m.xg_team} - {m.xg_opp} xG Subiti</div>
-                  <div style={{ color: '#cbd5e1', fontSize: '14px', whiteSpace: 'pre-line', marginTop: '6px' }}>{m.analysis}</div>
+                  <div style={{ color: '#34d399', fontSize: '13px', fontWeight: 'bold' }}>Metriche: xG {m?.xg_team} - {m?.xg_opp} xG Subiti</div>
+                  <div style={{ color: '#cbd5e1', fontSize: '14px', whiteSpace: 'pre-line', marginTop: '6px' }}>{m?.analysis}</div>
                 </div>
               ))}
             </div>
@@ -697,13 +685,13 @@ function App() {
                   </thead>
                   <tbody>
                     {sortedList.map((p, idx) => (
-                      <tr key={idx} onClick={() => handleSelectPlayer(p)} style={{ borderBottom: '1px solid #231b3a', cursor: 'pointer', backgroundColor: selectedProfile?.id === p.id ? '#271e44' : 'transparent' }}>
-                        <td style={{ padding: '14px 10px', fontWeight: 'bold', color: '#ffffff', fontSize: '15px' }}>{p.name} {p.notes && <span style={{ fontSize: '10px', backgroundColor: '#a855f7', padding: '2px 4px', borderRadius: '3px', marginLeft: '4px' }}>FASCICOLO</span>}</td>
-                        <td style={{ padding: '14px 10px', color: '#22d3ee', fontWeight: '700' }}>{p.position || 'N/D'}</td>
-                        <td style={{ padding: '14px 10px', textAlign: 'center', color: '#fff' }}>{p.age || '-'}</td>
-                        <td style={{ padding: '14px 10px', textAlign: 'center', color: '#cbd5e1' }}>{p.attributes?.Presenze || '-'}</td>
-                        <td style={{ padding: '14px 10px', textAlign: 'center', color: '#ffffff', fontWeight: 'bold' }}>{p.attributes?.Gol || '-'}</td>
-                        <td style={{ padding: '14px 10px', textAlign: 'center', color: '#34d399', fontWeight: 'bold' }}>{p.attributes?.['Media Voto'] || '-'}</td>
+                      <tr key={idx} onClick={() => handleSelectPlayer(p)} style={{ borderBottom: '1px solid #231b3a', cursor: 'pointer', backgroundColor: selectedProfile?.id === p?.id ? '#271e44' : 'transparent' }}>
+                        <td style={{ padding: '14px 10px', fontWeight: 'bold', color: '#ffffff', fontSize: '15px' }}>{p?.name} {p?.notes && <span style={{ fontSize: '10px', backgroundColor: '#a855f7', padding: '2px 4px', borderRadius: '3px', marginLeft: '4px' }}>FASCICOLO</span>}</td>
+                        <td style={{ padding: '14px 10px', color: '#22d3ee', fontWeight: '700' }}>{p?.position || 'N/D'}</td>
+                        <td style={{ padding: '14px 10px', textAlign: 'center', color: '#fff' }}>{p?.age || '-'}</td>
+                        <td style={{ padding: '14px 10px', textAlign: 'center', color: '#cbd5e1' }}>{p?.attributes?.Presenze || '-'}</td>
+                        <td style={{ padding: '14px 10px', textAlign: 'center', color: '#ffffff', fontWeight: 'bold' }}>{p?.attributes?.Gol || '-'}</td>
+                        <td style={{ padding: '14px 10px', textAlign: 'center', color: '#34d399', fontWeight: 'bold' }}>{p?.attributes?.['Media Voto'] || '-'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -715,6 +703,21 @@ function App() {
       </div>
     );
   }
+
+  const navContainerStyle = isMobile ? {
+    position: 'fixed', bottom: 0, left: 0, right: 0, height: '70px', width: '100%',
+    backgroundColor: '#140f24', borderTop: '2px solid #231b3a', display: 'flex',
+    flexDirection: 'row', alignItems: 'center', padding: '0 10px', gap: '14px', overflowX: 'auto', zIndex: 1000
+  } : {
+    width: '90px', backgroundColor: '#140f24', borderRight: '2px solid #231b3a',
+    display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '20px', gap: '16px', zIndex: 10
+  };
+
+  const navButtonStyle = (room, color) => ({
+    background: activeRoom === room ? '#271e44' : 'none',
+    border: activeRoom === room ? `2px solid ${color}` : '2px solid transparent',
+    color: activeRoom === room ? color : '#475569', padding: '10px', borderRadius: '10px', cursor: 'pointer', flexShrink: 0
+  });
 
   return (
     <div style={{ display: 'flex', height: '100vh', flexDirection: isMobile ? 'column' : 'row', backgroundColor: '#090710', color: '#cbd5e1', fontFamily: 'system-ui, -apple-system, sans-serif', overflow: 'hidden' }}>
@@ -738,34 +741,32 @@ function App() {
         {activeRoom === 'database' && renderMasterDatabase()}
       </div>
 
-      {/* COMPONENTE MODALE ACCESSO ORIZZONTALE RAPIDO AI VECCHI REPORT TATTICI */}
       {selectedTacticReport && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(5, 3, 10, 0.95)', zIndex: 99999, display: 'flex', padding: isMobile ? '10px' : '40px' }}>
           <div style={{ margin: 'auto', width: '100%', maxWidth: '800px', backgroundColor: '#140f24', border: '3px solid #22d3ee', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #231b3a', paddingBottom: '14px', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0, fontSize: '22px', fontWeight: '900', color: '#22d3ee' }}>📋 REFERTO TATTICO: {selectedTacticReport.title.toUpperCase()}</h3>
+              <h3 style={{ margin: 0, fontSize: '22px', fontWeight: '900', color: '#22d3ee' }}>📋 REFERTO TATTICO: {selectedTacticReport?.title?.toUpperCase()}</h3>
               <button onClick={() => setSelectedTacticReport(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={26} /></button>
             </div>
-            <div style={{ flex: 1, overflowY: 'auto', fontSize: '17px', color: '#ffffff', lineHeight: '1.7', whiteSpace: 'pre-line' }}>{selectedTacticReport.content}</div>
+            <div style={{ flex: 1, overflowY: 'auto', fontSize: '17px', color: '#ffffff', lineHeight: '1.7', whiteSpace: 'pre-line' }}>{selectedTacticReport?.content}</div>
             <button onClick={() => setSelectedTacticReport(null)} style={{ marginTop: '16px', backgroundColor: '#22d3ee', color: '#000', border: 'none', padding: '14px', fontSize: '14px', fontWeight: 'bold', borderRadius: '8px', cursor: 'pointer' }}>Chiudi Documento</button>
           </div>
         </div>
       )}
 
-      {/* FLYOUT DETTAGLIO CALCIATORE + NOTE DEL MISTER */}
       {selectedProfile && (
         <div style={{ position: 'fixed', right: isMobile ? '10px' : '25px', bottom: isMobile ? '80px' : '25px', left: isMobile ? '10px' : 'auto', width: isMobile ? 'calc(100% - 20px)' : '340px', backgroundColor: '#140f24', border: '3px solid #da1b60', padding: '16px', borderRadius: '12px', boxShadow: '0 30px 60px rgba(0,0,0,0.9)', zIndex: 5000, boxSizing: 'border-box' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #231b3a', paddingBottom: '10px', marginBottom: '12px', alignItems: 'center' }}>
             <div>
               <span style={{ fontSize: '10px', color: '#da1b60', fontWeight: '900' }}>FASCICOLO CALCIATORE</span>
-              <h4 style={{ fontSize: '18px', color: '#ffffff', margin: '2px 0 0 0', fontWeight: '900' }}>{selectedProfile.name}</h4>
+              <h4 style={{ fontSize: '18px', color: '#ffffff', margin: '2px 0 0 0', fontWeight: '900' }}>{selectedProfile?.name}</h4>
             </div>
             <button onClick={() => setSelectedProfile(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20} /></button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '350px', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', padding: '8px 12px', backgroundColor: '#090710', borderRadius: '6px' }}><span style={{ color: '#94a3b8' }}>Ruolo</span><span style={{ color: '#22d3ee', fontWeight: '900' }}>{selectedProfile.position || 'N/D'}</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', padding: '8px 12px', backgroundColor: '#090710', borderRadius: '6px' }}><span style={{ color: '#94a3b8' }}>Età</span><span style={{ color: '#ffffff', fontWeight: '900' }}>{selectedProfile.age || 'N/D'}</span></div>
-            {selectedProfile.attributes && Object.entries(selectedProfile.attributes).map(([key, val]) => (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', padding: '8px 12px', backgroundColor: '#090710', borderRadius: '6px' }}><span style={{ color: '#94a3b8' }}>Ruolo</span><span style={{ color: '#22d3ee', fontWeight: '900' }}>{selectedProfile?.position || 'N/D'}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', padding: '8px 12px', backgroundColor: '#090710', borderRadius: '6px' }}><span style={{ color: '#94a3b8' }}>Età</span><span style={{ color: '#ffffff', fontWeight: '900' }}>{selectedProfile?.age || 'N/D'}</span></div>
+            {selectedProfile?.attributes && Object.entries(selectedProfile.attributes).map(([key, val]) => (
               <div key={key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', padding: '8px 12px', backgroundColor: '#090710', borderRadius: '6px' }}><span style={{ color: '#94a3b8' }}>{key}</span><span style={{ color: '#34d399', fontWeight: '900' }}>{String(val)}</span></div>
             ))}
             <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
