@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabaseClient'
-import { MessageSquare, Database, Settings, Send, Users, Sliders, TrendingUp, ImageIcon, X, CloudOff, Briefcase, ChevronRight, HelpCircle, Award, Activity, Search, Trash2 } from 'lucide-react'
+// Aggiunto ChevronDown per l'icona del tasto di scorrimento
+import { MessageSquare, Database, Settings, Send, Users, Sliders, TrendingUp, ImageIcon, X, CloudOff, Briefcase, ChevronRight, HelpCircle, Award, Activity, Search, Trash2, ChevronDown } from 'lucide-react'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
@@ -75,7 +76,6 @@ const TacticBoard = ({ data }) => {
     <div style={{ marginTop: '20px', backgroundColor: '#0f0c1b', border: '2px solid #22d3ee', borderRadius: '12px', padding: '16px' }}>
       <h3 style={{ color: '#22d3ee', marginTop: 0, textAlign: 'center', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px' }}>⚽ Lavagna Tattica FM26</h3>
       
-      {/* SELETTORE FASE DI GIOCO */}
       <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '16px' }}>
         <button onClick={() => setPhase('in')} style={{ backgroundColor: phase === 'in' ? '#34d399' : '#140f24', color: phase === 'in' ? '#000' : '#fff', border: '1px solid #34d399', padding: '8px 16px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s' }}>🟢 In Possession</button>
         <button onClick={() => setPhase('out')} style={{ backgroundColor: phase === 'out' ? '#ef4444' : '#140f24', color: phase === 'out' ? '#fff' : '#fff', border: '1px solid #ef4444', padding: '8px 16px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s' }}>🔴 Out of Possession</button>
@@ -120,7 +120,6 @@ const TacticBoard = ({ data }) => {
   );
 };
 
-
 function App() {
   const [activeRoom, setActiveRoom] = useState('board') 
   const [dbSubTab, setDbSubTab] = useState('first_team') 
@@ -128,6 +127,7 @@ function App() {
   const [sortDirection, setSortDirection] = useState('asc')
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
   const [mobileViewTab, setMobileViewTab] = useState('chat')
+  const [showScrollBottom, setShowScrollBottom] = useState(false) // STATO TASTO SCROLL RAPIDO
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
@@ -191,16 +191,42 @@ function App() {
   useEffect(() => { localStorage.setItem('hq_tactical_focus', tacticalFocus) }, [tacticalFocus])
   useEffect(() => { localStorage.setItem('hq_club_name', clubName) }, [clubName])
 
-  useEffect(() => { if (chatContainerRef.current) { chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight; } }, [messages, isTyping])
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [messages, isTyping])
 
-  useEffect(() => { fetchCloudData(); }, []);
+  useEffect(() => {
+    fetchCloudData();
+  }, []);
 
   const normalizeName = (name) => {
     if (!name) return '';
     return name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   };
 
-  // PARSER GRAFICO: Rimuove i JSON dalla chat per renderizzarli come Lavagne Tattiche e illumina i termini FM26
+  // RILEVATORE DI SCROLL PER MOSTRARE IL TASTO FRECCIA
+  const handleChatScroll = () => {
+    if (!chatContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+    if (scrollHeight - scrollTop - clientHeight > 100) {
+      setShowScrollBottom(true);
+    } else {
+      setShowScrollBottom(false);
+    }
+  };
+
+  // AZIONE SCROLL RAPIDO
+  const scrollToBottom = () => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  };
+
   const formatMessageContent = (text) => {
     if (!text) return null;
     let displayString = text;
@@ -389,7 +415,7 @@ function App() {
 
       if (activeRoom === 'board') { instructionPrompt += `\nREGOLE TAVOLO PLENARIA: Rispondi simulando un dibattito acceso.`; } 
       else { 
-        instructionPrompt += `\nSTANZA SINGOLA ATTIVA: SEI NELL'UFFICIO PRIVATO DI '${activeRoom.toUpperCase()}'. Rispondi al Mister interpretando esclusivamente il tuo personaggio.`; 
+        instructionPrompt += `\nSTANZA SINGOLA ATTIVA: SEI NELL'UFFICIO PRIVATO DI '${activeRoom.toUpperCase()}'. Rispondi al Mister interpretando esclusivamente il tuo personaggio con istruzioni REALI di Football Manager 2026.`; 
         if (activeRoom === 'vice') instructionPrompt += TACTIC_JSON_INSTRUCTION;
       }
 
@@ -427,7 +453,7 @@ function App() {
           Il Mister ti ha appena allegato un'immagine del gioco e ti dice: "${currentText || 'Cosa ne pensi di questo screen?'}"
           
           REGOLE DELLO STAFF: Reagisci all'immagine usando le meccaniche esatte di Football Manager 2026.
-          - VICE ALLENATORE: Se l'immagine è una tattica o un avversario, DEVI analizzarla dando consigli sui RUOLI e sulle ISTRUZIONI DI SQUADRA (in Inglese).
+          - VICE ALLENATORE: Se l'immagine è una tattica, DEVI analizzarla dando consigli sui RUOLI e sulle ISTRUZIONI DI SQUADRA (in Inglese).
           - DS: Pensa a contratti, valutazioni e CA/PA.
           - SCOUT: Legge gli attributi e i report scouting.
           - CFO: Pensa al bilancio.
@@ -525,7 +551,8 @@ function App() {
       const squadContext = safePlayers.map(p => ({ nome: p?.name, ruolo: p?.position, stats: p?.attributes }));
       const prompt = `
       ${FM26_CORE_ENGINE}
-      Sei il DS del "${clubName}". Tattica richiesta: "${inputBuffer}". Rosa: ${JSON.stringify(squadContext.slice(0, 40))}.
+      Sei il DS del "${clubName}". Tattica richiesta: "${inputBuffer}".
+      Rosa: ${JSON.stringify(squadContext.slice(0, 40))}.
       Stila una lista degli ESUBERI: dimmi esattamente quali giocatori vendere perché inadatti ai ruoli e compiti richiesti dalla tattica. Cita gli attributi mancanti.`;
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(prompt); const outputText = result.response.text();
@@ -608,7 +635,7 @@ function App() {
     try {
       const reader = new FileReader(); reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
-        const prompt = `Sei il CFO taccagno del club "${clubName}". Estrai le finanze in JSON puro (senza formattazione markdown): { "balance": numero, "transfer_budget": numero, "wage_budget": numero, "analysis": "analisi sul monte ingaggi e sul budget" }`;
+        const prompt = `Sei il CFO taccagno del club "${clubName}". Estrai le finanze in JSON puro (senza formattazione markdown): { "balance": numero, "transfer_budget": numero, "wage_budget": numero, "analysis": "analisi sarcastica e protettiva delle casse societarie" }`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]);
         const cleanText = result.response.text().replace(/```json/gi, '').replace(/```/g, '').trim();
@@ -616,7 +643,7 @@ function App() {
           const parsed = JSON.parse(cleanText);
           if (parsed) {
             setFinances({ balance: parsed.balance || 0, transfer_budget: parsed.transfer_budget || 0, wage_budget: parsed.wage_budget || 0 });
-            const userMsg = { sender_role: `user:cfo`, content: `📷 Mister ha inserito il rendiconto finanziario FM26.` };
+            const userMsg = { sender_role: `user:cfo`, content: `📷 Mister ha inserito il rendiconto finanziario visivo per l'audit patrimoniale.` };
             const aiMsg = { sender_role: 'cfo', content: parsed.analysis || "Audit completato." }; setMessages(prev => [...prev, userMsg, aiMsg]);
             try { await supabase.from('club_finances').update({ balance: parsed.balance || 0, transfer_budget: parsed.transfer_budget || 0, wage_budget: parsed.wage_budget || 0 }).eq('id', 1); await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch (e) {}
           }
@@ -647,7 +674,7 @@ function App() {
         const prompt = `${FM26_CORE_ENGINE} Sei il Resp. Giovanili del "${clubName}". Valuta il wonderkid in modo entusiasta analizzando le Stats chiave per il suo ruolo in FM26.`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]); const output = result.response.text();
-        const userMsg = { sender_role: `user:youth`, content: `📷 Mister ha scansionato il cartellino di un giovane.` };
+        const userMsg = { sender_role: `user:youth`, content: `📷 Mister ha scansionato il cartellino di un giovane wonderkid del vivaio.` };
         const aiMsg = { sender_role: 'youth', content: output }; setMessages(prev => [...prev, userMsg, aiMsg]);
         try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e){}
       }; reader.readAsDataURL(file);
@@ -659,39 +686,60 @@ function App() {
     try {
       const reader = new FileReader(); reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
-        const prompt = `Estrai calciatori in array JSON puro: [ { "type": "player", "name": "Nome", "age": "num", "position": "Ruolo", "attributes": { "Gol": "num", "Media Voto": "num", "Presenze": "num", "Ingaggio": "txt", "Valore": "txt" } } ]`;
+        const prompt = `Estrai i calciatori da questa griglia di FM. Nota abbreviazioni (Val, Anni, Stip, Mv). Rispondi SOLO array JSON puro, senza markup: [ { "type": "player", "name": "Nome", "age": "num", "position": "Ruolo", "attributes": { "Gol": "num", "Media Voto": "num", "Presenze": "num", "Ingaggio": "txt", "Valore": "txt" } } ]`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]);
         const cleanText = result.response.text().replace(/```json/gi, '').replace(/```/g, '').trim();
+        
         try {
           const extractedData = JSON.parse(cleanText);
           if (Array.isArray(extractedData)) {
             const sanitizedData = extractedData.map(p => {
               const ageVal = parseInt(p?.age);
-              return { name: p?.name || 'Sconosciuto', position: p?.position || 'N/D', age: isNaN(ageVal) ? null : ageVal, type: p?.type || 'player', attributes: p?.attributes || {} };
+              return {
+                name: p?.name || 'Sconosciuto',
+                position: p?.position || 'N/D',
+                age: isNaN(ageVal) ? null : ageVal, 
+                type: p?.type || 'player',
+                attributes: p?.attributes || {}
+              };
             });
+
             setPlayers(prev => {
               const list = Array.isArray(prev) ? [...prev] : []; 
               sanitizedData.forEach(np => {
                 const idx = list.findIndex(x => normalizeName(x?.name) === normalizeName(np.name));
-                if (idx >= 0) { list[idx] = { ...list[idx], ...np, attributes: { ...(list[idx]?.attributes || {}), ...(np.attributes || {}) } }; } 
-                else { list.push(np); }
-              }); return list;
+                if (idx >= 0) {
+                  list[idx] = { ...list[idx], ...np, attributes: { ...(list[idx]?.attributes || {}), ...(np.attributes || {}) } }; 
+                } else {
+                  list.push(np);
+                }
+              }); 
+              return list;
             });
+
             try {
               let { data: dbPlayers } = await supabase.from('players').select('*');
               const safeDbPlayers = Array.isArray(dbPlayers) ? dbPlayers : [];
               for (const p of sanitizedData) {
                 const match = safeDbPlayers.find(x => normalizeName(x?.name) === normalizeName(p.name));
-                if (match) { await supabase.from('players').update({ age: p.age, position: p.position, attributes: { ...(match.attributes || {}), ...p.attributes } }).eq('id', match.id); } 
-                else { await supabase.from('players').insert([p]); }
+                if (match) {
+                  await supabase.from('players').update({ age: p.age, position: p.position, attributes: { ...(match.attributes || {}), ...p.attributes } }).eq('id', match.id);
+                } else {
+                  await supabase.from('players').insert([p]);
+                }
               }
-            } catch(e) {}
+            } catch(e) { console.error("Errore salvataggio Supabase OCR:", e); }
           }
-        } catch (jsonErr) {}
-      }; reader.readAsDataURL(file);
-    } catch (e) { console.error(e); } finally { setIsUploading(false); } 
-  };
+        } catch (jsonErr) { console.error("Errore Parsing JSON OCR:", jsonErr); }
+      }; 
+      reader.readAsDataURL(file);
+    } catch (e) {
+      console.error(e);
+    } finally { 
+      setIsUploading(false); 
+    } 
+  }
 
   // 11. COMPONENTI DI RENDER E LAYOUT
   function renderChatWindow() {
@@ -704,7 +752,7 @@ function App() {
     });
 
     return (
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#0d0a16', width: '100%', height: '100%' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#0d0a16', width: '100%', height: '100%', position: 'relative' }}>
         <div style={{ height: '75px', padding: '0 24px', borderBottom: '2px solid #231b3a', display: 'flex', alignItems: 'center', backgroundColor: '#140f24', justifyContent: 'space-between', boxShadow: '0 4px 12px rgba(0,0,0,0.4)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <MessageSquare size={24} color="#da1b60" /> 
@@ -721,10 +769,10 @@ function App() {
           </div>
         )}
 
-        <div style={{ flex: 1, display: 'flex', overflow: 'hidden', flexDirection: isMobile ? 'column' : 'row' }}>
+        <div style={{ flex: 1, display: 'flex', overflow: 'hidden', flexDirection: isMobile ? 'column' : 'row', position: 'relative' }}>
           {(!isMobile || mobileViewTab === 'chat') && (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', borderRight: isMobile ? 'none' : '2px solid #231b3a', backgroundColor: '#090710' }}>
-              <div ref={chatContainerRef} style={{ flex: 1, padding: isMobile ? '16px' : '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', borderRight: isMobile ? 'none' : '2px solid #231b3a', backgroundColor: '#090710', position: 'relative' }}>
+              <div ref={chatContainerRef} onScroll={handleChatScroll} style={{ flex: 1, padding: isMobile ? '16px' : '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {visibleMessages.map((msg, index) => {
                   let align = 'flex-start'; let bColor = '#2c2347'; let nameLabel = 'STAFF'; let itemBg = '#140f24';
                   const role = msg?.sender_role ? String(msg.sender_role) : '';
@@ -755,6 +803,14 @@ function App() {
                 )}
               </div>
 
+              {/* TASTO SCROLL RAPIDO VERSO IL BASSO */}
+              {showScrollBottom && (
+                <button onClick={scrollToBottom} style={{ position: 'absolute', bottom: '100px', right: '20px', width: '45px', height: '45px', borderRadius: '50%', backgroundColor: '#da1b60', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,0,0,0.6)', zIndex: 50, transition: 'all 0.2s' }}>
+                  <ChevronDown size={28} />
+                </button>
+              )}
+
+              {/* BARRA CHAT CON UPLOAD FOTO GLOBALE */}
               <div style={{ padding: '20px', backgroundColor: '#140f24', borderTop: '2px solid #231b3a', boxShadow: '0 -4px 15px rgba(0,0,0,0.3)' }}>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <ChevronRight style={{ position: 'absolute', left: '14px', color: '#da1b60' }} size={20} />
@@ -1086,7 +1142,7 @@ function App() {
     );
   }
 
-  // 12. STRUTTURA PRINCIPALE
+  // 12. STRUTTURA PRINCIPALE E FLYOUT MODALI
   const navContainerStyle = isMobile ? {
     position: 'fixed', bottom: 0, left: 0, right: 0, height: '70px', width: '100%',
     backgroundColor: '#140f24', borderTop: '2px solid #231b3a', display: 'flex',
@@ -1125,7 +1181,7 @@ function App() {
         {activeRoom === 'database' && renderMasterDatabase()}
       </div>
 
-      {/* FLYOUT MODALE: REFERTO TATTICO */}
+      {/* FLYOUT MODALE: REFERTO TATTICO CON CAMPO VERDE */}
       {selectedTacticReport && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(5, 3, 10, 0.95)', zIndex: 99999, display: 'flex', padding: isMobile ? '10px' : '40px' }}>
           <div style={{ margin: 'auto', width: '100%', maxWidth: '800px', backgroundColor: '#140f24', border: '3px solid #22d3ee', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
