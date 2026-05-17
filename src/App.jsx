@@ -3,7 +3,6 @@ import { supabase } from './supabaseClient'
 import { MessageSquare, Database, Settings, Send, Users, Sliders, TrendingUp, ImageIcon, X, CloudOff, Briefcase, ChevronRight, HelpCircle, Award, Activity, Search } from 'lucide-react'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
-// CONFIGURAZIONE CHIAVE GEMINI PRO-GRADE PROTETTA DA VARIABILE D'AMBIENTE PER VERCEL
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
@@ -76,25 +75,26 @@ function App() {
   const [rivalRelation, setRivalRelation] = useState(() => localStorage.getItem('hq_rival_relation') || 'respectful')
   const [tacticalFocus, setTacticalFocus] = useState(() => localStorage.getItem('hq_tactical_focus') || 'pragmatic')
 
-  // 4. STATI DEGLI STRUMENTI E INTERFACCIA
+  // 4. STATI DEGLI STRUMENTI, INPUT E INTERFACCIA
   const [simCost, setSimCost] = useState('500000')
   const [simWage, setSimWage] = useState('2000')
   const [simYears, setSimYears] = useState('3')
   const [simResult, setSimResult] = useState(null)
+  
   const [externalTacticInput, setExternalTacticInput] = useState('')
+  const [dsTacticInput, setDsTacticInput] = useState('') // NUOVO STATO PER IL MODULO EPURAZIONE DS
+  
   const [selectedProfile, setSelectedProfile] = useState(null) 
   const [selectedTacticReport, setSelectedTacticReport] = useState(null)
   const [editingNotes, setEditingNotes] = useState('')
   const [isSavingNotes, setIsSavingNotes] = useState(false)
   
-  // STATI DI CARICAMENTO (LOADERS)
   const [isUploading, setIsUploading] = useState(false)
   const [isTyping, setIsTyping] = useState(false)
-  
   const [chatInput, setChatInput] = useState('')
   const [cloudStatus, setCloudStatus] = useState('online') 
 
-  // REF PER GLI INPUT FILE E AUTO-SCROLL
+  // REF PER GLI INPUT FILE
   const fileInputRef = useRef(null)
   const pressInputRef = useRef(null)
   const youthInputRef = useRef(null)
@@ -129,7 +129,7 @@ function App() {
     fetchCloudData();
   }, []);
 
-  // 6. FUNZIONI DI RETE SUPABASE E SYNC CLOUD
+  // 6. FUNZIONI DI RETE SUPABASE
   async function fetchCloudData() {
     try {
       let { data: pData } = await supabase.from('players').select('*').order('name')
@@ -162,7 +162,6 @@ function App() {
     } catch (e) { setCloudStatus('offline') }
   }
 
-  // TASTO MAGICO: FORZA SINCRO DAL PC AL CLOUD
   async function handleForceSync() {
     try {
       const safePlayers = Array.isArray(players) ? players : [];
@@ -240,6 +239,12 @@ function App() {
     } catch (e) { console.error(e); } finally { setIsSavingNotes(false); }
   }
 
+  // NUOVA FUNZIONE: ELIMINA GIOCATORE DALLA SHORTLIST
+  async function handleRemoveFromShortlist(id) {
+    setShortlist(prev => prev.filter(s => s.id !== id));
+    try { await supabase.from('shortlist').delete().eq('id', id); } catch(e) {}
+  }
+
   function handleSimulateTransfer() {
     const cost = parseFloat(simCost) || 0; 
     const weeklyWage = parseFloat(simWage) || 0; 
@@ -269,7 +274,7 @@ function App() {
     }
   }
 
-  // 8. CORE ENGINE INTELLIGENZA ARTIFICIALE CHAT
+  // 8. CORE ENGINE INTELLIGENZA ARTIFICIALE
   async function handleSendMessage() {
     if (!chatInput.trim()) return;
     const currentInputText = chatInput;
@@ -341,7 +346,37 @@ function App() {
     } catch (error) { console.error(error); } finally { setIsTyping(false); }
   }
 
-  // 9. FUNZIONI MULTIMEDIALI AVANZATE CON INDICATORI DI CARICAMENTO (LOADERS)
+  // NUOVA FUNZIONE: DS VALUTA LA ROSA ED ESTRAE GLI ESUBERI IN BASE ALLA TATTICA
+  async function handleAnalyzeSquadEsuberi() {
+    if (!dsTacticInput.trim()) return;
+    setIsTyping(true);
+    if (isMobile) setMobileViewTab('chat');
+    
+    const inputBuffer = dsTacticInput;
+    setDsTacticInput('');
+    
+    try {
+      const safePlayers = Array.isArray(players) ? players : [];
+      const squadContext = safePlayers.map(p => ({ nome: p?.name, ruolo: p?.position, stats: p?.attributes }));
+      
+      const prompt = `Sei il Direttore Sportivo squalo e cinico del club "${clubName}".
+      Il Mister ha deciso che giocheremo con questa tattica/modulo: "${inputBuffer}".
+      Analizza la nostra rosa attuale: ${JSON.stringify(squadContext.slice(0, 40))}.
+      Stila una lista spietata degli ESUBERI: dimmi esattamente quali giocatori dobbiamo vendere o svincolare perché sono inutili, scarsi o inadatti per questa tattica. Metti all'inizio la dicitura TITOLO: [Lista Esuberi Tattica]`;
+
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const result = await model.generateContent(prompt);
+      const outputText = result.response.text();
+
+      const userMsg = { sender_role: `user:ds`, content: `📋 Direttore, valuta la rosa per la tattica: "${inputBuffer}". Chi dobbiamo cedere? Fai l'epurazione.` };
+      const aiMsg = { sender_role: 'ds', content: outputText };
+      
+      setMessages(prev => [...prev, userMsg, aiMsg]);
+      try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e) {}
+    } catch (error) { console.error(error); } finally { setIsTyping(false); }
+  }
+
+  // 9. FUNZIONI MULTIMEDIALI AVANZATE E OCR
   async function handleAnalyzeExternalTactic() {
     if (!externalTacticInput.trim()) return; 
     setIsTyping(true); 
@@ -386,7 +421,7 @@ function App() {
         
         const pName = (output.match(/NOME:\s*(.*)/i)?.[1] || 'Obiettivo Scansionato').trim();
         const pRole = (output.match(/RUOLO:\s*(.*)/i)?.[1] || 'N/D').trim();
-        const pVerdict = (output.match(/VERDETTO:\s*(.*)/i)?.[1] || 'VALUTAZIONE').trim();
+        const pVerdict = (output.match(/VERDETTO:\s*(.*)/i)?.[1] || 'VALUTATO').trim();
         
         const userMsg = { sender_role: `user:scout`, content: `📷 Mister ha messo sul tavolo la scheda di un calciatore esterno da visionare.` };
         const aiMsg = { sender_role: 'scout', content: output }; 
@@ -540,11 +575,10 @@ function App() {
     } catch (e) { console.error(e); } finally { setIsTyping(false); }
   }
 
-  // 10. LETTORE OCR DELLA ROSA RIGIDO E SICURO CON FEEDBACK VISIVO AGGIUNTO
   async function handleImageUploadOCR(event) {
     const file = event.target.files[0]; 
     if (!file) return; 
-    setIsUploading(true); // <--- ATTIVA LO STATO DI CARICAMENTO (GIALLO)
+    setIsUploading(true);
     
     try {
       const reader = new FileReader(); 
@@ -600,10 +634,10 @@ function App() {
       reader.readAsDataURL(file);
     } catch (e) {
       console.error(e);
-    } finally { setIsUploading(false); } // <--- DISATTIVA LO STATO DI CARICAMENTO
+    } finally { setIsUploading(false); }
   }
 
-  // 11. COMPONENTI DI RENDER: FINESTRE, TABELLE E MODALI
+  // 10. COMPONENTI DI RENDER: FINESTRE E TABELLE
   function renderChatWindow() {
     const safeMessages = Array.isArray(messages) ? messages : [];
     const visibleMessages = safeMessages.filter(msg => {
@@ -694,7 +728,7 @@ function App() {
               {activeRoom === 'vice' && (
                 <>
                   <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#22d3ee', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Laboratorio Tattico</h3>
-                  <textarea value={externalTacticInput} onChange={(e) => setExternalTacticInput(e.target.value)} placeholder="Incolla l'analisi della tattica o il link esterno (es. da Magicomonta o FMScout)..." style={{ width: '94%', height: '140px', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '12px', color: '#ffffff', fontSize: '15px', resize: 'none', borderRadius: '6px' }} />
+                  <textarea value={externalTacticInput} onChange={(e) => setExternalTacticInput(e.target.value)} placeholder="Incolla l'analisi della tattica o il link esterno (es. FMScout)..." style={{ width: '94%', height: '140px', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '12px', color: '#ffffff', fontSize: '15px', resize: 'none', borderRadius: '6px' }} />
                   <button onClick={handleAnalyzeExternalTactic} disabled={isTyping} style={{ backgroundColor: '#22d3ee', color: '#0f0b1b', border: 'none', padding: '14px', fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer', width: '100%', boxShadow: '0 4px 12px rgba(34,211,238,0.2)' }}>Avvia Convalida Modulo</button>
                   
                   <div style={{ marginTop: '15px', backgroundColor: '#140f24', padding: '14px', borderRadius: '8px', border: '1px solid #231b3a' }}>
@@ -714,16 +748,34 @@ function App() {
                 <>
                   <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#f43f5e', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Osservatorio Acquisti</h3>
                   <input type="file" accept="image/*" ref={scoutInputRef} onChange={handleScoutImageUpload} style={{ display: 'none' }} />
-                  <button onClick={() => scoutInputRef.current.click()} disabled={isTyping} style={{ width: '100%', backgroundColor: '#f43f5e', color: '#ffffff', border: 'none', padding: '14px', fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(244,63,94,0.3)' }}>Carica Foto Profilo Calciatore</button>
+                  <button onClick={() => scoutInputRef.current.click()} disabled={isTyping} style={{ width: '100%', backgroundColor: '#f43f5e', color: '#ffffff', border: 'none', padding: '14px', fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(244,63,94,0.3)' }}>Scansiona e Aggiungi in Shortlist</button>
+                  
+                  {/* TABELLA ESTRAZIONE RAPIDA SHORTLIST */}
+                  <div style={{ marginTop: '15px', backgroundColor: '#140f24', padding: '14px', borderRadius: '8px', border: '1px solid #231b3a' }}>
+                    <span style={{ fontSize: '11px', color: '#f43f5e', fontWeight: 'bold', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>🎯 Obiettivi Inseriti (Shortlist):</span>
+                    {(!Array.isArray(shortlist) || shortlist.length === 0) ? <div style={{ fontSize: '12px', color: '#475569', fontStyle: 'italic' }}>Lista vuota.</div> : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {shortlist.map((s, idx) => (
+                          <div key={s?.id || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#090710', border: '1px solid #231b3a', padding: '10px', borderRadius: '6px' }}>
+                            <span style={{ color: '#fff', fontSize: '13px', fontWeight: 'bold' }}>{s?.name} <span style={{ color: '#f43f5e', fontSize: '10px' }}>({s?.verdict})</span></span>
+                            <button onClick={() => handleRemoveFromShortlist(s?.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}><X size={16} /></button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </>
               )}
 
               {activeRoom === 'ds' && (
                 <>
-                  <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#fbbf24', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Alert Contratti</h3>
-                  <div style={{ backgroundColor: '#140f24', border: '2px solid #231b3a', padding: '16px', borderRadius: '6px', fontSize: '15px', lineHeight: '1.6', color: '#ffffff' }}>
-                    I giocatori marchiati <strong style={{ color: '#ef4444' }}>TOSSICO</strong> nel Master DB hanno stipendi sproporzionati rispetto alle prestazioni. Taglia o vendi subito.
+                  <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#fbbf24', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Direzione Sportiva</h3>
+                  <div style={{ backgroundColor: '#140f24', border: '2px solid #231b3a', padding: '16px', borderRadius: '6px', fontSize: '14px', lineHeight: '1.6', color: '#ffffff' }}>
+                    <span style={{ color: '#fbbf24', fontWeight: 'bold', display: 'block', marginBottom: '8px', textTransform: 'uppercase', fontSize: '12px' }}>🧹 Epurazione Rosa:</span>
+                    Scrivi la tattica che vuoi usare (es. "4-3-3 Gegenpress"). Il DS valuterà la rosa attuale e ti dirà chi sono gli esuberi da vendere o tagliare.
                   </div>
+                  <textarea value={dsTacticInput} onChange={(e) => setDsTacticInput(e.target.value)} placeholder="Inserisci il modulo o lo stile di gioco..." style={{ width: '94%', height: '80px', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '12px', color: '#ffffff', fontSize: '14px', resize: 'none', borderRadius: '6px', marginTop: '10px' }} />
+                  <button onClick={handleAnalyzeSquadEsuberi} disabled={isTyping} style={{ backgroundColor: '#fbbf24', color: '#0f0b1b', border: 'none', padding: '14px', fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer', width: '100%', boxShadow: '0 4px 12px rgba(251,191,36,0.2)' }}>Analizza Esuberi</button>
                 </>
               )}
 
@@ -745,7 +797,7 @@ function App() {
                     <button onClick={handleSimulateTransfer} style={{ backgroundColor: '#10b981', color: '#0f0c1b', border: 'none', padding: '8px', fontSize: '11px', fontWeight: 'bold', borderRadius: '4px', marginTop: '10px', width: '100%' }}>Calcola Impatto</button>
                     {simResult && <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#090710', borderLeft: `3px solid ${simResult.color}`, fontSize: '12px', color: '#fff' }}>{simResult.notes}</div>}
                   </div>
-                  <button onClick={handleFinanceAudit} disabled={isTyping} style={{ backgroundColor: '#da1b60', color: '#fff', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', marginTop: '12px', width: '100%', cursor: 'pointer' }}>Genera Audit Contabile</button>
+                  <button onClick={handleFinanceAudit} disabled={isTyping} style={{ backgroundColor: '#da1b60', color: '#fff', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '6px', marginTop: '12px', width: '100%' }}>Genera Audit Contabile</button>
                 </>
               )}
 
@@ -802,7 +854,7 @@ function App() {
 
               {activeRoom === 'youth' && (
                 <>
-                  <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#ffaa00', fontWeight: '900' }}>Vivaio Under 20</h3>
+                  <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#ffaa00', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Vivaio Under 20</h3>
                   <input type="file" accept="image/*" ref={youthInputRef} onChange={handleYouthImageUpload} style={{ display: 'none' }} />
                   <button onClick={() => youthInputRef.current.click()} disabled={isTyping} style={{ width: '100%', backgroundColor: '#ffaa00', color: '#0f0c1b', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer' }}>Carica Screen Profilo Giovane</button>
                 </>
@@ -810,7 +862,7 @@ function App() {
 
               {activeRoom === 'analyst' && (
                 <>
-                  <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#3b82f6', fontWeight: '900' }}>Match Analysis Center</h3>
+                  <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#3b82f6', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Match Analysis Center</h3>
                   <input type="file" accept="image/*" ref={analystInputRef} onChange={handleAnalystImageUpload} style={{ display: 'none' }} />
                   <button onClick={() => analystInputRef.current.click()} disabled={isTyping} style={{ width: '100%', backgroundColor: '#3b82f6', color: '#fff', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer' }}>Carica Tabellino Gara</button>
                 </>
@@ -865,13 +917,9 @@ function App() {
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
             <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUploadOCR} style={{ display: 'none' }} />
-            
-            {/* TASTO FORZA SINCRO CLOUD */}
             {!isMobile && safePlayers.length > 0 && (
               <button onClick={handleForceSync} disabled={isUploading} style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none', padding: '10px 16px', fontSize: '12px', fontWeight: 'bold', borderRadius: '6px', cursor: 'pointer' }}>{isUploading ? 'Sincro...' : '☁️ Forza Sincro Cloud'}</button>
             )}
-
-            {/* FEEDBACK VISIVO CAMBIO COLORE SUL TASTO DI CARICAMENTO ROSA */}
             <button onClick={() => fileInputRef.current.click()} disabled={isUploading} style={{ backgroundColor: isUploading ? '#fbbf24' : '#da1b60', color: isUploading ? '#0f0c1b' : '#fff', border: 'none', padding: '10px 20px', fontSize: '12px', fontWeight: 'bold', borderRadius: '6px', cursor: isUploading ? 'not-allowed' : 'pointer' }}>
               {isUploading ? '⏳ SCANSIONE...' : 'Carica Foto Rosa'}
             </button>
@@ -881,7 +929,6 @@ function App() {
 
         <div style={{ flex: 1, padding: isMobile ? '12px' : '24px', overflowY: 'auto', backgroundColor: '#090710', width: '100%', boxSizing: 'border-box' }}>
           
-          {/* GIGANTESCO FEEDBACK VISIVO DI CARICAMENTO IN CORSO OCR */}
           {isUploading && (dbSubTab === 'first_team' || dbSubTab === 'youth') ? (
             <div style={{ textAlign: 'center', padding: '64px', color: '#fbbf24', fontSize: '16px', fontWeight: 'bold', border: '2px dashed #fbbf24', backgroundColor: '#140f24', borderRadius: '8px' }}>
               ⏳ Lettura Ottica in corso... Estrazione attributi tattici e valori. Non ricaricare la pagina!
@@ -991,7 +1038,7 @@ function App() {
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(5, 3, 10, 0.95)', zIndex: 99999, display: 'flex', padding: isMobile ? '10px' : '40px' }}>
           <div style={{ margin: 'auto', width: '100%', maxWidth: '800px', backgroundColor: '#140f24', border: '3px solid #22d3ee', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #231b3a', paddingBottom: '14px', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0, fontSize: '22px', fontWeight: '900', color: '#22d3ee' }}>📋 REFERTO: {selectedTacticReport?.title?.toUpperCase() || 'TATTICA'}</h3>
+              <h3 style={{ margin: 0, fontSize: '22px', fontWeight: '900', color: '#22d3ee' }}>📋 REFERTO TATTICO: {selectedTacticReport?.title?.toUpperCase() || 'TATTICA'}</h3>
               <button onClick={() => setSelectedTacticReport(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={26} /></button>
             </div>
             <div style={{ flex: 1, overflowY: 'auto', fontSize: '17px', color: '#ffffff', lineHeight: '1.7', whiteSpace: 'pre-line' }}>{selectedTacticReport?.content || ''}</div>
