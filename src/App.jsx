@@ -7,14 +7,17 @@ const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // ==========================================
-// IL CERVELLO DI FM26 (CON VISIONE PROATTIVA E ANALISI MULTIPLA)
+// IL CERVELLO DI FM26 (BIG DATA & VISIONE PROATTIVA)
 // ==========================================
 const FM26_CORE_ENGINE = `
-IL TUO CERVELLO È BASATO SUL MOTORE DI GIOCO DI FOOTBALL MANAGER 2026.
-Sei uno staff umano, discorsivo ma tecnicamente ineccepibile. 
+IL TUO CERVELLO È BASATO SUL MOTORE DI GIOCO DI FOOTBALL MANAGER 2026 E SUI BIG DATA.
+Sei uno staff umano, discorsivo ma tecnicamente e statisticamente ineccepibile. 
 
 [!!! REGOLA DELLA PROATTIVITÀ E DELLA VISIONE !!!]
 Devi SEMPRE tenere conto della "VISIONE SOCIETARIA" impostata dal Mister. Se il Mister propone un'idea a lungo termine (es. "modello Barcellona", "squadra fisica", "vincere la Champions in 5 anni") e NON hai abbastanza dati nel database per aiutarlo, DEVI CHIEDERE ESPLICITAMENTE GLI SCREENSHOT. 
+
+[!!! REGOLA DEGLI ATTRIBUTI E DEI DATI !!!]
+Hai accesso a TUTTI gli attributi da 1 a 20 dei giocatori (Tecnici, Mentali, Fisici). Quando valuti un giocatore per un ruolo, CITA i suoi attributi reali. Se vedi che a un giocatore manca un attributo chiave per il suo ruolo (es. "Visione di Gioco" bassa per un Regista), fallo notare al Mister!
 
 [!!! REGOLA LINGUISTICA CRITICA !!!]
 - I RUOLI DEI GIOCATORI devono essere ESCLUSIVAMENTE IN INGLESE (es: **Box To Box Midfielder**, **Advanced Forward**, **Sweeper Keeper**).
@@ -40,22 +43,22 @@ SE IL MISTER TI CHIEDE UNA FORMAZIONE, UNA TATTICA O UN CONSIGLIO DI SCHIERAMENT
 }
 \`\`\`
 Usa SOLO codici posizioni esatti: GK, DL, DCL, DC, DCR, DR, WBL, WBR, DM, DML, DMR, ML, MCL, MC, MCR, MR, AML, AMC, AMR, STL, ST, STR. 
-Ricorda: Compila 11 giocatori in_possesso e 11 giocatori in non_in_possesso. "role" DEVE ESSERE IN INGLESE, "duty" DEVE ESSERE IN ITALIANO.`;
+Ricorda: Compila 11 giocatori in_possesso e 11 in non_in_possesso. "role" DEVE ESSERE IN INGLESE, "duty" IN ITALIANO.`;
 
 const getRolePrompt = (role, clubName, clubVision, finances, squadContext, shortlistContext, matchesContext, tacticalFocus) => {
   const baseRules = FM26_CORE_ENGINE + `\nSEI UN PROFESSIONISTA DEL CLUB: ${clubName.toUpperCase()}.\n`;
   const contextData = `
 🎯 VISIONE SOCIETARIA A LUNGO TERMINE (Il nostro Progetto): "${clubVision}"
-DATI ROSA ATTUALE: ${JSON.stringify(squadContext.slice(0, 30))}\n`;
+DATI ROSA ATTUALE (Con tutti gli attributi 1-20 da valutare): ${JSON.stringify(squadContext.slice(0, 30))}\n`;
 
   if (role === 'vice') return baseRules + `
 RUOLO: VICE ALLENATORE E TATTICO DI FM26.
-Carattere: Uomo di campo, sanguigno. Discuti di tattica e chiedi screen se devi costruire un ecosistema tattico. Allinea le tue scelte tattiche alla Visione Societaria. Valuta i giocatori in base alla loro Media Voto. ` + contextData + TACTIC_JSON_INSTRUCTION;
+Carattere: Uomo di campo, sanguigno. Discuti di tattica in profondità basandoti sui numeri reali dei giocatori (se un giocatore ha 8 in Passaggi non fargli fare il Regista e dillo al mister!). Allinea le tue scelte tattiche alla Visione Societaria. ` + contextData + TACTIC_JSON_INSTRUCTION;
   
-  if (role === 'ds') return baseRules + `RUOLO: DIRETTORE SPORTIVO. Carattere: Cinico, focalizzato su bilanci e plusvalenze. Valuta esuberi se Media Voto < 6.70 o non adatti alla Visione.` + contextData;
-  if (role === 'scout') return baseRules + `RUOLO: CAPO OSSERVATORE. Valuta se i giocatori negli screen sono adatti al Progetto e alla Visione del Club.` + `\nSHORTLIST: ${JSON.stringify(shortlistContext)}` + contextData;
-  if (role === 'cfo') return baseRules + `RUOLO: CFO FINANZE. La cassa è di €${finances?.balance || 0}. Controlla che le spese siano in linea col Progetto a lungo termine.` + contextData;
-  if (role === 'analyst') return baseRules + `RUOLO: MATCH ANALYST. Nerd dei dati. Analizza xG. Chiedi al Mister lo screen del Data Hub se mancano dati per confermare se la Visione funziona in campo.` + contextData;
+  if (role === 'ds') return baseRules + `RUOLO: DIRETTORE SPORTIVO. Carattere: Cinico, focalizzato su bilanci e plusvalenze. Valuta esuberi e acquisti basandoti rigidamente sugli attributi (CA/PA) e sulla Media Voto stagionale.` + contextData;
+  if (role === 'scout') return baseRules + `RUOLO: CAPO OSSERVATORE. Valuta se i giocatori negli screen hanno gli attributi da 1 a 20 adatti al Progetto e alla Visione del Club.` + `\nSHORTLIST: ${JSON.stringify(shortlistContext)}` + contextData;
+  if (role === 'cfo') return baseRules + `RUOLO: CFO FINANZE. La cassa è di €${finances?.balance || 0}. Fai battute sui soldi, ma sii preciso. Controlla che le spese siano in linea col Progetto a lungo termine.` + contextData;
+  if (role === 'analyst') return baseRules + `RUOLO: MATCH ANALYST. Nerd dei dati. Analizza xG, Passaggi Chiave e zone di calore.` + contextData;
   
   return baseRules + contextData;
 };
@@ -65,11 +68,8 @@ Carattere: Uomo di campo, sanguigno. Discuti di tattica e chiedi screen se devi 
 // ==========================================
 const TacticBoard = ({ data }) => {
   const [phase, setPhase] = useState('in'); 
-  
   if (!data) return null;
-
   const currentFormazione = phase === 'in' ? (data.formazione_in_possesso || data.formazione || []) : (data.formazione_non_in_possesso || data.formazione || []);
-
   const POS_MAP = {
     'GK': { top: '88%', left: '50%' },
     'DL': { top: '72%', left: '15%' }, 'DCL': { top: '72%', left: '35%' }, 'DC': { top: '72%', left: '50%' }, 'DCR': { top: '72%', left: '65%' }, 'DR': { top: '72%', left: '85%' },
@@ -83,12 +83,10 @@ const TacticBoard = ({ data }) => {
   return (
     <div style={{ marginTop: '20px', backgroundColor: '#0f0c1b', border: '2px solid #22d3ee', borderRadius: '12px', padding: '16px' }}>
       <h3 style={{ color: '#22d3ee', marginTop: 0, textAlign: 'center', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px' }}>⚽ Lavagna Tattica FM26</h3>
-      
       <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '16px' }}>
         <button onClick={() => setPhase('in')} style={{ backgroundColor: phase === 'in' ? '#34d399' : '#140f24', color: phase === 'in' ? '#000' : '#fff', border: '1px solid #34d399', padding: '8px 16px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s' }}>🟢 In Possesso</button>
         <button onClick={() => setPhase('out')} style={{ backgroundColor: phase === 'out' ? '#ef4444' : '#140f24', color: phase === 'out' ? '#fff' : '#fff', border: '1px solid #ef4444', padding: '8px 16px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s' }}>🔴 Non in Possesso</button>
       </div>
-
       <div style={{ display: 'flex', flexDirection: window.innerWidth <= 768 ? 'column' : 'row', gap: '10px', marginBottom: '20px', fontSize: '12px' }}>
         <div style={{ flex: 1, backgroundColor: '#140f24', padding: '10px', borderRadius: '6px', borderLeft: '3px solid #34d399' }}>
           <strong style={{ color: '#34d399', textTransform: 'uppercase' }}>In Possesso</strong>
@@ -103,7 +101,6 @@ const TacticBoard = ({ data }) => {
           <ul style={{ margin: '4px 0 0 0', paddingLeft: '16px', color: '#cbd5e1' }}>{data.non_in_possesso?.map((i, x) => <li key={x}>{i}</li>)}</ul>
         </div>
       </div>
-
       <div style={{ position: 'relative', width: '100%', maxWidth: '380px', height: '480px', backgroundColor: '#10b981', margin: '0 auto', borderRadius: '8px', border: '2px solid #fff', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: '2px', backgroundColor: 'rgba(255,255,255,0.4)' }}></div>
         <div style={{ position: 'absolute', top: '50%', left: '50%', width: '100px', height: '100px', border: '2px solid rgba(255,255,255,0.4)', borderRadius: '50%', transform: 'translate(-50%, -50%)' }}></div>
@@ -111,7 +108,6 @@ const TacticBoard = ({ data }) => {
         <div style={{ position: 'absolute', bottom: '-2px', left: '50%', width: '80px', height: '40px', border: '2px solid rgba(255,255,255,0.4)', transform: 'translateX(-50%)' }}></div>
         <div style={{ position: 'absolute', top: '-2px', left: '50%', width: '180px', height: '80px', border: '2px solid rgba(255,255,255,0.4)', transform: 'translateX(-50%)' }}></div>
         <div style={{ position: 'absolute', top: '-2px', left: '50%', width: '80px', height: '40px', border: '2px solid rgba(255,255,255,0.4)', transform: 'translateX(-50%)' }}></div>
-
         {currentFormazione.map((p, idx) => {
           const pos = POS_MAP[p.pos] || { top: '50%', left: '50%' };
           return (
@@ -136,8 +132,6 @@ function App() {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
   const [mobileViewTab, setMobileViewTab] = useState('chat')
   const [showScrollBottom, setShowScrollBottom] = useState(false) 
-
-  // NUOVI STATI PER UPLOAD IMMAGINI MULTIPLO IN CHAT
   const [pendingImages, setPendingImages] = useState([]);
 
   useEffect(() => {
@@ -152,7 +146,7 @@ function App() {
   const [players, setPlayers] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_players')) || []; } catch(e) { return []; } })
   const [shortlist, setShortlist] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_shortlist')) || []; } catch(e) { return []; } })
   const [matches, setMatches] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_matches')) || []; } catch(e) { return []; } })
-  const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_messages')) || [{ sender_role: 'system', content: 'Inizializzazione completata. Sistema Multi-Upload Immagini Attivo.' }]; } catch(e) { return [{ sender_role: 'system', content: 'Centrale operativa allineata.' }]; } })
+  const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_messages')) || [{ sender_role: 'system', content: 'Database Big Data attivo. L\'OCR leggerà e salverà ogni singolo attributo per le valutazioni dello staff.' }]; } catch(e) { return [{ sender_role: 'system', content: 'Centrale operativa allineata.' }]; } })
   const [tacticReports, setTacticReports] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_tactic_reports')) || []; } catch(e) { return []; } })
   const [finances, setFinances] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_finances')) || { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; } catch(e) { return { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; } })
 
@@ -206,9 +200,7 @@ function App() {
   useEffect(() => { localStorage.setItem('hq_club_vision', clubVision) }, [clubVision]) 
 
   useEffect(() => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-    }
+    if (chatContainerRef.current) { chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight; }
   }, [messages, isTyping])
 
   useEffect(() => { fetchCloudData(); }, []);
@@ -357,7 +349,7 @@ function App() {
     const cost = parseFloat(simCost) || 0; const weeklyWage = parseFloat(simWage) || 0; const years = parseInt(simYears) || 1;
     const annualAmortization = cost / years; const annualWageCost = weeklyWage * 52; const totalAnnualImpact = annualAmortization + annualWageCost;
     let status = 'APPROVATO'; let color = '#34d399'; let notes = `Operazione sostenibile. Impatto annuo: €${totalAnnualImpact.toLocaleString()}.`;
-    if (cost > finances.transfer_budget) { status = 'BLOCCATO'; color = '#ef4444'; notes = `Fondi insufficienti.`; }
+    if (cost > finances.transfer_budget) { status = 'BLOCCATO'; color = '#ef4444'; notes = `Fondi insufficienti nel budget trasferimenti.`; }
     else if (weeklyWage > (finances.wage_budget * 0.3)) { status = 'RISCHIO SPOGLIATOIO'; color = '#ffaa00'; notes = `L'ingaggio supera il 30% del tetto salariale.`; }
     setSimResult({ status, color, annualAmortization, annualWageCost, notes });
   };
@@ -367,7 +359,6 @@ function App() {
     else { setSortField(field); setSortDirection('asc'); }
   };
 
-  // AGGIUNTA FOTO AL PARCHEGGIO (STAGING)
   const handlePendingImagesSelection = (e) => {
     if (e.target.files && e.target.files.length > 0) {
       const filesArray = Array.from(e.target.files);
@@ -380,16 +371,13 @@ function App() {
     setPendingImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  // CORE AI CHAT CON SUPPORTO MULTI-IMMAGINE
   const handleSendMessage = async () => {
     if (!chatInput.trim() && pendingImages.length === 0) return;
     
     const currentInputText = chatInput.trim(); 
     const imagesToSend = [...pendingImages];
     
-    setChatInput(''); 
-    setPendingImages([]);
-    setIsTyping(true);
+    setChatInput(''); setPendingImages([]); setIsTyping(true);
     
     let displayMsg = currentInputText;
     if (imagesToSend.length > 0) {
@@ -416,13 +404,10 @@ function App() {
         instructionPrompt += `\n\nIL MISTER TI DICE: "${currentInputText}"`;
       }
 
-      // Converti tutte le immagini in un formato leggibile per Gemini
       const imageParts = await Promise.all(imagesToSend.map(file => {
         return new Promise((resolve) => {
           const reader = new FileReader();
-          reader.onloadend = () => {
-            resolve({ inlineData: { data: reader.result.split(',')[1], mimeType: file.type } });
-          };
+          reader.onloadend = () => { resolve({ inlineData: { data: reader.result.split(',')[1], mimeType: file.type } }); };
           reader.readAsDataURL(file);
         });
       }));
@@ -437,8 +422,6 @@ function App() {
     } catch (error) { console.error(error); } finally { setIsTyping(false); }
   };
 
-
-  // FUNZIONI STRUMENTI
   const handlePreMatchAnalysis = async (event) => {
     const file = event.target.files[0]; if (!file) return; setIsTyping(true); if (isMobile) setMobileViewTab('chat');
     try {
@@ -447,7 +430,7 @@ function App() {
         const safePlayers = Array.isArray(players) ? players : [];
         const squadContext = safePlayers.map(p => ({ nome: p?.name, ruoli: p?.position, stats: p?.attributes || {} }));
         const instructionPrompt = getRolePrompt('vice', clubName, clubVision, finances, squadContext, [], [], tacticalFocus) + 
-        `\n\nIL MISTER TI HA DATO LO SCREEN DELL'AVVERSARIO. FAI UN BRIEFING PRE-PARTITA FM26. Dammi la formazione titolare nostra ideale considerando chi sta giocando meglio (Media Voto alta). Argomenta pure le tue scelte in modo umano e discorsivo, ma fai un'analisi tecnica di alto livello.`;
+        `\n\nIL MISTER TI HA DATO LO SCREEN DELL'AVVERSARIO. FAI UN BRIEFING PRE-PARTITA FM26. Dammi la formazione titolare nostra ideale considerando chi ha attributi migliori per quel ruolo e chi ha Media Voto alta.`;
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([instructionPrompt, imagePart]); const output = result.response.text();
@@ -466,7 +449,7 @@ function App() {
         const safePlayers = Array.isArray(players) ? players : [];
         const squadContext = safePlayers.map(p => ({ nome: p?.name, ruoli: p?.position, stats: p?.attributes || {} }));
         const instructionPrompt = getRolePrompt('vice', clubName, clubVision, finances, squadContext, [], [], tacticalFocus) + 
-        `\n\nIL MISTER TI HA MOSTRATO UNO SCREEN. Analizzalo, chiacchieraci su, e dammi consigli tattici validi per FM26 e per il nostro Progetto.`;
+        `\n\nIL MISTER TI HA MOSTRATO UNO SCREEN. Analizzalo, chiacchieraci su, e dammi consigli tattici validi per FM26 incrociando i dati degli attributi della rosa.`;
         
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([instructionPrompt, imagePart]); const output = result.response.text();
@@ -484,7 +467,7 @@ function App() {
       const safePlayers = Array.isArray(players) ? players : [];
       const squadContext = safePlayers.map(p => ({ nome: p?.name, ruoli: p?.position, stats: p?.attributes || {} }));
       const instructionPrompt = getRolePrompt('vice', clubName, clubVision, finances, squadContext, [], [], tacticalFocus) + 
-      `\n\nANALIZZA QUESTA TATTICA O IDEA DEL MISTER: """${inputBuffer}""". Dimmi cosa ne pensi come farebbe un vice vero. Valuta se è in linea con la Visione della società. Inizia con TITOLO: [Nome breve della tattica]`;
+      `\n\nANALIZZA QUESTA TATTICA O IDEA DEL MISTER: """${inputBuffer}""". Valuta se la nostra rosa ha gli attributi tecnici/mentali/fisici corretti per giocarla. Inizia con TITOLO: [Nome breve della tattica]`;
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(instructionPrompt); const outputText = result.response.text();
       const cleanTitle = (outputText.match(/TITOLO:\s*(.*)/i)?.[1] || `Tattica del ${new Date().toLocaleDateString()}`).replace('[', '').replace(']', '').trim();
@@ -502,10 +485,10 @@ function App() {
       const safePlayers = Array.isArray(players) ? players : [];
       const squadContext = safePlayers.map(p => ({ nome: p?.name, ruolo: p?.position, stats: p?.attributes }));
       const instructionPrompt = getRolePrompt('ds', clubName, clubVision, finances, squadContext, [], [], tacticalFocus) + 
-      `\n\nIL MISTER VUOLE GIOCARE COSÌ: "${inputBuffer}". Guarda bene le medie voto e la Visione a lungo termine. Trova gli esuberi, critica chi non rende e consiglia chi vendere.`;
+      `\n\nIL MISTER VUOLE GIOCARE COSÌ: "${inputBuffer}". Guarda gli attributi di tutti e le medie voto. Trova gli esuberi che NON hanno le statistiche per fare i ruoli richiesti.`;
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(instructionPrompt); const outputText = result.response.text();
-      const userMsg = { sender_role: `user:ds`, content: `📋 Direttore, valuta la rosa per la tattica: "${inputBuffer}". Chi dobbiamo cedere in base ai dati e al progetto?` };
+      const userMsg = { sender_role: `user:ds`, content: `📋 Direttore, valuta la rosa per la tattica: "${inputBuffer}". Chi dobbiamo cedere in base agli attributi e al progetto?` };
       const aiMsg = { sender_role: 'ds', content: outputText }; setMessages(prev => [...prev, userMsg, aiMsg]);
       try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e) {}
     } catch (error) { console.error(error); } finally { setIsTyping(false); }
@@ -517,7 +500,7 @@ function App() {
       const reader = new FileReader(); reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
         const prompt = getRolePrompt('scout', clubName, clubVision, finances, [], shortlist, [], tacticalFocus) + 
-        `\n\nValuta questo giocatore. Output rigido: VERDETTO: [ACQUISTARE, RISERVA, EVITARE] NOME: [Nome] RUOLO: [Ruolo] REPORT: [Analisi profonda citando attributi chiave, personalità, e se è utile alla Visione Societaria]`;
+        `\n\nValuta questo giocatore basandoti sui suoi attributi da 1 a 20. Output rigido: VERDETTO: [ACQUISTARE, RISERVA, EVITARE] NOME: [Nome] RUOLO: [Ruolo] REPORT: [Analisi profonda degli attributi]`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]); const output = result.response.text();
         const pName = (output.match(/NOME:\s*(.*)/i)?.[1] || 'Obiettivo Scansionato').trim();
@@ -620,7 +603,7 @@ function App() {
       const reader = new FileReader(); reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
         const prompt = getRolePrompt('youth', clubName, clubVision, finances, [], [], [], tacticalFocus) + 
-        `\n\nValuta il wonderkid in modo entusiasta analizzando se si sposa bene con il Progetto a lungo termine (Visione).`;
+        `\n\nValuta il wonderkid in modo entusiasta analizzando se i suoi attributi si sposano bene con il Progetto a lungo termine (Visione).`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]); const output = result.response.text();
         const userMsg = { sender_role: `user:youth`, content: `📷 Mister ha scansionato il cartellino di un giovane wonderkid del vivaio.` };
@@ -630,15 +613,16 @@ function App() {
     } catch (e) { console.error(e); } finally { setIsTyping(false); }
   };
 
+  // NUOVO SISTEMA OCR POTENZIATO: ESTRAE TUTTI GLI ATTRIBUTI
   const handleImageUploadOCR = async (event) => {
     const file = event.target.files[0]; if (!file) return; setIsUploading(true); 
     try {
       const reader = new FileReader(); reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
-        const prompt = `Estrai TUTTI i dati dei calciatori da questo screenshot di Football Manager 2026.
-        Voglio statistiche super dettagliate: Età, Presenze, Gol, Assist, Media Voto, Valore, Ingaggio. 
-        Rispondi SOLO con un array JSON puro, senza formattazione Markdown:
-        [ { "type": "player", "name": "Nome", "age": "num", "position": "Ruolo", "attributes": { "Presenze": "num", "Gol": "num", "Assist": "num", "Media Voto": "float", "Ingaggio": "txt", "Valore": "txt" } } ]`;
+        const prompt = `Estrai assolutamente TUTTI i dati e OGNI SINGOLO ATTRIBUTO (Tecnici, Mentali, Fisici da 1 a 20) presenti in questo screenshot di Football Manager 2026.
+        Voglio che raschi via ogni numero: Età, Presenze, Gol, Assist, Media Voto, Valore, Ingaggio e TUTTI gli attributi specifici del giocatore (es. Accelerazione, Passaggi, Contrasti, Visione di gioco, ecc.).
+        Rispondi SOLO con un array JSON puro, senza formattazione Markdown. L'oggetto "attributes" deve contenere dinamicamente tutte le voci trovate:
+        [ { "type": "player", "name": "Nome", "age": "num", "position": "Ruolo", "attributes": { "Presenze": "num", "Gol": "num", "Assist": "num", "Media Voto": "float", "Ingaggio": "txt", "Valore": "txt", "Passaggi": "15", "Freddezza": "12", "Velocità": "14" } } ]`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]);
         const cleanText = result.response.text().replace(/```json/gi, '').replace(/```/g, '').trim();
@@ -653,7 +637,10 @@ function App() {
               const list = Array.isArray(prev) ? [...prev] : []; 
               sanitizedData.forEach(np => {
                 const idx = list.findIndex(x => normalizeName(x?.name) === normalizeName(np.name));
-                if (idx >= 0) { list[idx] = { ...list[idx], ...np, attributes: { ...(list[idx]?.attributes || {}), ...(np.attributes || {}) } }; } 
+                if (idx >= 0) { 
+                  // Fonde i vecchi attributi con i nuovi trovati (non cancella nulla!)
+                  list[idx] = { ...list[idx], ...np, attributes: { ...(list[idx]?.attributes || {}), ...(np.attributes || {}) } }; 
+                } 
                 else { list.push(np); }
               }); return list;
             });
@@ -785,6 +772,7 @@ function App() {
                 <>
                   <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#a855f7', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Identità Societaria Sora</h3>
                   
+                  {/* PANNELLO VISIONE A LUNGO TERMINE */}
                   <div style={{ backgroundColor: '#1d1433', border: '2px solid #a855f7', padding: '16px', borderRadius: '6px' }}>
                     <label style={{ fontSize: '12px', color: '#e2e8f0', textTransform: 'uppercase', display: 'block', marginBottom: '8px', fontWeight: '900' }}>🎯 Progetto e Visione a Lungo Termine</label>
                     <textarea 
@@ -1031,7 +1019,7 @@ function App() {
           
           {isUploading && (dbSubTab === 'first_team' || dbSubTab === 'youth') ? (
             <div style={{ textAlign: 'center', padding: '64px', color: '#fbbf24', fontSize: '16px', fontWeight: 'bold', border: '2px dashed #fbbf24', backgroundColor: '#140f24', borderRadius: '8px' }}>
-              ⏳ Lettura Ottica in corso... Estrazione Presenze, Gol, Assist, Media Voto.
+              ⏳ Lettura Ottica in corso... Estrazione Presenze, Gol, Assist, Media Voto e di TUTTI gli attributi visibili.
             </div>
           ) : dbSubTab === 'shortlist' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -1169,12 +1157,34 @@ function App() {
             </div>
             <button onClick={() => setSelectedProfile(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20} /></button>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '350px', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', padding: '8px 12px', backgroundColor: '#090710', borderRadius: '6px' }}><span style={{ color: '#94a3b8' }}>Ruolo</span><span style={{ color: '#22d3ee', fontWeight: '900' }}>{selectedProfile?.position || 'N/D'}</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', padding: '8px 12px', backgroundColor: '#090710', borderRadius: '6px' }}><span style={{ color: '#94a3b8' }}>Età</span><span style={{ color: '#ffffff', fontWeight: '900' }}>{selectedProfile?.age || 'N/D'}</span></div>
-            {selectedProfile?.attributes && Object.entries(selectedProfile.attributes).map(([key, val]) => (
-              <div key={key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', padding: '8px 12px', backgroundColor: '#090710', borderRadius: '6px' }}><span style={{ color: '#94a3b8' }}>{key}</span><span style={{ color: '#34d399', fontWeight: '900' }}>{String(val)}</span></div>
-            ))}
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '350px', overflowY: 'auto', paddingRight: '4px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', padding: '8px 12px', backgroundColor: '#090710', borderRadius: '6px' }}>
+              <span style={{ color: '#94a3b8' }}>Ruolo</span>
+              <span style={{ color: '#22d3ee', fontWeight: '900' }}>{selectedProfile?.position || 'N/D'}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', padding: '8px 12px', backgroundColor: '#090710', borderRadius: '6px' }}>
+              <span style={{ color: '#94a3b8' }}>Età</span>
+              <span style={{ color: '#ffffff', fontWeight: '900' }}>{selectedProfile?.age || 'N/D'}</span>
+            </div>
+            
+            {/* ELENCO DINAMICO DI TUTTI GLI ATTRIBUTI TROVATI */}
+            {selectedProfile?.attributes && Object.entries(selectedProfile.attributes).map(([key, val]) => {
+               // Evidenzia in rosso sotto il 10, in verde sopra il 15
+               const numVal = parseInt(val);
+               let valColor = '#34d399'; 
+               if (!isNaN(numVal)) {
+                 if (numVal < 10) valColor = '#ef4444';
+                 else if (numVal >= 15) valColor = '#22d3ee';
+               }
+               return (
+                 <div key={key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '6px 12px', backgroundColor: '#090710', borderRadius: '4px', borderBottom: '1px solid #140f24' }}>
+                   <span style={{ color: '#cbd5e1' }}>{key}</span>
+                   <span style={{ color: valColor, fontWeight: '900' }}>{String(val)}</span>
+                 </div>
+               );
+            })}
+            
             <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <label style={{ fontSize: '12px', color: '#a855f7', fontWeight: 'bold', textTransform: 'uppercase' }}>✍️ Note del Mister:</label>
               <textarea value={editingNotes} onChange={(e) => setEditingNotes(e.target.value)} placeholder="Inserisci focus allenamento, infortuni o note di campo..." style={{ width: '92%', height: '80px', backgroundColor: '#090710', border: '1px solid #231b3a', padding: '8px', color: '#fff', fontSize: '14px', borderRadius: '6px', resize: 'none' }} />
