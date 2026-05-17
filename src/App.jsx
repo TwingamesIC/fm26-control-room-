@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabaseClient'
-import { MessageSquare, Database, Settings, Send, Users, Sliders, TrendingUp, ImageIcon, X, CloudOff, Briefcase, ChevronRight, HelpCircle, Award, Activity, Search } from 'lucide-react'
+import { MessageSquare, Database, Settings, Send, Users, Sliders, TrendingUp, ImageIcon, X, CloudOff, Briefcase, ChevronRight, HelpCircle, Award, Activity, Search, Trash2 } from 'lucide-react'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
@@ -75,7 +75,7 @@ function App() {
   const [rivalRelation, setRivalRelation] = useState(() => localStorage.getItem('hq_rival_relation') || 'respectful')
   const [tacticalFocus, setTacticalFocus] = useState(() => localStorage.getItem('hq_tactical_focus') || 'pragmatic')
 
-  // 4. STATI DEGLI STRUMENTI E INTERFACCIA
+  // 4. STATI DEGLI STRUMENTI, INPUT E INTERFACCIA
   const [simCost, setSimCost] = useState('500000')
   const [simWage, setSimWage] = useState('2000')
   const [simYears, setSimYears] = useState('3')
@@ -103,7 +103,7 @@ function App() {
   const scoutInputRef = useRef(null)
   const chatContainerRef = useRef(null)
 
-  // 5. SALVATAGGIO LOCALE AUTOMATICO (FAIL-SAFE) E AUTO-SCROLL
+  // 5. SALVATAGGIO LOCALE AUTOMATICO (FAIL-SAFE)
   useEffect(() => { localStorage.setItem('hq_players', JSON.stringify(players)) }, [players])
   useEffect(() => { localStorage.setItem('hq_shortlist', JSON.stringify(shortlist)) }, [shortlist])
   useEffect(() => { localStorage.setItem('hq_matches', JSON.stringify(matches)) }, [matches])
@@ -117,25 +117,24 @@ function App() {
   useEffect(() => { localStorage.setItem('hq_tactical_focus', tacticalFocus) }, [tacticalFocus])
   useEffect(() => { localStorage.setItem('hq_club_name', clubName) }, [clubName])
 
+  // AUTO-SCROLL CHAT
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [messages, isTyping])
 
+  // RECUPERO DATI INIZIALE DA SUPABASE
   useEffect(() => {
     fetchCloudData();
   }, []);
 
-  // ==========================================
   // FUNZIONE CHIAVE: NORMALIZZATORE DI ACCENTI E SPAZI
-  // Questa funzione pialla gli accenti (ò diventa o, é diventa e) per evitare doppioni.
-  // ==========================================
   const normalizeName = (name) => {
     if (!name) return '';
     return name
       .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "") // Rimuove gli accenti
+      .replace(/[\u0300-\u036f]/g, "") 
       .toLowerCase()
       .trim();
   };
@@ -231,10 +230,20 @@ function App() {
     setMobileViewTab('chat'); 
   }
 
-  function handleSelectPlayer(player) {
+  function handleSelectPlayer(player, event) {
+    if (event.target.closest('button')) return; // Impedisce l'apertura del fascicolo se clicchi sul tasto elimina
     if (!player) return;
     setSelectedProfile(player);
     setEditingNotes(player.notes || '');
+  }
+
+  // AGGIUNTA: FUNZIONE PER ELIMINARE SINGOLO GIOCATORE DOPPIONE DALLA ROSA
+  async function handleDeletePlayer(id) {
+    if (window.confirm("Sei sicuro di voler eliminare questo giocatore dall'archivio?")) {
+      setPlayers(prev => prev.filter(p => p.id !== id));
+      try { await supabase.from('players').delete().eq('id', id); } catch(e) {}
+      if (selectedProfile && selectedProfile.id === id) setSelectedProfile(null);
+    }
   }
 
   async function handleSavePlayerNotes() {
@@ -583,7 +592,7 @@ function App() {
     } catch (e) { console.error(e); } finally { setIsTyping(false); }
   }
 
-  // LETTORE OCR DELLA ROSA: INCLUDE IL FILTRO DEGLI ACCENTI PER EVITARE I DOPPIONI
+  // LETTORE OCR DELLA ROSA RIGIDO E SICURO CON CARICAMENTO GIALLO
   async function handleImageUploadOCR(event) {
     const file = event.target.files[0]; 
     if (!file) return; 
@@ -615,7 +624,6 @@ function App() {
             setPlayers(prev => {
               const list = Array.isArray(prev) ? [...prev] : []; 
               sanitizedData.forEach(np => {
-                // IL NORMALIZZATORE E' QUI PER IL CONFRONTO IN LOCALE
                 const idx = list.findIndex(x => normalizeName(x?.name) === normalizeName(np.name));
                 if (idx >= 0) {
                   list[idx] = { ...list[idx], ...np, attributes: { ...(list[idx]?.attributes || {}), ...(np.attributes || {}) } }; 
@@ -630,7 +638,6 @@ function App() {
               let { data: dbPlayers } = await supabase.from('players').select('*');
               const safeDbPlayers = Array.isArray(dbPlayers) ? dbPlayers : [];
               for (const p of sanitizedData) {
-                // IL NORMALIZZATORE E' QUI PER IL CONFRONTO CON IL DATABASE CLOUD
                 const match = safeDbPlayers.find(x => normalizeName(x?.name) === normalizeName(p.name));
                 if (match) {
                   await supabase.from('players').update({ age: p.age, position: p.position, attributes: { ...(match.attributes || {}), ...p.attributes } }).eq('id', match.id);
@@ -763,6 +770,7 @@ function App() {
                   <input type="file" accept="image/*" ref={scoutInputRef} onChange={handleScoutImageUpload} style={{ display: 'none' }} />
                   <button onClick={() => scoutInputRef.current.click()} disabled={isTyping} style={{ width: '100%', backgroundColor: '#f43f5e', color: '#ffffff', border: 'none', padding: '14px', fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(244,63,94,0.3)' }}>Scansiona e Aggiungi in Shortlist</button>
                   
+                  {/* TABELLA ESTRAZIONE RAPIDA SHORTLIST */}
                   <div style={{ marginTop: '15px', backgroundColor: '#140f24', padding: '14px', borderRadius: '8px', border: '1px solid #231b3a' }}>
                     <span style={{ fontSize: '11px', color: '#f43f5e', fontWeight: 'bold', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>🎯 Obiettivi Inseriti (Shortlist):</span>
                     {(!Array.isArray(shortlist) || shortlist.length === 0) ? <div style={{ fontSize: '12px', color: '#475569', fontStyle: 'italic' }}>Lista vuota.</div> : (
@@ -987,17 +995,23 @@ function App() {
                       <th onClick={() => handleSort('pres')} style={{ padding: '12px 10px', color: '#ffffff', cursor: 'pointer', textAlign: 'center', fontWeight: '900' }}>Pres</th>
                       <th onClick={() => handleSort('gol')} style={{ padding: '12px 10px', color: '#ffffff', cursor: 'pointer', textAlign: 'center', fontWeight: '900' }}>Gol</th>
                       <th onClick={() => handleSort('mv')} style={{ padding: '12px 10px', color: '#ffffff', cursor: 'pointer', textAlign: 'center', fontWeight: '900' }}>M.V.</th>
+                      <th style={{ padding: '12px 10px', width: '40px' }}></th>
                     </tr>
                   </thead>
                   <tbody>
                     {sortedList.map((p, idx) => (
-                      <tr key={idx} onClick={() => handleSelectPlayer(p)} style={{ borderBottom: '1px solid #231b3a', cursor: 'pointer', backgroundColor: selectedProfile?.id === p?.id ? '#271e44' : 'transparent' }}>
+                      <tr key={idx} onClick={(e) => handleSelectPlayer(p, e)} style={{ borderBottom: '1px solid #231b3a', cursor: 'pointer', backgroundColor: selectedProfile?.id === p?.id ? '#271e44' : 'transparent' }}>
                         <td style={{ padding: '14px 10px', fontWeight: 'bold', color: '#ffffff', fontSize: '15px' }}>{p?.name || '-'} {p?.notes && <span style={{ fontSize: '10px', backgroundColor: '#a855f7', padding: '2px 4px', borderRadius: '3px', marginLeft: '4px' }}>FASCICOLO</span>}</td>
                         <td style={{ padding: '14px 10px', color: '#22d3ee', fontWeight: '700' }}>{p?.position || 'N/D'}</td>
                         <td style={{ padding: '14px 10px', textAlign: 'center', color: '#fff' }}>{p?.age || '-'}</td>
                         <td style={{ padding: '14px 10px', textAlign: 'center', color: '#cbd5e1' }}>{p?.attributes?.Presenze || '-'}</td>
                         <td style={{ padding: '14px 10px', textAlign: 'center', color: '#ffffff', fontWeight: 'bold' }}>{p?.attributes?.Gol || '-'}</td>
                         <td style={{ padding: '14px 10px', textAlign: 'center', color: '#34d399', fontWeight: 'bold' }}>{p?.attributes?.['Media Voto'] || '-'}</td>
+                        <td style={{ padding: '14px 10px', textAlign: 'center' }}>
+                          <button onClick={(e) => { e.stopPropagation(); handleDeletePlayer(p.id); }} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }} title="Elimina Calciatore">
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
