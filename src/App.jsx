@@ -19,7 +19,7 @@ function App() {
   // DETECTOR DINAMICO DELLO SCREEN PER ADATTAMENTO SMARTPHONE LIVE
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
   
-  // STATO PER EVITARE IL SPLIT A METÀ SU SMARTPHONE: 'chat' OCCUPA TUTTO LO SCHERMO, 'tools' OCCUPA TUTTO LO SCHERMO
+  // STATO PER EVITARE IL SPLIT A METÀ SU SMARTPHONE
   const [mobileViewTab, setMobileViewTab] = useState('chat')
 
   useEffect(() => {
@@ -156,14 +156,11 @@ function App() {
     });
   }
 
-  // ==========================================
-  // STRUMENTI PARSE CON AUTO-TOGGLE DI VISUALIZZAZIONE FULL SCREEN SU MOBILE
-  // ==========================================
   async function handleScoutImageUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
     setIsTyping(true);
-    if (isMobile) setMobileViewTab('chat'); // Sposta subito a schermo intero sulla chat per leggere!
+    if (isMobile) setMobileViewTab('chat');
     try {
       const imagePart = await fileToGenerativePart(file);
       const squadContext = players.map(p => ({ nome: p.name, ruolo: p.position, stats: p.attributes }));
@@ -400,13 +397,10 @@ function App() {
     } catch (error) { console.error(error); } finally { setIsTyping(false); }
   }
 
-  // ==========================================
-  // LABORATORIO TATTICO CON RE-DIRECT DI VISUALIZZAZIONE SU MOBILE PER LETTURA COMODA
-  // ==========================================
   async function handleAnalyzeExternalTactic() {
     if (!externalTacticInput.trim()) return;
     setIsTyping(true);
-    if (isMobile) setMobileViewTab('chat'); // Forza lo schermo intero sulla chat per darti tutto lo spazio!
+    if (isMobile) setMobileViewTab('chat');
     const inputBuffer = externalTacticInput;
     setExternalTacticInput('');
     try {
@@ -460,9 +454,28 @@ function App() {
     }
   }
 
+  // ==========================================
+  // FIX: RE-INSERITA LA FUNZIONE SCOMPARSA handleClearAllData PER AZZERAMENTO REALE CLOUD/LOCALE
+  // ==========================================
+  async function handleClearAllData() {
+    if (window.confirm("Vuoi azzerare la sede e ricominciare la stagione da zero?")) {
+      setPlayers([]); 
+      setMessages([{ sender_role: 'system', content: 'Centrale resettata con successo. Sede pulita.' }]);
+      setFinances({ balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }); 
+      setSelectedProfile(null); 
+      localStorage.clear();
+      try { 
+        await supabase.from('players').delete().neq('id', 0); 
+        await supabase.from('club_messages').delete().neq('id', 0); 
+      } catch(e) {
+        console.warn("Errore svuotamento cloud, reset locale comunque convalidato.");
+      }
+    }
+  }
+
   function handleSidebarClick(room) {
     setActiveRoom(room);
-    setMobileViewTab('chat'); // Quando cambi stanza dal telefono, mostrati sempre sulla chat per impostazione predefinita
+    setMobileViewTab('chat'); 
   }
 
   function renderChatWindow() {
@@ -476,24 +489,22 @@ function App() {
 
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#0d0a16', width: '100%', height: '100%' }}>
-        {/* HEADER STANZA */}
         <div style={{ height: '75px', padding: '0 24px', borderBottom: '2px solid #231b3a', display: 'flex', alignItems: 'center', backgroundColor: '#140f24', justifyContent: 'space-between', boxShadow: '0 4px 12px rgba(0,0,0,0.4)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <MessageSquare size={24} color="#da1b60" /> 
             <h2 style={{ fontSize: isMobile ? '16px' : '22px', color: '#ffffff', margin: 0, textTransform: 'uppercase', fontWeight: '900', letterSpacing: '0.5px' }}>
-              {activeRoom === 'board' ? '🏛️ RIUNIONE PLENARIA' : `💼 BRIEFING PRIVATO: ${activeRoom.toUpperCase()}`}
+              {activeRoom === 'board' ? '🏛️ RIUNIONE PLENARIA CON LO STAFF' : `💼 BRIEFING PRIVATO: ${activeRoom.toUpperCase()}`}
             </h2>
           </div>
           {cloudStatus === 'offline' && <div style={{ fontSize: '12px', backgroundColor: '#5f0f0f', color: '#fca5a5', padding: '4px 8px', border: '1px solid #b91c1c', fontWeight: 'bold', borderRadius: '4px' }}>OFFLINE</div>}
         </div>
 
-        {/* 📱 FIX "METÀ E METÀ": SELEZIONE SOTTOPANNELLI SU SCREEN SMARTPHONE */}
         {isMobile && (
           <div style={{ display: 'flex', backgroundColor: '#140f24', borderBottom: '2px solid #231b3a', padding: '8px', gap: '8px' }}>
-            <button onClick={() => setMobileViewTab('chat')} style={{ flex: 1, padding: '12px', fontSize: '14px', fontWeight: '900', border: 'none', borderRadius: '6px', backgroundColor: mobileViewTab === 'chat' ? '#da1b60' : '#090710', color: '#fff', textTransform: 'uppercase', transition: 'all 0.2s' }}>
+            <button onClick={() => setMobileViewTab('chat')} style={{ flex: 1, padding: '12px', fontSize: '14px', fontWeight: '900', border: 'none', borderRadius: '6px', backgroundColor: mobileViewTab === 'chat' ? '#da1b60' : '#090710', color: '#fff', textTransform: 'uppercase' }}>
               💬 Leggi Dialogo
             </button>
-            <button onClick={() => setMobileViewTab('tools')} style={{ flex: 1, padding: '12px', fontSize: '14px', fontWeight: '900', border: 'none', borderRadius: '6px', backgroundColor: mobileViewTab === 'tools' ? '#22d3ee' : '#090710', color: '#fff', textTransform: 'uppercase', transition: 'all 0.2s' }}>
+            <button onClick={() => setMobileViewTab('tools')} style={{ flex: 1, padding: '12px', fontSize: '14px', fontWeight: '900', border: 'none', borderRadius: '6px', backgroundColor: mobileViewTab === 'tools' ? '#22d3ee' : '#090710', color: '#fff', textTransform: 'uppercase' }}>
               🛠️ Apri Strumenti
             </button>
           </div>
@@ -501,13 +512,12 @@ function App() {
 
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden', flexDirection: isMobile ? 'column' : 'row' }}>
           
-          {/* VANO CHAT CENTRALIZZATO: SU MOBILE OCCUPA IL 100% SOLO SE ATTIVO IL TAB 'CHAT' */}
           {(!isMobile || mobileViewTab === 'chat') && (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', borderRight: isMobile ? 'none' : '2px solid #231b3a', backgroundColor: '#090710' }}>
               <div ref={chatContainerRef} style={{ flex: 1, padding: isMobile ? '16px' : '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 
                 {visibleMessages.length === 0 ? (
-                  <div style={{ margin: 'auto', maxWidth: '600px', backgroundColor: '#140f24', border: '2px solid #da1b60', padding: '32px', borderRadius: '12px', textAlign: 'center' }}>
+                  <div style={{ margin: 'auto', maxWidth: '600px', backgroundColor: '#140f24', border: '2px solid #da1b60', padding: '32px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}>
                     <Users size={48} color="#da1b60" style={{ margin: '0 auto 16px auto' }} />
                     <h3 style={{ fontSize: '22px', color: '#fff', margin: '0 0 12px 0', fontWeight: '800' }}>Ufficio Operazioni Allineato</h3>
                     <p style={{ color: '#94a3b8', fontSize: '15px', lineHeight: '1.6', margin: '0 0 20px 0' }}>Sei a colloquio singolo. Lo specialista ha allineato la memoria storica (45 messaggi) e analizzerà in tempo reale ogni testo o screen che invierai dal pannello laterale.</p>
@@ -552,7 +562,6 @@ function App() {
             </div>
           )}
 
-          {/* VANO COCKPIT STRUMENTI: SU MOBILE OCCUPA IL 100% DELLA LARGHEZZA SENZA DIVIDERSI A METÀ */}
           {(!isMobile || mobileViewTab === 'tools') && (
             <div style={{ width: isMobile ? '100%' : '460px', backgroundColor: '#0f0c1b', padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', borderLeft: isMobile ? 'none' : '2px solid #231b3a', boxSizing: 'border-box', overflowY: 'auto' }}>
               {activeRoom === 'board' && (
@@ -567,7 +576,7 @@ function App() {
                     • Calciatori in Memoria: <strong style={{ color: '#fff', fontSize: '16px' }}>{players.length}</strong><br />
                     • Cassa Club: <strong style={{ color: '#10b981', fontSize: '16px' }}>€{finances.balance.toLocaleString()}</strong><br />
                     • Budget Trasferimenti: <strong style={{ color: '#fff', fontSize: '16px' }}>€{finances.transfer_budget.toLocaleString()}</strong>
-                  </div>
+                </div>
                 </>
               )}
 
@@ -604,7 +613,7 @@ function App() {
               {activeRoom === 'cfo' && (
                 <>
                   <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#10b981', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Cassaforte & Sviluppo Bilanci</h3>
-                  <div style={{ backgroundColor: '#140f24', border: '2px solid #231b3a', padding: '14px', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ backgroundColor: '#140f24', border: '1px solid #231b3a', padding: '14px', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 'bold', textTransform: 'uppercase' }}>📊 Scansione Bilancio OCR:</span>
                     <input type="file" accept="image/*" ref={financeInputRef} onChange={handleFinanceImageUpload} style={{ display: 'none' }} />
                     <button onClick={() => financeInputRef.current.click()} disabled={isTyping} style={{ width: '100%', backgroundColor: '#10b981', color: '#0f0c1b', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '4px' }}>Carica Screen Finanze</button>
@@ -700,7 +709,7 @@ function App() {
           <div style={{ display: 'flex', gap: '10px', width: isMobile ? '100%' : 'auto', justifyContent: 'center' }}>
             <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUploadOCR} style={{ display: 'none' }} />
             <button onClick={() => fileInputRef.current.click()} disabled={isUploading} style={{ flex: isMobile ? 1 : 'none', backgroundColor: '#da1b60', color: '#fff', border: 'none', padding: '10px 20px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '6px' }}>Carica Foto Rosa</button>
-            {players.length > 0 && <button onClick={handleClearAllData} style={{ backgroundColor: 'transparent', border: '2px solid #ef4444', color: '#ef4444', padding: '10px 16px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '6px' }}>Azzera</button>}
+            {players.length > 0 && <button onClick={handleClearAllData} style={{ backgroundColor: 'transparent', border: '2px solid #ef4444', color: '#ef4444', padding: '10px 16px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '6px' }}>Azzera Sede</button>}
           </div>
         </div>
 
