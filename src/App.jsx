@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabaseClient'
-// IMPORT CORRETTO: Aggiunto Trash2 per evitare il crash del cestino
 import { MessageSquare, Database, Settings, Send, Users, Sliders, TrendingUp, ImageIcon, X, CloudOff, Briefcase, ChevronRight, HelpCircle, Award, Activity, Search, Trash2 } from 'lucide-react'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
@@ -64,8 +63,9 @@ function App() {
   const financeInputRef = useRef(null)
   const analystInputRef = useRef(null)
   const scoutInputRef = useRef(null)
-  const vicePreMatchRef = useRef(null) // Ref per l'avversario
-  const viceTacticInputRef = useRef(null) // NUOVO: Ref per mostrare la NOSTRA tattica o screen generali
+  const vicePreMatchRef = useRef(null)
+  const viceTacticInputRef = useRef(null)
+  const chatImageInputRef = useRef(null) // NUOVO REF PER L'UPLOAD IMMAGINI GENERICO IN CHAT
   const chatContainerRef = useRef(null)
 
   // 5. SALVATAGGIO LOCALE AUTOMATICO E SCROLL
@@ -232,7 +232,7 @@ function App() {
     else { setSortField(field); setSortDirection('asc'); }
   };
 
-  // 9. CORE AI CHAT
+  // 9. CORE AI CHAT & UPLOAD GLOBALE FOTO
   const handleSendMessage = async () => {
     if (!chatInput.trim()) return;
     const currentInputText = chatInput; setChatInput(''); setIsTyping(true);
@@ -264,7 +264,7 @@ function App() {
         - Stile Media: ${pressStyle.toUpperCase()} | Protezione Spogliatoio: ${squadShield.toUpperCase()}
         - Rapporto Rivali: ${rivalRelation.toUpperCase()} | Fede Tattica: ${tacticalFocus.toUpperCase()}
 
-        REGOLE INTERNE CARATTERE DELLO STAFF:
+        REGOLE INTERNE CARATTERE DELLO STAFF (VIETATO COMPORTARSI DA BOT):
         - VICE ALLENATORE: Uomo di campo, sanguigno, difende lo spogliatoio. Forma le liste in modo leggibile.
         - DIRETTORE SPORTIVO: Cinico, pensa a soldi, esuberi, plusvalenze e agenti.
         - CHIEF SCOUT: Fissato con i wonderkids esteri.
@@ -296,9 +296,69 @@ function App() {
     } catch (error) { console.error(error); } finally { setIsTyping(false); }
   };
 
-  // 10. FUNZIONI MULTIMEDIALI AVANZATE
-  
-  // PRE-MATCH AVVERSARIO
+  // 📸 NUOVO: GESTIONE UPLOAD IMMAGINI DIRETTAMENTE DALLA CHAT
+  const handleChatImageUpload = async (event) => {
+    const file = event.target.files[0]; 
+    if (!file) return; 
+    
+    const currentText = chatInput.trim();
+    setChatInput('');
+    setIsTyping(true); 
+    if (isMobile) setMobileViewTab('chat');
+    
+    try {
+      const reader = new FileReader(); 
+      reader.onloadend = async () => {
+        const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
+        
+        const userRole = `user:${activeRoom}`;
+        const displayMsg = currentText ? `📷 [Immagine allegata] ${currentText}` : `📷 [Immagine allegata] Guarda questo screen, cosa ne pensi?`;
+        
+        const userMessageObj = { sender_role: userRole, content: displayMsg };
+        setMessages(prev => [...prev, userMessageObj]);
+        try { await supabase.from('club_messages').insert([userMessageObj]); } catch(e) {}
+
+        const safePlayers = Array.isArray(players) ? players : [];
+        const squadContext = safePlayers.map(p => ({ nome: p?.name || 'Sconosciuto', ruolo: p?.position || 'N/D', stats: p?.attributes || {} }));
+
+        let instructionPrompt = `
+          SEI LO STAFF REALE E PASSIONALE DEL CLUB "${clubName.toUpperCase()}" SU FOOTBALL MANAGER 2026.
+          Il Mister ti ha appena allegato un'immagine e ti dice: "${currentText || 'Cosa ne pensi di questo screen?'}"
+          
+          REGOLE DELLO STAFF: Reagisci all'immagine usando il carattere del tuo ruolo.
+          - VICE: Uomo di campo, diretto.
+          - DS: Squalo, pensa ai soldi/contratti.
+          - SCOUT: Fissato col potenziale.
+          - CFO: Tirchio.
+          - STAMPA: Pettegolo, ansioso per l'immagine del club.
+          - GIOVANILI: Difende gli under 20.
+          - ANALYST: Parla solo di algoritmi.
+          
+          FORMATTAZIONE: Usa elenchi puntati con asterischi per separare i punti.
+          ROSA: ${JSON.stringify(squadContext.slice(0, 20))}
+        `;
+
+        if (activeRoom === 'board') { instructionPrompt += `\nRispondi simulando un dibattito tra i vari membri dello staff riguardo a questa immagine.`; } 
+        else { instructionPrompt += `\nSei nell'ufficio '${activeRoom.toUpperCase()}'. Rispondi al Mister analizzando l'immagine come farebbe il tuo ruolo.`; }
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const result = await model.generateContent([instructionPrompt, imagePart]); 
+        const output = result.response.text();
+        
+        const aiMessageObj = { sender_role: activeRoom, content: output }; 
+        setMessages(prev => [...prev, aiMessageObj]);
+        try { await supabase.from('club_messages').insert([aiMessageObj]); } catch(e) {}
+      }; 
+      reader.readAsDataURL(file);
+    } catch (err) { 
+      console.error(err); 
+    } finally { 
+      setIsTyping(false); 
+      if (chatImageInputRef.current) chatImageInputRef.current.value = ""; 
+    }
+  };
+
+  // 10. FUNZIONI MULTIMEDIALI STRUMENTI SPECIFICI
   const handlePreMatchAnalysis = async (event) => {
     const file = event.target.files[0]; if (!file) return; setIsTyping(true); if (isMobile) setMobileViewTab('chat');
     try {
@@ -310,7 +370,7 @@ function App() {
         const prompt = `Sei il Vice Allenatore sanguigno del club "${clubName}".
         Questo è lo screenshot della squadra avversaria.
         Nostra rosa: ${JSON.stringify(squadContext.slice(0, 40))}.
-        Fai un BRIEFING PRE-PARTITA (usa bene grassetti e liste puntate):
+        Fai un BRIEFING PRE-PARTITA (usa bene grassetti e liste puntate con asterisco):
         1. Punti deboli avversari.
         2. Formazione titolare nostra ideale da schierare oggi.
         3. Istruzioni individuali per distruggerli.`;
@@ -324,19 +384,17 @@ function App() {
     } catch (err) { console.error(err); } finally { setIsTyping(false); }
   };
 
-  // NUOVA FUNZIONE: VISIONE DI CAMPO / TATTICA NOSTRA PER IL VICE
   const handleViceImageUpload = async (event) => {
     const file = event.target.files[0]; if (!file) return; setIsTyping(true); if (isMobile) setMobileViewTab('chat');
     try {
       const reader = new FileReader(); reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
         const prompt = `Sei il Vice Allenatore verace e sanguigno del club "${clubName}".
-        Il Mister ti ha appena mostrato questo screenshot (potrebbe essere la nostra tattica, un allenamento o una dinamica di campo).
-        Analizzalo attentamente e digli cosa ne pensi. Sii diretto, usa un linguaggio da spogliatoio e formatta bene la tua risposta usando elenchi puntati se devi elencare problemi o consigli.`;
+        Il Mister ti ha appena mostrato questo screenshot. Analizzalo attentamente. Sii diretto, usa un linguaggio da spogliatoio e formatta bene la tua risposta usando elenchi puntati con l'asterisco se devi elencare problemi o consigli.`;
         
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]); const output = result.response.text();
-        const userMsg = { sender_role: `user:vice`, content: `📷 Mister ha mostrato uno screen tattico o di campo al Vice.` };
+        const userMsg = { sender_role: `user:vice`, content: `📷 Mister ha mostrato uno screen di gioco al Vice.` };
         const aiMsg = { sender_role: 'vice', content: output }; setMessages(prev => [...prev, userMsg, aiMsg]);
         try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e) {}
       }; reader.readAsDataURL(file);
@@ -347,7 +405,7 @@ function App() {
     if (!externalTacticInput.trim()) return; setIsTyping(true); if (isMobile) setMobileViewTab('chat');
     const inputBuffer = externalTacticInput; setExternalTacticInput('');
     try {
-      const prompt = `Analizza la tattica: """${inputBuffer}""" sulla rosa ${clubName}. Fai un report con liste formattate bene. Inizia con TITOLO: [Nome breve]`;
+      const prompt = `Analizza la tattica: """${inputBuffer}""" sulla rosa ${clubName}. Fai un report con liste formattate con asterisco puntato. Inizia con TITOLO: [Nome breve]`;
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(prompt); const outputText = result.response.text();
       const cleanTitle = (outputText.match(/TITOLO:\s*(.*)/i)?.[1] || `Tattica del ${new Date().toLocaleDateString()}`).replace('[', '').replace(']', '').trim();
@@ -366,7 +424,7 @@ function App() {
       const squadContext = safePlayers.map(p => ({ nome: p?.name, ruolo: p?.position, stats: p?.attributes }));
       const prompt = `Sei il DS del "${clubName}". Tattica richiesta: "${inputBuffer}".
       Rosa: ${JSON.stringify(squadContext.slice(0, 40))}.
-      Stila una lista spietata e ben formattata (liste puntate) degli ESUBERI da cedere perché inutili.`;
+      Stila una lista spietata e ben formattata (liste puntate con asterisco) degli ESUBERI da cedere perché inutili.`;
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(prompt); const outputText = result.response.text();
       const userMsg = { sender_role: `user:ds`, content: `📋 Direttore, valuta la rosa per la tattica: "${inputBuffer}". Chi dobbiamo cedere?` };
@@ -403,7 +461,7 @@ function App() {
     try {
       const reader = new FileReader(); reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
-        const prompt = `Sei l'Addetto Stampa del "${clubName}". Screen conferenza. Stile Mister: ${pressStyle}. Detta quale pulsante premere per restare nel personaggio, formatta la risposta a punti.`;
+        const prompt = `Sei l'Addetto Stampa del "${clubName}". Screen conferenza. Stile Mister: ${pressStyle}. Detta quale pulsante premere per restare nel personaggio, formatta la risposta a punti con asterisco.`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]); const output = result.response.text();
         const userMsg = { sender_role: `user:press`, content: `📷 Mister ha inoltrato uno screenshot della conferenza stampa in corso.` };
@@ -442,7 +500,7 @@ function App() {
     try {
       const reader = new FileReader(); reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
-        const prompt = `Sei il CFO del "${clubName}". Estrai finanze in JSON puro: { "balance": numero, "transfer_budget": numero, "wage_budget": numero, "analysis": "analisi sarcastica" }`;
+        const prompt = `Sei il CFO taccagno del club "${clubName}". Estrai finanze in JSON puro: { "balance": numero, "transfer_budget": numero, "wage_budget": numero, "analysis": "analisi sarcastica" }`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]);
         const cleanText = result.response.text().replace(/```json/gi, '').replace(/```/g, '').trim();
@@ -478,7 +536,7 @@ function App() {
     try {
       const reader = new FileReader(); reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
-        const prompt = `Sei il Resp. Giovanili del "${clubName}". Valuta il wonderkid in modo entusiasta. Usa elenchi puntati.`;
+        const prompt = `Sei il Resp. Giovanili del "${clubName}". Valuta il wonderkid in modo entusiasta.`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]); const output = result.response.text();
         const userMsg = { sender_role: `user:youth`, content: `📷 Mister ha scansionato il cartellino di un giovane.` };
@@ -589,11 +647,24 @@ function App() {
                 )}
               </div>
 
+              {/* 📸 LA NUOVA BARRA DELLA CHAT CON ALLEGATI */}
               <div style={{ padding: '20px', backgroundColor: '#140f24', borderTop: '2px solid #231b3a', boxShadow: '0 -4px 15px rgba(0,0,0,0.3)' }}>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <ChevronRight style={{ position: 'absolute', left: '14px', color: '#da1b60' }} size={20} />
-                  <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={`Scrivi in chat o lancia una direttiva...`} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '16px 50px 16px 42px', fontSize: '16px', color: '#ffffff', borderRadius: '8px', outline: 'none', fontWeight: '500' }} />
-                  <button onClick={handleSendMessage} disabled={isTyping} style={{ position: 'absolute', right: '16px', background: 'none', border: 'none', color: '#da1b60', cursor: 'pointer', display: 'flex', alignItems: 'center' }}><Send size={18} /></button>
+                  
+                  <input type="file" accept="image/*" ref={chatImageInputRef} onChange={handleChatImageUpload} style={{ display: 'none' }} />
+                  
+                  <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={`Scrivi in chat o allega una foto...`} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '16px 90px 16px 42px', fontSize: '16px', color: '#ffffff', borderRadius: '8px', outline: 'none', fontWeight: '500' }} />
+                  
+                  <div style={{ position: 'absolute', right: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <button onClick={() => chatImageInputRef.current.click()} disabled={isTyping} style={{ background: 'none', border: 'none', color: '#a855f7', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }} title="Allega Screen e Invia">
+                      <ImageIcon size={22} />
+                    </button>
+                    <button onClick={handleSendMessage} disabled={isTyping} style={{ background: 'none', border: 'none', color: '#da1b60', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }} title="Invia Testo">
+                      <Send size={22} />
+                    </button>
+                  </div>
+
                 </div>
               </div>
             </div>
@@ -628,7 +699,6 @@ function App() {
                      <button onClick={() => vicePreMatchRef.current.click()} disabled={isTyping} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #22d3ee', color: '#22d3ee', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '4px', cursor: 'pointer' }}>📸 Carica Formazione Avversaria</button>
                   </div>
 
-                  {/* IL NUOVO BOTTONE PER GLI SCREENSHOT DELLA TUA TATTICA */}
                   <div style={{ backgroundColor: '#140f24', border: '1px solid #231b3a', padding: '14px', borderRadius: '6px', marginBottom: '4px' }}>
                      <span style={{ fontSize: '11px', color: '#22d3ee', fontWeight: 'bold', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>👁️ Visione di Campo:</span>
                      <input type="file" accept="image/*" ref={viceTacticInputRef} onChange={handleViceImageUpload} style={{ display: 'none' }} />
@@ -705,7 +775,7 @@ function App() {
                     <button onClick={handleSimulateTransfer} style={{ backgroundColor: '#10b981', color: '#0f0c1b', border: 'none', padding: '8px', fontSize: '11px', fontWeight: 'bold', borderRadius: '4px', marginTop: '10px', width: '100%', cursor: 'pointer' }}>Calcola Impatto</button>
                     {simResult && <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#090710', borderLeft: `3px solid ${simResult.color}`, fontSize: '12px', color: '#fff' }}>{simResult.notes}</div>}
                   </div>
-                  <button onClick={handleFinanceAudit} disabled={isTyping} style={{ backgroundColor: '#da1b60', color: '#fff', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '6px', marginTop: '12px', width: '100%' }}>Genera Audit Contabile</button>
+                  <button onClick={handleFinanceAudit} disabled={isTyping} style={{ backgroundColor: '#da1b60', color: '#fff', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', marginTop: '12px', width: '100%', cursor: 'pointer' }}>Genera Audit Contabile</button>
                 </>
               )}
 
@@ -929,7 +999,7 @@ function App() {
   return (
     <div style={{ display: 'flex', height: '100vh', flexDirection: isMobile ? 'column' : 'row', backgroundColor: '#090710', color: '#cbd5e1', fontFamily: 'system-ui, -apple-system, sans-serif', overflow: 'hidden' }}>
       
-      {/* BARRA NAVIGAZIONE */}
+      {/* BARRA NAVIGAZIONE VERTICALE / ORIZZONTALE */}
       <div style={navContainerStyle}>
         {!isMobile && <div style={{ width: '52px', height: '52px', backgroundColor: '#da1b60', display: 'flex', alignItems: 'center', color: '#fff', fontWeight: '900', fontSize: '22px', borderRadius: '10px', justifyContent: 'center' }}>FM</div>}
         <button onClick={() => handleSidebarClick('board')} style={navButtonStyle('board', '#a855f7')}><Users size={22} /></button>
@@ -949,12 +1019,12 @@ function App() {
         {activeRoom === 'database' && renderMasterDatabase()}
       </div>
 
-      {/* FLYOUT MODALE: REFERTO TATTICO */}
+      {/* FLYOUT MODALE: REFERTO TATTICO A TUTTO SCHERMO */}
       {selectedTacticReport && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(5, 3, 10, 0.95)', zIndex: 99999, display: 'flex', padding: isMobile ? '10px' : '40px' }}>
           <div style={{ margin: 'auto', width: '100%', maxWidth: '800px', backgroundColor: '#140f24', border: '3px solid #22d3ee', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #231b3a', paddingBottom: '14px', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0, fontSize: '22px', fontWeight: '900', color: '#22d3ee' }}>📋 REFERTO: {selectedTacticReport?.title?.toUpperCase() || 'TATTICA'}</h3>
+              <h3 style={{ margin: 0, fontSize: '22px', fontWeight: '900', color: '#22d3ee' }}>📋 REFERTO TATTICO: {selectedTacticReport?.title?.toUpperCase() || 'TATTICA'}</h3>
               <button onClick={() => setSelectedTacticReport(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={26} /></button>
             </div>
             <div style={{ flex: 1, overflowY: 'auto', fontSize: '16px', color: '#e2e8f0', lineHeight: '1.7' }}>
@@ -965,7 +1035,7 @@ function App() {
         </div>
       )}
 
-      {/* FLYOUT: FASCICOLO CALCIATORE E NOTE */}
+      {/* FLYOUT: FASCICOLO CALCIATORE E NOTE EDITABILI */}
       {selectedProfile && (
         <div style={{ position: 'fixed', right: isMobile ? '10px' : '25px', bottom: isMobile ? '80px' : '25px', left: isMobile ? '10px' : 'auto', width: isMobile ? 'calc(100% - 20px)' : '340px', backgroundColor: '#140f24', border: '3px solid #da1b60', padding: '16px', borderRadius: '12px', boxShadow: '0 30px 60px rgba(0,0,0,0.9)', zIndex: 5000, boxSizing: 'border-box' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #231b3a', paddingBottom: '10px', marginBottom: '12px', alignItems: 'center' }}>
