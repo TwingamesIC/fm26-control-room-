@@ -158,6 +158,41 @@ function App() {
     } catch (e) { setCloudStatus('offline') }
   }
 
+  // FUNZIONE CHIAVE: FORZA SINCRO DAL PC AL TELEFONO
+  async function handleForceSync() {
+    try {
+      const safePlayers = Array.isArray(players) ? players : [];
+      if (safePlayers.length === 0) {
+        alert("Nessun giocatore in memoria sul PC da inviare al cloud.");
+        return;
+      }
+      setIsUploading(true);
+      for (const p of safePlayers) {
+        const toInsert = {
+          name: p.name || 'Sconosciuto',
+          age: parseInt(p.age) ? parseInt(p.age) : null,
+          position: p.position || 'N/D',
+          type: p.type || 'player',
+          attributes: p.attributes || {},
+          notes: p.notes || ''
+        };
+        
+        let { data: existing } = await supabase.from('players').select('*').ilike('name', p.name);
+        if (existing && existing.length > 0) {
+          await supabase.from('players').update(toInsert).eq('id', existing[0].id);
+        } else {
+          await supabase.from('players').insert([toInsert]);
+        }
+      }
+      alert("✅ Sincronizzazione Cloud completata! Ora puoi aprire l'app sul telefono e vedrai tutta la rosa.");
+    } catch (e) {
+      console.error(e);
+      alert("Errore durante la sincronizzazione. Assicurati di aver eseguito lo script SQL in Supabase.");
+    } finally {
+      setIsUploading(false);
+    }
+  }
+
   async function handleClearAllData() {
     if (window.confirm("Vuoi azzerare la sede societaria e ricominciare da zero?")) {
       setPlayers([]); setShortlist([]); setMatches([]); setTacticReports([]);
@@ -263,35 +298,35 @@ function App() {
         SEI LO STAFF REALE, PASSIONALE E CHIACCHIERONE DEL CLUB "${clubName.toUpperCase()}" SU FOOTBALL MANAGER 2026.
         Il tuo Mister (Omiserez) ti dice: "${currentInputText}"
         
-        ⚠️ PARAMETRI IDENTITÀ CARATTERIALE DEL MISTER (REAGISCI DI CONSEGUENZA):
+        ⚠️ PARAMETRI IDENTITÀ CARATTERIALE DEL MISTER:
         - Stile nei Media con la Stampa: ${pressStyle.toUpperCase()}
         - Livello Protezione Spogliatoio: ${squadShield.toUpperCase()}
         - Rapporti psicologici con i Rivali: ${rivalRelation.toUpperCase()}
         - Filosofia di Campo: ${tacticalFocus.toUpperCase()}
 
         REGOLE INTERNE CARATTERE DELLO STAFF (VIETATO COMPORTARSI DA BOT):
-        - VICE ALLENATORE: Dice "Mister", è un uomo di campo verace, odia i nerd dei dati, usa metafore spavalde, difende lo spogliatoio.
-        - DIRETTORE SPORTIVO: Squalo del calciomercato, parla sempre di plusvalenze, agenti avidi, scadenze contrattuali e furbate.
-        - CHIEF SCOUT: Stravede per i ragazzi prodigio tecnici (wonderkids), si gasa per i dribbling e disprezza i vecchi bidoni.
-        - CFO FINANZE: Ironico, sardonico, tirchio fino al midollo, ti rimprovera se spendi troppo e si lamenta dei budget.
-        - ADDETTO STAMPA: Pettegolo, sa le trappole dei giornalisti locali e adora la tensione dei titoli sui giornali.
-        - RESPONSABILE GIOVANILI: Tratta i ragazzi Under 20 del Sora come figli suoi, vuole vederli tutti in prima squadra subito.
-        - MATCH ANALYST: Parla solo di xG, tiri e statistiche matematiche fredde, ma viene preso in giro dal Vice di continuo.
+        - VICE ALLENATORE: Dice "Mister", uomo di campo verace, sanguigno.
+        - DIRETTORE SPORTIVO: Squalo del calciomercato, parla di plusvalenze e agenti avidi.
+        - CHIEF SCOUT: Stravede per i ragazzi prodigio tecnici (wonderkids).
+        - CFO FINANZE: Ironico, sardonico, tirchio fino al midollo.
+        - ADDETTO STAMPA: Pettegolo, sa le trappole dei giornalisti.
+        - RESPONSABILE GIOVANILI: Tratta i ragazzi Under 20 come figli.
+        - MATCH ANALYST: Parla solo di xG e tabelle, viene preso in giro dal Vice.
 
-        CRONOLOGIA DISCUSSIONI PRECEDENTI:
+        CRONOLOGIA DISCUSSIONI:
         ${businessChronology}
         
-        SITUAZIONE PATRIMONIALE ED ORGANICO REALE:
+        SITUAZIONE PATRIMONIALE ED ORGANICO:
         - Cassa €${finances?.balance || 0} | Budget Mercato €${finances?.transfer_budget || 0}
-        - ROSA REALE SORA: ${JSON.stringify(squadContext.slice(0, 30))}
-        - LISTA DESIDERI OBIETTIVI (SHORTLIST): ${JSON.stringify(shortlistContext)}
-        - ARCHIVIO GARE E PARTITE GIOCATE: ${JSON.stringify(matchesContext)}
+        - ROSA: ${JSON.stringify(squadContext.slice(0, 30))}
+        - LISTA DESIDERI: ${JSON.stringify(shortlistContext)}
+        - GARE: ${JSON.stringify(matchesContext)}
       `;
 
       if (activeRoom === 'board') {
-        instructionPrompt += `\nREGOLE TAVOLO PLENARIA: Rispondi simulando un dibattito acceso e divertente al tavolone in cui TUTTI E 7 i collaboratori intervengono uno dopo l'altro con scambi di battute spontanei ed ironici tra di loro.`;
+        instructionPrompt += `\nREGOLE TAVOLO PLENARIA: Rispondi simulando un dibattito acceso e divertente al tavolone in cui TUTTI E 7 i collaboratori intervengono uno dopo l'altro.`;
       } else {
-        instructionPrompt += `\nSTANZA SINGOLA ATTIVA: SEI NELL'UFFICIO PRIVATO DI '${activeRoom.toUpperCase()}'. Rispondi al Mister interpretando esclusivamente il tuo personaggio a quattrocchi senza mezzi termini.`;
+        instructionPrompt += `\nSTANZA SINGOLA ATTIVA: SEI NELL'UFFICIO PRIVATO DI '${activeRoom.toUpperCase()}'. Rispondi al Mister interpretando esclusivamente il tuo personaggio a quattrocchi.`;
       }
 
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
@@ -340,7 +375,7 @@ function App() {
       const reader = new FileReader(); 
       reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
-        const prompt = `Sei il Capo Osservatore del club "${clubName}". Schedatura FM26. Restituisci l'output strutturato così: VERDETTO: [Mettere solo ACQUISTARE, RISERVA o EVITARE] NOME: [Nome] RUOLO: [Ruolo] REPORT: [Analisi ruspante e dettagliata per il Mister]`;
+        const prompt = `Sei il Capo Osservatore del club "${clubName}". Schedatura FM26. Restituisci l'output strutturato così: VERDETTO: [Mettere solo ACQUISTARE, RISERVA o EVITARE] NOME: [Nome] RUOLO: [Ruolo] REPORT: [Analisi ruspante e dettagliata]`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]); 
         const output = result.response.text();
@@ -433,7 +468,7 @@ function App() {
       const reader = new FileReader(); 
       reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
-        const prompt = `Sei il CFO taccagno del club "${clubName}". Estrai le finanze in JSON puro (senza formattazione markdown): { "balance": numero, "transfer_budget": numero, "wage_budget": numero, "analysis": "analisi sarcastica e protettiva delle casse societarie" }`;
+        const prompt = `Sei il CFO taccagno del club "${clubName}". Estrai le finanze in JSON puro (senza markdown): { "balance": numero, "transfer_budget": numero, "wage_budget": numero, "analysis": "analisi sarcastica e protettiva delle casse" }`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]);
         const cleanText = result.response.text().replace(/```json/gi, '').replace(/```/g, '').trim();
@@ -487,7 +522,7 @@ function App() {
       const reader = new FileReader(); 
       reader.onloadend = async () => {
         const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
-        const prompt = `Sei il Responsabile Giovanili del club "${clubName}". Esamina lo screen profilo Under 20 di FM26 e dai una valutazione entusiasta, paterna e protettiva delle potenzialità reali del ragazzo.`;
+        const prompt = `Sei il Responsabile Giovanili del club "${clubName}". Esamina lo screen profilo Under 20 di FM26 e dai una valutazione entusiasta, paterna e protettiva delle potenzialità.`;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent([prompt, imagePart]);
         const output = result.response.text();
@@ -564,7 +599,7 @@ function App() {
     } finally { setIsUploading(false); }
   }
 
-  // 10. COMPONENTI DI RENDER: FINESTRE, TABELLE, CHAT E MODALI
+  // 10. COMPONENTI DI RENDER: FINESTRE, TABELLE E MODALI
   function renderChatWindow() {
     const safeMessages = Array.isArray(messages) ? messages : [];
     const visibleMessages = safeMessages.filter(msg => {
@@ -626,7 +661,7 @@ function App() {
               <div style={{ padding: '20px', backgroundColor: '#140f24', borderTop: '2px solid #231b3a', boxShadow: '0 -4px 15px rgba(0,0,0,0.3)' }}>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <ChevronRight style={{ position: 'absolute', left: '14px', color: '#da1b60' }} size={20} />
-                  <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={`Scrivi in chat...`} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '16px 50px 16px 42px', fontSize: '16px', color: '#ffffff', borderRadius: '8px', outline: 'none', fontWeight: '500' }} />
+                  <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={`Scrivi in chat o lancia una direttiva...`} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '16px 50px 16px 42px', fontSize: '16px', color: '#ffffff', borderRadius: '8px', outline: 'none', fontWeight: '500' }} />
                   <button onClick={handleSendMessage} disabled={isTyping} style={{ position: 'absolute', right: '16px', background: 'none', border: 'none', color: '#da1b60', cursor: 'pointer', display: 'flex', alignItems: 'center' }}><Send size={18} /></button>
                 </div>
               </div>
@@ -692,7 +727,7 @@ function App() {
                 <>
                   <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#10b981', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Contabilità Moneyball</h3>
                   <input type="file" accept="image/*" ref={financeInputRef} onChange={handleFinanceImageUpload} style={{ display: 'none' }} />
-                  <button onClick={() => financeInputRef.current.click()} disabled={isTyping} style={{ width: '100%', backgroundColor: '#10b981', color: '#0f0c1b', border: 'none', padding: '12px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '6px' }}>Carica Screen Finanze</button>
+                  <button onClick={() => financeInputRef.current.click()} disabled={isTyping} style={{ width: '100%', backgroundColor: '#10b981', color: '#0f0c1b', border: 'none', padding: '12px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '4px' }}>Carica Screen Finanze</button>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
                     <div><label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 'bold' }}>Bilancio Societario (€)</label><input type="number" value={finances?.balance || 0} onChange={(e) => updateFinancesCloud('balance', e.target.value)} style={{ width: '92%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '8px', color: '#10b981', fontWeight: 'bold', borderRadius: '4px' }} /></div>
                     <div><label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 'bold' }}>Budget Mercato (€)</label><input type="number" value={finances?.transfer_budget || 0} onChange={(e) => updateFinancesCloud('transfer_budget', e.target.value)} style={{ width: '92%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '8px', color: '#fff', borderRadius: '4px' }} /></div>
@@ -706,7 +741,7 @@ function App() {
                     <button onClick={handleSimulateTransfer} style={{ backgroundColor: '#10b981', color: '#0f0c1b', border: 'none', padding: '8px', fontSize: '11px', fontWeight: 'bold', borderRadius: '4px', marginTop: '10px', width: '100%' }}>Calcola Impatto</button>
                     {simResult && <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#090710', borderLeft: `3px solid ${simResult.color}`, fontSize: '12px', color: '#fff' }}>{simResult.notes}</div>}
                   </div>
-                  <button onClick={handleFinanceAudit} disabled={isTyping} style={{ backgroundColor: '#da1b60', color: '#fff', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', marginTop: '12px', width: '100%', cursor: 'pointer' }}>Genera Audit Contabile</button>
+                  <button onClick={handleFinanceAudit} disabled={isTyping} style={{ backgroundColor: '#da1b60', color: '#fff', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '6px', marginTop: '12px', width: '100%' }}>Genera Audit Contabile</button>
                 </>
               )}
 
@@ -763,7 +798,7 @@ function App() {
 
               {activeRoom === 'youth' && (
                 <>
-                  <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#ffaa00', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Vivaio Under 20</h3>
+                  <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#ffaa00', fontWeight: '900' }}>Vivaio Under 20</h3>
                   <input type="file" accept="image/*" ref={youthInputRef} onChange={handleYouthImageUpload} style={{ display: 'none' }} />
                   <button onClick={() => youthInputRef.current.click()} disabled={isTyping} style={{ width: '100%', backgroundColor: '#ffaa00', color: '#0f0c1b', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer' }}>Carica Screen Profilo Giovane</button>
                 </>
@@ -771,7 +806,7 @@ function App() {
 
               {activeRoom === 'analyst' && (
                 <>
-                  <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#3b82f6', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Match Analysis Center</h3>
+                  <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#3b82f6', fontWeight: '900' }}>Match Analysis Center</h3>
                   <input type="file" accept="image/*" ref={analystInputRef} onChange={handleAnalystImageUpload} style={{ display: 'none' }} />
                   <button onClick={() => analystInputRef.current.click()} disabled={isTyping} style={{ width: '100%', backgroundColor: '#3b82f6', color: '#fff', border: 'none', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer' }}>Carica Tabellino Gara</button>
                 </>
@@ -826,6 +861,12 @@ function App() {
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
             <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUploadOCR} style={{ display: 'none' }} />
+            
+            {/* IL TASTO SALVAVITA PER SINCRONIZZARE IL PC CON IL TELEFONO */}
+            {!isMobile && safePlayers.length > 0 && (
+              <button onClick={handleForceSync} disabled={isUploading} style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none', padding: '10px 16px', fontSize: '12px', fontWeight: 'bold', borderRadius: '6px', cursor: 'pointer' }}>{isUploading ? 'Sincro...' : '☁️ Forza Sincro Cloud'}</button>
+            )}
+
             <button onClick={() => fileInputRef.current.click()} disabled={isUploading} style={{ backgroundColor: '#da1b60', color: '#fff', border: 'none', padding: '10px 20px', fontSize: '12px', fontWeight: 'bold', borderRadius: '6px', cursor: 'pointer' }}>Carica Foto Rosa</button>
             {safePlayers.length > 0 && <button onClick={handleClearAllData} style={{ backgroundColor: 'transparent', border: '2px solid #ef4444', color: '#ef4444', padding: '10px 16px', fontSize: '12px', fontWeight: 'bold', borderRadius: '6px', cursor: 'pointer' }}>Azzera</button>}
           </div>
