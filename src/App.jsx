@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabaseClient'
-import { MessageSquare, Database, Settings, Send, Users, Sliders, TrendingUp, ImageIcon, X, CloudOff, Briefcase, ChevronRight, HelpCircle, Award, Activity, Search, Trash2 } from 'lucide-react'
+import { MessageSquare, Database, Settings, Send, Users, Sliders, TrendingUp, ImageIcon, X, CloudOff, Briefcase, ChevronRight, HelpCircle, Award, Activity, Search } from 'lucide-react'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
@@ -94,16 +94,17 @@ function App() {
   const [chatInput, setChatInput] = useState('')
   const [cloudStatus, setCloudStatus] = useState('online') 
 
-  // REF PER GLI INPUT FILE
+  // REF PER GLI INPUT FILE (Aggiunto viceInputRef per il Pre-Match)
   const fileInputRef = useRef(null)
   const pressInputRef = useRef(null)
   const youthInputRef = useRef(null)
   const financeInputRef = useRef(null)
   const analystInputRef = useRef(null)
   const scoutInputRef = useRef(null)
+  const viceInputRef = useRef(null)
   const chatContainerRef = useRef(null)
 
-  // 5. SALVATAGGIO LOCALE AUTOMATICO (FAIL-SAFE)
+  // 5. SALVATAGGIO LOCALE AUTOMATICO (FAIL-SAFE) E AUTO-SCROLL
   useEffect(() => { localStorage.setItem('hq_players', JSON.stringify(players)) }, [players])
   useEffect(() => { localStorage.setItem('hq_shortlist', JSON.stringify(shortlist)) }, [shortlist])
   useEffect(() => { localStorage.setItem('hq_matches', JSON.stringify(matches)) }, [matches])
@@ -117,26 +118,19 @@ function App() {
   useEffect(() => { localStorage.setItem('hq_tactical_focus', tacticalFocus) }, [tacticalFocus])
   useEffect(() => { localStorage.setItem('hq_club_name', clubName) }, [clubName])
 
-  // AUTO-SCROLL CHAT
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [messages, isTyping])
 
-  // RECUPERO DATI INIZIALE DA SUPABASE
   useEffect(() => {
     fetchCloudData();
   }, []);
 
-  // FUNZIONE CHIAVE: NORMALIZZATORE DI ACCENTI E SPAZI
   const normalizeName = (name) => {
     if (!name) return '';
-    return name
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "") 
-      .toLowerCase()
-      .trim();
+    return name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   };
 
   // 6. FUNZIONI DI RETE SUPABASE E SYNC
@@ -231,13 +225,12 @@ function App() {
   }
 
   function handleSelectPlayer(player, event) {
-    if (event.target.closest('button')) return; // Impedisce l'apertura del fascicolo se clicchi sul tasto elimina
+    if (event.target.closest('button')) return; 
     if (!player) return;
     setSelectedProfile(player);
     setEditingNotes(player.notes || '');
   }
 
-  // AGGIUNTA: FUNZIONE PER ELIMINARE SINGOLO GIOCATORE DOPPIONE DALLA ROSA
   async function handleDeletePlayer(id) {
     if (window.confirm("Sei sicuro di voler eliminare questo giocatore dall'archivio?")) {
       setPlayers(prev => prev.filter(p => p.id !== id));
@@ -294,7 +287,7 @@ function App() {
     }
   }
 
-  // 8. CORE ENGINE INTELLIGENZA ARTIFICIALE
+  // 8. CORE ENGINE INTELLIGENZA ARTIFICIALE CHAT E BANTER
   async function handleSendMessage() {
     if (!chatInput.trim()) return;
     const currentInputText = chatInput;
@@ -332,13 +325,13 @@ function App() {
         - Rapporto Rivali: ${rivalRelation.toUpperCase()} | Fede Tattica: ${tacticalFocus.toUpperCase()}
 
         REGOLE INTERNE CARATTERE DELLO STAFF:
-        - VICE ALLENATORE: Uomo di campo, difende lo spogliatoio.
-        - DIRETTORE SPORTIVO: Cinico, parla di plusvalenze e agenti.
-        - CHIEF SCOUT: Fissato con i wonderkids.
-        - CFO FINANZE: Tirchio, ironizza sui soldi spesi.
-        - ADDETTO STAMPA: Pettegolo sui giornalisti.
-        - RESPONSABILE GIOVANILI: Paterno con i giovani.
-        - MATCH ANALYST: Parla solo di xG e statistiche.
+        - VICE ALLENATORE: Uomo di campo, sanguigno, difende lo spogliatoio. Parla di tattica e motivazione.
+        - DIRETTORE SPORTIVO: Cinico, pensa a soldi, esuberi, plusvalenze e agenti.
+        - CHIEF SCOUT: Fissato con i wonderkids esteri, si esalta per la tecnica.
+        - CFO FINANZE: Tirchio, ironizza sempre sui soldi spesi dal Mister.
+        - ADDETTO STAMPA: Pettegolo sui giornalisti, conosce le trappole dei media.
+        - RESPONSABILE GIOVANILI: Paterno con i giovani under 20.
+        - MATCH ANALYST: Nerd. Parla solo di xG e grafici, viene preso in giro dal Vice.
 
         CRONOLOGIA:
         ${businessChronology}
@@ -365,6 +358,45 @@ function App() {
   }
 
   // 9. FUNZIONI MULTIMEDIALI AVANZATE CON LETTURA E SALVATAGGIO
+  
+  // NUOVA FUNZIONE: BRIEFING PRE-MATCH DEL VICE (SCHIERAMENTO AVVERSARIO)
+  async function handlePreMatchAnalysis(event) {
+    const file = event.target.files[0]; 
+    if (!file) return; 
+    setIsTyping(true); 
+    if (isMobile) setMobileViewTab('chat');
+    
+    try {
+      const reader = new FileReader(); 
+      reader.onloadend = async () => {
+        const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
+        
+        const safePlayers = Array.isArray(players) ? players : [];
+        const squadContext = safePlayers.map(p => ({ nome: p?.name, ruolo: p?.position, stats: p?.attributes }));
+
+        const prompt = `Sei il Vice Allenatore sanguigno e battagliero del club "${clubName}".
+        Questo è lo screenshot della squadra avversaria di oggi (formazione o report scout).
+        La nostra rosa attuale a disposizione è questa: ${JSON.stringify(squadContext.slice(0, 40))}.
+        
+        Fai un BRIEFING PRE-PARTITA da spogliatoio. Dimmi:
+        1. Quali sono i punti deboli clamorosi dell'avversario.
+        2. Dettami la FORMAZIONE TITOLARE IDEALE nostra da schierare oggi per distruggerli (usa i nomi esatti della nostra rosa attuale).
+        3. Istruzioni individuali (chi dobbiamo pressare a tutto campo, a chi dobbiamo entrare duro).`;
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const result = await model.generateContent([prompt, imagePart]); 
+        const output = result.response.text();
+        
+        const userMsg = { sender_role: `user:vice`, content: `📷 Mister ha appeso alla lavagna lo schieramento degli avversari di oggi. Prepara il piano gara.` };
+        const aiMsg = { sender_role: 'vice', content: output }; 
+        setMessages(prev => [...prev, userMsg, aiMsg]);
+        
+        try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e) {}
+      }; 
+      reader.readAsDataURL(file);
+    } catch (err) { console.error(err); } finally { setIsTyping(false); }
+  }
+
   async function handleAnalyzeExternalTactic() {
     if (!externalTacticInput.trim()) return; 
     setIsTyping(true); 
@@ -748,6 +780,14 @@ function App() {
               {activeRoom === 'vice' && (
                 <>
                   <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#22d3ee', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Laboratorio Tattico</h3>
+                  
+                  {/* IL NUOVO BOTTONE DEL BRIEFING PRE-GARA AVVERSARIO */}
+                  <div style={{ backgroundColor: '#140f24', border: '1px solid #231b3a', padding: '14px', borderRadius: '6px', marginBottom: '4px' }}>
+                     <span style={{ fontSize: '11px', color: '#22d3ee', fontWeight: 'bold', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>⚔️ Briefing Pre-Gara:</span>
+                     <input type="file" accept="image/*" ref={viceInputRef} onChange={handlePreMatchAnalysis} style={{ display: 'none' }} />
+                     <button onClick={() => viceInputRef.current.click()} disabled={isTyping} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #22d3ee', color: '#22d3ee', padding: '12px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '4px', cursor: 'pointer' }}>📸 Carica Formazione Avversaria</button>
+                  </div>
+
                   <textarea value={externalTacticInput} onChange={(e) => setExternalTacticInput(e.target.value)} placeholder="Incolla l'analisi della tattica o il link esterno (es. FMScout)..." style={{ width: '94%', height: '140px', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '12px', color: '#ffffff', fontSize: '15px', resize: 'none', borderRadius: '6px' }} />
                   <button onClick={handleAnalyzeExternalTactic} disabled={isTyping} style={{ backgroundColor: '#22d3ee', color: '#0f0b1b', border: 'none', padding: '14px', fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer', width: '100%', boxShadow: '0 4px 12px rgba(34,211,238,0.2)' }}>Avvia Convalida Modulo</button>
                   
