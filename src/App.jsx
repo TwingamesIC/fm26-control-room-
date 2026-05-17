@@ -7,7 +7,7 @@ const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // ==========================================
-// IL CERVELLO DI FM26 (CON VISIONE PROATTIVA A LUNGO TERMINE)
+// IL CERVELLO DI FM26 (CON VISIONE PROATTIVA E ANALISI MULTIPLA)
 // ==========================================
 const FM26_CORE_ENGINE = `
 IL TUO CERVELLO È BASATO SUL MOTORE DI GIOCO DI FOOTBALL MANAGER 2026.
@@ -15,7 +15,6 @@ Sei uno staff umano, discorsivo ma tecnicamente ineccepibile.
 
 [!!! REGOLA DELLA PROATTIVITÀ E DELLA VISIONE !!!]
 Devi SEMPRE tenere conto della "VISIONE SOCIETARIA" impostata dal Mister. Se il Mister propone un'idea a lungo termine (es. "modello Barcellona", "squadra fisica", "vincere la Champions in 5 anni") e NON hai abbastanza dati nel database per aiutarlo, DEVI CHIEDERE ESPLICITAMENTE GLI SCREENSHOT. 
-Esempio: "Mister, per capire se possiamo fare il tiki-taka, ho bisogno di vedere gli attributi di Passaggio e Visione di Gioco dei nostri centrocampisti. Fammi uno screen." Sii proattivo e guida tu il Mister se serve.
 
 [!!! REGOLA LINGUISTICA CRITICA !!!]
 - I RUOLI DEI GIOCATORI devono essere ESCLUSIVAMENTE IN INGLESE (es: **Box To Box Midfielder**, **Advanced Forward**, **Sweeper Keeper**).
@@ -51,12 +50,12 @@ DATI ROSA ATTUALE: ${JSON.stringify(squadContext.slice(0, 30))}\n`;
 
   if (role === 'vice') return baseRules + `
 RUOLO: VICE ALLENATORE E TATTICO DI FM26.
-Carattere: Uomo di campo, sanguigno. Discuti di tattica e chiedi screen degli allenamenti o delle dinamiche se devi costruire un ecosistema tattico. Allinea le tue scelte tattiche alla Visione Societaria del Mister. Valuta i giocatori in base alla loro Media Voto reale. ` + contextData + TACTIC_JSON_INSTRUCTION;
+Carattere: Uomo di campo, sanguigno. Discuti di tattica e chiedi screen se devi costruire un ecosistema tattico. Allinea le tue scelte tattiche alla Visione Societaria. Valuta i giocatori in base alla loro Media Voto. ` + contextData + TACTIC_JSON_INSTRUCTION;
   
-  if (role === 'ds') return baseRules + `RUOLO: DIRETTORE SPORTIVO. Carattere: Cinico, focalizzato su bilanci e plusvalenze. Se la Visione Societaria richiede giovani, chiedi al Mister gli screen dei prospetti. Valuta esuberi se Media Voto < 6.70.` + contextData;
+  if (role === 'ds') return baseRules + `RUOLO: DIRETTORE SPORTIVO. Carattere: Cinico, focalizzato su bilanci e plusvalenze. Valuta esuberi se Media Voto < 6.70 o non adatti alla Visione.` + contextData;
   if (role === 'scout') return baseRules + `RUOLO: CAPO OSSERVATORE. Valuta se i giocatori negli screen sono adatti al Progetto e alla Visione del Club.` + `\nSHORTLIST: ${JSON.stringify(shortlistContext)}` + contextData;
-  if (role === 'cfo') return baseRules + `RUOLO: CFO FINANZE. La cassa è di €${finances?.balance || 0}. Fai battute sui soldi, ma sii preciso. Controlla che le spese siano in linea col Progetto a lungo termine.` + contextData;
-  if (role === 'analyst') return baseRules + `RUOLO: MATCH ANALYST. Nerd dei dati. Analizza xG. Chiedi al Mister lo screen del Data Hub se mancano dati per confermare se la Visione del club sta funzionando in campo.` + contextData;
+  if (role === 'cfo') return baseRules + `RUOLO: CFO FINANZE. La cassa è di €${finances?.balance || 0}. Controlla che le spese siano in linea col Progetto a lungo termine.` + contextData;
+  if (role === 'analyst') return baseRules + `RUOLO: MATCH ANALYST. Nerd dei dati. Analizza xG. Chiedi al Mister lo screen del Data Hub se mancano dati per confermare se la Visione funziona in campo.` + contextData;
   
   return baseRules + contextData;
 };
@@ -138,6 +137,9 @@ function App() {
   const [mobileViewTab, setMobileViewTab] = useState('chat')
   const [showScrollBottom, setShowScrollBottom] = useState(false) 
 
+  // NUOVI STATI PER UPLOAD IMMAGINI MULTIPLO IN CHAT
+  const [pendingImages, setPendingImages] = useState([]);
+
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
     window.addEventListener('resize', handleResize);
@@ -145,12 +147,12 @@ function App() {
   }, []);
   
   const [clubName, setClubName] = useState(() => localStorage.getItem('hq_club_name') || 'Sora')
-  const [clubVision, setClubVision] = useState(() => localStorage.getItem('hq_club_vision') || 'Nessun obiettivo a lungo termine impostato. La squadra naviga a vista.') // NUOVO STATO VISIONE
+  const [clubVision, setClubVision] = useState(() => localStorage.getItem('hq_club_vision') || 'Nessun obiettivo a lungo termine impostato. La squadra naviga a vista.') 
   
   const [players, setPlayers] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_players')) || []; } catch(e) { return []; } })
   const [shortlist, setShortlist] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_shortlist')) || []; } catch(e) { return []; } })
   const [matches, setMatches] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_matches')) || []; } catch(e) { return []; } })
-  const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_messages')) || [{ sender_role: 'system', content: 'Protocollo Dinastia attivato. Lo staff è pronto a collaborare al progetto a lungo termine.' }]; } catch(e) { return [{ sender_role: 'system', content: 'Centrale operativa allineata.' }]; } })
+  const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_messages')) || [{ sender_role: 'system', content: 'Inizializzazione completata. Sistema Multi-Upload Immagini Attivo.' }]; } catch(e) { return [{ sender_role: 'system', content: 'Centrale operativa allineata.' }]; } })
   const [tacticReports, setTacticReports] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_tactic_reports')) || []; } catch(e) { return []; } })
   const [finances, setFinances] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_finances')) || { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; } catch(e) { return { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; } })
 
@@ -201,7 +203,7 @@ function App() {
   useEffect(() => { localStorage.setItem('hq_rival_relation', rivalRelation) }, [rivalRelation])
   useEffect(() => { localStorage.setItem('hq_tactical_focus', tacticalFocus) }, [tacticalFocus])
   useEffect(() => { localStorage.setItem('hq_club_name', clubName) }, [clubName])
-  useEffect(() => { localStorage.setItem('hq_club_vision', clubVision) }, [clubVision]) // SALVATAGGIO VISIONE
+  useEffect(() => { localStorage.setItem('hq_club_vision', clubVision) }, [clubVision]) 
 
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -355,7 +357,7 @@ function App() {
     const cost = parseFloat(simCost) || 0; const weeklyWage = parseFloat(simWage) || 0; const years = parseInt(simYears) || 1;
     const annualAmortization = cost / years; const annualWageCost = weeklyWage * 52; const totalAnnualImpact = annualAmortization + annualWageCost;
     let status = 'APPROVATO'; let color = '#34d399'; let notes = `Operazione sostenibile. Impatto annuo: €${totalAnnualImpact.toLocaleString()}.`;
-    if (cost > finances.transfer_budget) { status = 'BLOCCATO'; color = '#ef4444'; notes = `Fondi insufficienti nel budget trasferimenti.`; }
+    if (cost > finances.transfer_budget) { status = 'BLOCCATO'; color = '#ef4444'; notes = `Fondi insufficienti.`; }
     else if (weeklyWage > (finances.wage_budget * 0.3)) { status = 'RISCHIO SPOGLIATOIO'; color = '#ffaa00'; notes = `L'ingaggio supera il 30% del tetto salariale.`; }
     setSimResult({ status, color, annualAmortization, annualWageCost, notes });
   };
@@ -365,12 +367,38 @@ function App() {
     else { setSortField(field); setSortDirection('asc'); }
   };
 
-  // CORE AI CHAT
+  // AGGIUNTA FOTO AL PARCHEGGIO (STAGING)
+  const handlePendingImagesSelection = (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const filesArray = Array.from(e.target.files);
+      setPendingImages(prev => [...prev, ...filesArray]);
+    }
+    if (chatImageInputRef.current) chatImageInputRef.current.value = "";
+  };
+
+  const removePendingImage = (index) => {
+    setPendingImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // CORE AI CHAT CON SUPPORTO MULTI-IMMAGINE
   const handleSendMessage = async () => {
-    if (!chatInput.trim()) return;
-    const currentInputText = chatInput; setChatInput(''); setIsTyping(true);
-    const userRole = `user:${activeRoom}`; const userMessageObj = { sender_role: userRole, content: currentInputText };
-    const updatedMessages = [...messages, userMessageObj]; setMessages(updatedMessages);
+    if (!chatInput.trim() && pendingImages.length === 0) return;
+    
+    const currentInputText = chatInput.trim(); 
+    const imagesToSend = [...pendingImages];
+    
+    setChatInput(''); 
+    setPendingImages([]);
+    setIsTyping(true);
+    
+    let displayMsg = currentInputText;
+    if (imagesToSend.length > 0) {
+      displayMsg = currentInputText ? `📷 [${imagesToSend.length} Immagini allegate] ${currentInputText}` : `📷 [${imagesToSend.length} Immagini allegate] Analizzate questi screen.`;
+    }
+
+    const userRole = `user:${activeRoom}`; 
+    const userMessageObj = { sender_role: userRole, content: displayMsg };
+    setMessages(prev => [...prev, userMessageObj]);
 
     try { await supabase.from('club_messages').insert([userMessageObj]); } catch(e) { setCloudStatus('offline') }
 
@@ -380,52 +408,35 @@ function App() {
       const shortlistContext = Array.isArray(shortlist) ? shortlist.slice(0, 15) : [];
       const matchesContext = Array.isArray(matches) ? matches.slice(0, 5) : [];
 
-      const instructionPrompt = getRolePrompt(activeRoom, clubName, clubVision, finances, squadContext, shortlistContext, matchesContext, tacticalFocus) + 
-        `\n\nIL MISTER TI DICE: "${currentInputText}"`;
+      let instructionPrompt = getRolePrompt(activeRoom, clubName, clubVision, finances, squadContext, shortlistContext, matchesContext, tacticalFocus);
+
+      if (imagesToSend.length > 0) {
+        instructionPrompt += `\n\nIL MISTER TI HA ALLEGATO ${imagesToSend.length} IMMAGINI E DICE: "${currentInputText || 'Analizza queste immagini basandoti sul tuo ruolo e sul Progetto.'}"`;
+      } else {
+        instructionPrompt += `\n\nIL MISTER TI DICE: "${currentInputText}"`;
+      }
+
+      // Converti tutte le immagini in un formato leggibile per Gemini
+      const imageParts = await Promise.all(imagesToSend.map(file => {
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            resolve({ inlineData: { data: reader.result.split(',')[1], mimeType: file.type } });
+          };
+          reader.readAsDataURL(file);
+        });
+      }));
 
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-      const result = await model.generateContent(instructionPrompt);
+      const promptArray = [instructionPrompt, ...imageParts];
+      
+      const result = await model.generateContent(promptArray);
       const aiMessageObj = { sender_role: activeRoom, content: result.response.text() };
       setMessages(prev => [...prev, aiMessageObj]);
       try { await supabase.from('club_messages').insert([aiMessageObj]); } catch(e) {}
     } catch (error) { console.error(error); } finally { setIsTyping(false); }
   };
 
-  // UPLOAD IMMAGINI GLOBALE DALLA CHAT
-  const handleChatImageUpload = async (event) => {
-    const file = event.target.files[0]; if (!file) return; 
-    const currentText = chatInput.trim(); setChatInput(''); setIsTyping(true); if (isMobile) setMobileViewTab('chat');
-    
-    try {
-      const reader = new FileReader(); 
-      reader.onloadend = async () => {
-        const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
-        const userRole = `user:${activeRoom}`;
-        const displayMsg = currentText ? `📷 [Immagine allegata] ${currentText}` : `📷 [Immagine allegata] Guarda questo screen, analizzalo.`;
-        
-        const userMessageObj = { sender_role: userRole, content: displayMsg };
-        setMessages(prev => [...prev, userMessageObj]);
-        try { await supabase.from('club_messages').insert([userMessageObj]); } catch(e) {}
-
-        const safePlayers = Array.isArray(players) ? players : [];
-        const squadContext = safePlayers.map(p => ({ nome: p?.name, ruoli: p?.position, stats: p?.attributes || {} }));
-        const shortlistContext = Array.isArray(shortlist) ? shortlist.slice(0, 15) : [];
-        const matchesContext = Array.isArray(matches) ? matches.slice(0, 5) : [];
-
-        let instructionPrompt = getRolePrompt(activeRoom, clubName, clubVision, finances, squadContext, shortlistContext, matchesContext, tacticalFocus) + 
-        `\n\nIL MISTER TI HA ALLEGATO UN'IMMAGINE E DICE: "${currentText || 'Analizza questo screen basandoti sulle tue competenze e sui dati.'}"`;
-
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        const result = await model.generateContent([instructionPrompt, imagePart]); 
-        const output = result.response.text();
-        
-        const aiMessageObj = { sender_role: activeRoom, content: output }; 
-        setMessages(prev => [...prev, aiMessageObj]);
-        try { await supabase.from('club_messages').insert([aiMessageObj]); } catch(e) {}
-      }; 
-      reader.readAsDataURL(file);
-    } catch (err) { console.error(err); } finally { setIsTyping(false); if (chatImageInputRef.current) chatImageInputRef.current.value = ""; }
-  };
 
   // FUNZIONI STRUMENTI
   const handlePreMatchAnalysis = async (event) => {
@@ -718,32 +729,47 @@ function App() {
                 {isTyping && (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                     <span style={{ fontSize: '11px', color: '#475569', fontWeight: 'bold', marginBottom: '4px' }}>CENTRALINA DI ELABORAZIONE</span>
-                    <div style={{ padding: '14px', fontSize: '15px', backgroundColor: '#140f24', color: '#64748b', borderLeft: '4px solid #475569', borderRadius: '6px', fontStyle: 'italic' }}>Lo specialista sta scrivendo...</div>
+                    <div style={{ padding: '14px', fontSize: '15px', backgroundColor: '#140f24', color: '#64748b', borderLeft: '4px solid #475569', borderRadius: '6px', fontStyle: 'italic' }}>Lo specialista sta elaborando i dati...</div>
                   </div>
                 )}
               </div>
 
               {/* TASTO SCROLL RAPIDO VERSO IL BASSO */}
               {showScrollBottom && (
-                <button onClick={scrollToBottom} style={{ position: 'absolute', bottom: '100px', right: '20px', width: '45px', height: '45px', borderRadius: '50%', backgroundColor: '#da1b60', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,0,0,0.6)', zIndex: 50, transition: 'all 0.2s' }}>
+                <button onClick={scrollToBottom} style={{ position: 'absolute', bottom: '110px', right: '20px', width: '45px', height: '45px', borderRadius: '50%', backgroundColor: '#da1b60', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,0,0,0.6)', zIndex: 50, transition: 'all 0.2s' }}>
                   <ChevronDown size={28} />
                 </button>
               )}
 
-              {/* BARRA CHAT CON UPLOAD FOTO GLOBALE */}
-              <div style={{ padding: '20px', backgroundColor: '#140f24', borderTop: '2px solid #231b3a', boxShadow: '0 -4px 15px rgba(0,0,0,0.3)' }}>
+              {/* BARRA CHAT CON UPLOAD FOTO MULTIPLO GLOBALE */}
+              <div style={{ padding: '16px 20px', backgroundColor: '#140f24', borderTop: '2px solid #231b3a', boxShadow: '0 -4px 15px rgba(0,0,0,0.3)', zIndex: 60 }}>
+                
+                {/* STAGING DELLE IMMAGINI DA INVIARE */}
+                {pendingImages.length > 0 && (
+                  <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', overflowX: 'auto', paddingBottom: '6px' }}>
+                    {pendingImages.map((img, idx) => (
+                      <div key={idx} style={{ position: 'relative', width: '60px', height: '60px', flexShrink: 0, borderRadius: '8px', overflow: 'hidden', border: '2px solid #a855f7', boxShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>
+                        <img src={URL.createObjectURL(img)} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <button onClick={() => removePendingImage(idx)} style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(239, 68, 68, 0.9)', border: 'none', color: '#fff', borderRadius: '50%', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0 }}>
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <ChevronRight style={{ position: 'absolute', left: '14px', color: '#da1b60' }} size={20} />
                   
-                  <input type="file" accept="image/*" ref={chatImageInputRef} onChange={handleChatImageUpload} style={{ display: 'none' }} />
+                  <input type="file" accept="image/*" multiple ref={chatImageInputRef} onChange={handlePendingImagesSelection} style={{ display: 'none' }} />
                   
-                  <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={`Scrivi in chat o allega uno screen...`} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '16px 90px 16px 42px', fontSize: '16px', color: '#ffffff', borderRadius: '8px', outline: 'none', fontWeight: '500' }} />
+                  <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={pendingImages.length > 0 ? "Aggiungi un commento alle foto..." : "Scrivi in chat o allega foto..."} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '16px 90px 16px 42px', fontSize: '16px', color: '#ffffff', borderRadius: '8px', outline: 'none', fontWeight: '500' }} />
                   
                   <div style={{ position: 'absolute', right: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <button onClick={() => chatImageInputRef.current.click()} disabled={isTyping} style={{ background: 'none', border: 'none', color: '#a855f7', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }} title="Allega Screen e Invia">
+                    <button onClick={() => chatImageInputRef.current.click()} disabled={isTyping} style={{ background: 'none', border: 'none', color: '#a855f7', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }} title="Allega Screen">
                       <ImageIcon size={22} />
                     </button>
-                    <button onClick={handleSendMessage} disabled={isTyping} style={{ background: 'none', border: 'none', color: '#da1b60', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }} title="Invia Testo">
+                    <button onClick={handleSendMessage} disabled={isTyping || (!chatInput.trim() && pendingImages.length === 0)} style={{ background: 'none', border: 'none', color: (chatInput.trim() || pendingImages.length > 0) ? '#da1b60' : '#475569', cursor: (chatInput.trim() || pendingImages.length > 0) ? 'pointer' : 'default', display: 'flex', alignItems: 'center', padding: '4px', transition: 'color 0.2s' }} title="Invia">
                       <Send size={22} />
                     </button>
                   </div>
@@ -759,7 +785,6 @@ function App() {
                 <>
                   <h3 style={{ fontSize: '14px', textTransform: 'uppercase', color: '#a855f7', borderBottom: '2px solid #231b3a', paddingBottom: '8px', margin: 0, fontWeight: '900' }}>Identità Societaria Sora</h3>
                   
-                  {/* NUOVO PANNELLO: VISIONE A LUNGO TERMINE */}
                   <div style={{ backgroundColor: '#1d1433', border: '2px solid #a855f7', padding: '16px', borderRadius: '6px' }}>
                     <label style={{ fontSize: '12px', color: '#e2e8f0', textTransform: 'uppercase', display: 'block', marginBottom: '8px', fontWeight: '900' }}>🎯 Progetto e Visione a Lungo Termine</label>
                     <textarea 
