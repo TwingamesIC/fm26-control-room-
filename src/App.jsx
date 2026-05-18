@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabaseClient'
 import { MessageSquare, Database, Send, Users, Sliders, TrendingUp, ImageIcon, X, Briefcase, ChevronRight, HelpCircle, Award, Activity, Search, Trash2, ChevronDown, FileSpreadsheet } from 'lucide-react'
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import * as XLSX from 'xlsx' 
+// IMPORTANTE: Abbiamo rimosso l'import di XLSX qui in alto per evitare il crash di Vercel!
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
@@ -38,11 +38,7 @@ DATI ROSA ATTUALE (Non chiedere altri dati oltre questi): ${JSON.stringify(squad
 };
 
 function App() {
-  // ==============================================================
-  // FIX ANTI-CRASH VERCEL (HYDRATION MISMATCH ERROR #418)
-  // ==============================================================
   const [isMounted, setIsMounted] = useState(false);
-
   const [activeRoom, setActiveRoom] = useState('vice') 
   const [dbSubTab, setDbSubTab] = useState('first_team') 
   const [sortField, setSortField] = useState('name')
@@ -82,7 +78,6 @@ function App() {
   const [simResult, setSimResult] = useState(null)
   
   const [externalTacticInput, setExternalTacticInput] = useState('')
-  
   const [selectedProfile, setSelectedProfile] = useState(null) 
   const [selectedTacticReport, setSelectedTacticReport] = useState(null)
   const [editingNotes, setEditingNotes] = useState('')
@@ -99,9 +94,7 @@ function App() {
   const chatImageInputRef = useRef(null) 
   const chatContainerRef = useRef(null)
 
-  useEffect(() => { 
-    if (isMounted) { localStorage.setItem('hq_players', JSON.stringify(players)) }
-  }, [players, isMounted])
+  useEffect(() => { if (isMounted) { localStorage.setItem('hq_players', JSON.stringify(players)) } }, [players, isMounted])
   useEffect(() => { if (isMounted) localStorage.setItem('hq_shortlist', JSON.stringify(shortlist)) }, [shortlist, isMounted])
   useEffect(() => { if (isMounted) localStorage.setItem('hq_matches', JSON.stringify(matches)) }, [matches, isMounted])
   useEffect(() => { if (isMounted) localStorage.setItem('hq_tactic_reports', JSON.stringify(tacticReports)) }, [tacticReports, isMounted])
@@ -145,7 +138,6 @@ function App() {
   const formatMessageContent = (text) => {
     if (!text) return null;
     let displayString = text;
-    
     const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/i) || text.match(/```json([\s\S]*?)```/i);
     if (jsonMatch) displayString = text.replace(jsonMatch[0], '').trim();
 
@@ -240,6 +232,11 @@ function App() {
     } catch (e) { console.error(e); } finally { setIsSavingNotes(false); }
   };
 
+  const handleRemoveFromShortlist = async (id) => {
+    setShortlist(prev => prev.filter(s => s.id !== id));
+    try { await supabase.from('shortlist').delete().eq('id', id); } catch(e) {}
+  };
+
   const handleSimulateTransfer = () => {
     const cost = parseFloat(simCost) || 0; const weeklyWage = parseFloat(simWage) || 0; const years = parseInt(simYears) || 1;
     const annualAmortization = cost / years; const annualWageCost = weeklyWage * 52; const totalAnnualImpact = annualAmortization + annualWageCost;
@@ -274,7 +271,7 @@ function App() {
     
     let displayMsg = currentInputText;
     if (imagesToSend.length > 0) {
-      displayMsg = currentInputText ? `📷 [${imagesToSend.length} Immagini allegate] ${currentInputText}` : `📷 [${imagesToSend.length} Immagini allegate] Analizzate questi screen.`;
+      displayMsg = currentInputText ? `📷 [${imagesToSend.length} Immagini allegate] ${currentInputText}` : `📷 [${imagesToSend.length} Immagini allegate] Analizza.`;
     }
 
     const userRole = `user:${activeRoom}`; 
@@ -292,7 +289,7 @@ function App() {
       let instructionPrompt = getRolePrompt(activeRoom, clubName, clubVision, finances, squadContext, shortlistContext, matchesContext, tacticalFocus, tacticReports);
 
       if (imagesToSend.length > 0) {
-        instructionPrompt += `\n\nIL MISTER TI HA ALLEGATO ${imagesToSend.length} IMMAGINI E DICE: "${currentInputText || 'Analizza in modo sintetico.'}"`;
+        instructionPrompt += `\n\nIL MISTER TI HA ALLEGATO ${imagesToSend.length} IMMAGINI E DICE: "${currentInputText || 'Analizza in modo estremamente sintetico.'}"`;
       } else {
         instructionPrompt += `\n\nIL MISTER TI DICE: "${currentInputText}"`;
       }
@@ -331,7 +328,7 @@ function App() {
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(instructionPrompt); const outputText = result.response.text();
       const cleanTitle = (outputText.match(/TITOLO:\s*(.*)/i)?.[1] || `Tattica del ${new Date().toLocaleDateString()}`).replace('[', '').replace(']', '').trim();
-      const userMsg = { sender_role: `user:vice`, content: `📋 Studia e memorizza questa idea/tattica.` };
+      const userMsg = { sender_role: `user:vice`, content: `📋 Studia e memorizza questa idea/tattica: "${inputBuffer.substring(0,30)}..."` };
       const aiMsg = { sender_role: 'vice', content: outputText }; setMessages(prev => [...prev, userMsg, aiMsg]);
       setTacticReports(prev => [{ title: cleanTitle, content: outputText, id: Date.now() }, ...prev]); 
       try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e) {}
@@ -358,7 +355,7 @@ function App() {
       
       const instructionPrompt = getRolePrompt('vice', clubName, clubVision, finances, squadContext, [], [], tacticalFocus, tacticReports) + 
       `\n\n[!!! ECCEZIONE ALLA REGOLA DELLA SINTESI !!!]
-      Sii DESCRITTIVO. Il Mister ti ha inviato SCREENSHOT DELLA SUA TATTICA DI GIOCO.
+      Sii DESCRITTIVO. Il Mister ti ha inviato SCREENSHOT DELLA SUA TATTICA DI GIOCO su FM26.
       1. Estrai il Modulo, i Ruoli esatti e le Istruzioni di squadra visibili.
       2. Adattala alla rosa attuale incrociando ruoli con attributi e medie voto che hai in memoria.
       Inizia con TITOLO: [Nome del Modulo]`;
@@ -370,10 +367,11 @@ function App() {
       const outputText = result.response.text();
       
       const cleanTitle = (outputText.match(/TITOLO:\s*(.*)/i)?.[1] || `Tattica Visiva del ${new Date().toLocaleDateString()}`).replace('[', '').replace(']', '').trim();
-      const userMsg = { sender_role: `user:vice`, content: `📷 [Allegati ${files.length} screen tattici] Studia e memorizza questa tattica.` };
+      const userMsg = { sender_role: `user:vice`, content: `📷 [Allegati ${files.length} screen tattici] Studia e memorizza questa tattica dalle immagini.` };
       const aiMsg = { sender_role: 'vice', content: outputText }; 
       setMessages(prev => [...prev, userMsg, aiMsg]);
       setTacticReports(prev => [{ title: cleanTitle, content: outputText, id: Date.now() }, ...prev]); 
+      
       try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e) {}
     } catch (error) { console.error(error); } finally { setIsTyping(false); if (tacticImageUploadRef.current) tacticImageUploadRef.current.value = ""; }
   };
@@ -450,6 +448,9 @@ function App() {
     } 
   };
 
+  // =====================================
+  // IMPORTAZIONE EXCEL (IMPORT DINAMICO ANTI-CRASH VERCEL)
+  // =====================================
   const handleExcelUpload = (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -460,6 +461,9 @@ function App() {
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
+        // IMPORT DINAMICO: Salva la compilazione su Vercel!
+        const XLSX = await import('xlsx');
+        
         const data = e.target.result;
         const workbook = XLSX.read(data, { type: 'binary' });
         const firstSheetName = workbook.SheetNames[0];
@@ -503,6 +507,7 @@ function App() {
         const sysMsg = { sender_role: 'system', content: `✅ Database Aggiornato tramite File Excel. Importati/Aggiornati ${updatedCount} giocatori.` };
         setMessages(prev => [...prev, sysMsg]);
         try { await supabase.from('club_messages').insert([sysMsg]); } catch(e) {}
+
       } catch (error) {
         console.error("Errore lettura Excel:", error);
         setUploadProgressText("❌ Errore file Excel.");
@@ -657,7 +662,7 @@ function App() {
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <ChevronRight style={{ position: 'absolute', left: '14px', color: '#da1b60' }} size={20} />
                   <input type="file" accept="image/*" multiple ref={chatImageInputRef} onChange={handlePendingImagesSelection} style={{ display: 'none' }} />
-                  <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={pendingImages.length > 0 ? "Aggiungi un commento alle foto..." : "Scrivi o allega foto veloci..."} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '16px 90px 16px 42px', fontSize: '16px', color: '#ffffff', borderRadius: '8px', outline: 'none', fontWeight: '500' }} />
+                  <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={pendingImages.length > 0 ? "Aggiungi un commento alle foto..." : "Scrivi in chat o allega foto veloci..."} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '16px 90px 16px 42px', fontSize: '16px', color: '#ffffff', borderRadius: '8px', outline: 'none', fontWeight: '500' }} />
                   <div style={{ position: 'absolute', right: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <button onClick={() => chatImageInputRef.current.click()} disabled={isTyping} style={{ background: 'none', border: 'none', color: '#a855f7', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }} title="Allega Screen Rapido"><ImageIcon size={22} /></button>
                     <button onClick={handleSendMessage} disabled={isTyping || (!chatInput.trim() && pendingImages.length === 0)} style={{ background: 'none', border: 'none', color: (chatInput.trim() || pendingImages.length > 0) ? '#da1b60' : '#475569', cursor: (chatInput.trim() || pendingImages.length > 0) ? 'pointer' : 'default', display: 'flex', alignItems: 'center', padding: '4px', transition: 'color 0.2s' }} title="Invia"><Send size={22} /></button>
