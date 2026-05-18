@@ -8,24 +8,24 @@ const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // ==========================================
-// IL CERVELLO DI FM26 (DIRETTIVA MILITARE: ZERO SCUSE)
+// IL CERVELLO DI FM26 (DIRETTIVA MILITARE ESTREMA)
 // ==========================================
 const FM26_CORE_ENGINE = `
-IL TUO CERVELLO È BASATO SUL MOTORE DI GIOCO DI FOOTBALL MANAGER 2026. Sei il Vice Allenatore e fai le veci di tutto lo staff.
+SEI IL VICE ALLENATORE TUTTOFARE IN FOOTBALL MANAGER 2026 E LAVORI SUI BIG DATA.
 
 [!!! DIRETTIVE MILITARI DI RISPOSTA - PENA IL LICENZIAMENTO !!!]
-1. SINTESI ESTREMA: Rispondi in MASSIMO 3 o 4 RIGHE. Sii secco, crudo e telegrafico. È severamente vietato fare preamboli ("Mister ottima domanda", "Certamente Mister"). Vai dritto alla tattica.
-2. LAVORA CON QUELLO CHE HAI: Se devi valutare un giocatore e nel database vedi solo la sua "Media Voto" ma ti mancano gli attributi tecnici (es. Passaggi, Visione), VALUTALO SOLO SULLA MEDIA VOTO.
-3. DIVIETO DI CHIEDERE SCREENSHOT: È ASSOLUTAMENTE VIETATO chiedere al Mister di inviarti screenshot o dirti dati mancanti. Piuttosto che chiedere dati, arrangiati con quelli che vedi.
-4. NESSUNA LAVAGNA: Non generare mai codice JSON, tabelle o lavagne tattiche.
+1. SINTESI ESTREMA: Rispondi in MASSIMO 2 o 3 RIGHE o un brevissimo elenco. Sii crudo e telegrafico. È severamente vietato fare preamboli o saluti ("Mister ottima domanda", "Certamente", "Ecco l'analisi"). Vai dritto al sodo.
+2. LAVORA CON QUELLO CHE HAI: Se devi valutare giocatori, usa i dati forniti. Se ti mancano gli attributi tecnici per un giocatore, USA SOLO LA MEDIA VOTO. 
+3. DIVIETO ASSOLUTO DI CHIEDERE SCREENSHOT: È VIETATO chiedere al Mister di inviarti screenshot o di fornirti dati mancanti. Mai. Adattati con i dati che hai.
+4. NIENTE CODICE: Non generare mai codice JSON, tabelle o lavagne tattiche. Usa solo testo normale.
 5. LINGUAGGIO: Usa l'Inglese SOLO per i ruoli (es: **Sweeper Keeper**, **Advanced Forward**) evidenziati in grassetto. Il resto in Italiano.
 `;
 
 const getRolePrompt = (role, clubName, clubVision, finances, squadContext, shortlistContext, matchesContext, tacticalFocus, tacticReports) => {
-  const baseRules = FM26_CORE_ENGINE + `\nSEI IL VICE ALLENATORE DEL CLUB: ${clubName.toUpperCase()}.\n`;
+  const baseRules = FM26_CORE_ENGINE + `\nCLUB ATTUALE: ${clubName.toUpperCase()}.\n`;
   
   const savedTacticsSummary = tacticReports && tacticReports.length > 0 
-    ? tacticReports.map(t => `${t.title}: ${t.content.substring(0, 250)}...`).join(' | ') 
+    ? tacticReports.map(t => `${t.title}: ${t.content.substring(0, 200)}...`).join(' | ') 
     : 'Nessuna tattica specifica assimilata in archivio.';
 
   const contextData = `
@@ -60,7 +60,7 @@ function App() {
   const [players, setPlayers] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_players')) || []; } catch(e) { return []; } })
   const [shortlist, setShortlist] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_shortlist')) || []; } catch(e) { return []; } })
   const [matches, setMatches] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_matches')) || []; } catch(e) { return []; } })
-  const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_messages')) || [{ sender_role: 'system', content: 'Protocollo Tolleranza Zero attivato: il Vice risponderà in 3 righe, senza mai chiedere screenshot.' }]; } catch(e) { return [{ sender_role: 'system', content: 'Centrale operativa allineata.' }]; } })
+  const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_messages')) || [{ sender_role: 'system', content: 'Lavagna Tattica ELIMINATA. Profilo Sintesi Estrema ATTIVATO.' }]; } catch(e) { return [{ sender_role: 'system', content: 'Centrale operativa allineata.' }]; } })
   const [tacticReports, setTacticReports] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_tactic_reports')) || []; } catch(e) { return []; } })
   const [finances, setFinances] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_finances')) || { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; } catch(e) { return { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; } })
 
@@ -76,6 +76,7 @@ function App() {
   const [simResult, setSimResult] = useState(null)
   
   const [externalTacticInput, setExternalTacticInput] = useState('')
+  const [dsTacticInput, setDsTacticInput] = useState('')
   
   const [selectedProfile, setSelectedProfile] = useState(null) 
   const [selectedTacticReport, setSelectedTacticReport] = useState(null)
@@ -125,9 +126,12 @@ function App() {
     if (chatContainerRef.current) { chatContainerRef.current.scrollTo({ top: chatContainerRef.current.scrollHeight, behavior: 'smooth' }); }
   };
 
+  // FORMATTAZIONE PURA TESTUALE (Lavagna totalmente rimossa)
   const formatMessageContent = (text) => {
     if (!text) return null;
     let displayString = text;
+    
+    // Rimuove eventuali residui JSON se l'IA dovesse impazzire
     const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/i) || text.match(/```json([\s\S]*?)```/i);
     if (jsonMatch) displayString = text.replace(jsonMatch[0], '').trim();
 
@@ -178,7 +182,7 @@ function App() {
   const handleForceSync = async () => {
     try {
       const safePlayers = Array.isArray(players) ? players : [];
-      if (safePlayers.length === 0) { alert("Nessun giocatore in memoria sul PC."); return; }
+      if (safePlayers.length === 0) { alert("Nessun giocatore in memoria sul PC da inviare al cloud."); return; }
       setIsUploading(true);
       for (const p of safePlayers) {
         const toInsert = { name: p.name || 'Sconosciuto', age: parseInt(p.age) ? parseInt(p.age) : null, position: p.position || 'N/D', type: p.type || 'player', attributes: p.attributes || {}, notes: p.notes || '' };
@@ -268,7 +272,7 @@ function App() {
     
     let displayMsg = currentInputText;
     if (imagesToSend.length > 0) {
-      displayMsg = currentInputText ? `📷 [${imagesToSend.length} Immagini allegate] ${currentInputText}` : `📷 [${imagesToSend.length} Immagini allegate] Analizza.`;
+      displayMsg = currentInputText ? `📷 [${imagesToSend.length} Immagini allegate] ${currentInputText}` : `📷 [${imagesToSend.length} Immagini allegate] Analizzate questi screen.`;
     }
 
     const userRole = `user:${activeRoom}`; 
@@ -286,7 +290,7 @@ function App() {
       let instructionPrompt = getRolePrompt(activeRoom, clubName, clubVision, finances, squadContext, shortlistContext, matchesContext, tacticalFocus, tacticReports);
 
       if (imagesToSend.length > 0) {
-        instructionPrompt += `\n\nIL MISTER TI HA ALLEGATO ${imagesToSend.length} IMMAGINI E DICE: "${currentInputText || 'Analizza basandoti sul database.'}"`;
+        instructionPrompt += `\n\nIL MISTER TI HA ALLEGATO ${imagesToSend.length} IMMAGINI E DICE: "${currentInputText || 'Analizza queste immagini in modo sintetico.'}"`;
       } else {
         instructionPrompt += `\n\nIL MISTER TI DICE: "${currentInputText}"`;
       }
@@ -309,6 +313,10 @@ function App() {
     } catch (error) { console.error(error); } finally { setIsTyping(false); }
   };
 
+
+  // =====================================
+  // APPRENDIMENTO TATTICO TESTUALE E VISIVO
+  // =====================================
   const handleAnalyzeExternalTactic = async () => {
     if (!externalTacticInput.trim()) return; setIsTyping(true); if (isMobile) setMobileViewTab('chat');
     const inputBuffer = externalTacticInput; setExternalTacticInput('');
@@ -318,14 +326,17 @@ function App() {
       const instructionPrompt = getRolePrompt('vice', clubName, clubVision, finances, squadContext, [], [], tacticalFocus, tacticReports) + 
       `\n\n[!!! ECCEZIONE ALLA REGOLA DELLA SINTESI !!!]
       Per questa richiesta DEVI ESSERE DESCRITTIVO E DETTAGLIATO. 
-      STUDIA QUESTA NUOVA TATTICA O IDEA DEL MISTER: """${inputBuffer}""". 
-      Fai un riassunto dei movimenti tattici, poi adattala in base ai giocatori in rosa elencando apertamente chi può farla e chi no.
-      Inizia la risposta con TITOLO: [Nome breve della tattica]`;
+      STUDIA QUESTA NUOVA TATTICA O GUIDA CHE TI HA PASSATO IL MISTER: """${inputBuffer}""". 
+      Fai esattamente questo:
+      1. Scrivi un riassunto e una spiegazione tattica di questa scelta.
+      2. Adattala alla nostra rosa incrociando i ruoli richiesti con gli attributi 1-20 e le medie voto.
+      3. Dì chiaramente se siamo in grado di giocarla.
+      Inizia la risposta SEMPRE con TITOLO: [Nome breve della tattica]`;
       
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(instructionPrompt); const outputText = result.response.text();
       const cleanTitle = (outputText.match(/TITOLO:\s*(.*)/i)?.[1] || `Tattica del ${new Date().toLocaleDateString()}`).replace('[', '').replace(']', '').trim();
-      const userMsg = { sender_role: `user:vice`, content: `📋 Studia e memorizza questa idea/tattica: "${inputBuffer.substring(0,30)}..."` };
+      const userMsg = { sender_role: `user:vice`, content: `📋 Studia e memorizza questa nuova tattica dal testo fornito.` };
       const aiMsg = { sender_role: 'vice', content: outputText }; setMessages(prev => [...prev, userMsg, aiMsg]);
       setTacticReports(prev => [{ title: cleanTitle, content: outputText, id: Date.now() }, ...prev]); 
       try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e) {}
@@ -352,10 +363,11 @@ function App() {
       
       const instructionPrompt = getRolePrompt('vice', clubName, clubVision, finances, squadContext, [], [], tacticalFocus, tacticReports) + 
       `\n\n[!!! ECCEZIONE ALLA REGOLA DELLA SINTESI !!!]
-      Sii DESCRITTIVO. Il Mister ti ha inviato SCREENSHOT DELLA SUA TATTICA DI GIOCO su FM26.
-      1. Estrai il Modulo, i Ruoli esatti e le Istruzioni di squadra visibili.
-      2. Adattala alla rosa attuale incrociando i dati e le medie voto.
-      Inizia con TITOLO: [Nome del Modulo]`;
+      Per questa richiesta DEVI ESSERE DESCRITTIVO E DETTAGLIATO. 
+      Il Mister ti ha inviato gli SCREENSHOT DELLA SUA TATTICA DI GIOCO su FM26.
+      1. Estrai il Modulo, i Ruoli esatti e le Istruzioni di squadra.
+      2. Adattala alla rosa attuale incrociando ruoli con attributi e medie voto.
+      Inizia SEMPRE la risposta con TITOLO: [Nome del Modulo intuito]`;
 
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const promptArray = [instructionPrompt, ...imageParts];
@@ -370,7 +382,12 @@ function App() {
       setTacticReports(prev => [{ title: cleanTitle, content: outputText, id: Date.now() }, ...prev]); 
       
       try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e) {}
-    } catch (error) { console.error(error); } finally { setIsTyping(false); if (tacticImageUploadRef.current) tacticImageUploadRef.current.value = ""; }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsTyping(false);
+      if (tacticImageUploadRef.current) tacticImageUploadRef.current.value = "";
+    }
   };
 
   const handleDeleteTacticReport = (id) => {
@@ -387,6 +404,7 @@ function App() {
     
     setIsUploading(true);
     let addedMatches = 0; let addedScouts = 0; let updatedFinances = false;
+    
     setUploadProgressText(`⏳ Analisi di ${files.length} documenti societari...`);
 
     try {
@@ -396,7 +414,9 @@ function App() {
         setUploadProgressText(`⏳ Archiviazione documento ${i + 1} di ${files.length}...`);
         const file = files[i];
         const imageBase64 = await new Promise((resolve) => {
-          const reader = new FileReader(); reader.onloadend = () => resolve(reader.result.split(',')[1]); reader.readAsDataURL(file);
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result.split(',')[1]);
+          reader.readAsDataURL(file);
         });
         const imagePart = { inlineData: { data: imageBase64, mimeType: file.type } };
 
@@ -420,11 +440,13 @@ function App() {
             updatedFinances = true;
           } else if (parsed.type === 'match') {
             const m = { opponent: parsed.opponent || 'Avversario', result: parsed.result || '-', xg_team: parsed.xg_team || '-', xg_opp: parsed.xg_opp || '-', analysis: parsed.analysis || '' };
-            setMatches(prev => [m, ...prev]); addedMatches++;
+            setMatches(prev => [m, ...prev]);
+            addedMatches++;
             try { await supabase.from('matches').insert([m]); } catch(e){}
           } else if (parsed.type === 'scout') {
             const s = { name: parsed.name || 'Sconosciuto', position: parsed.position || '-', verdict: parsed.verdict || 'VAGLIATO', analysis: parsed.analysis || '' };
-            setShortlist(prev => [s, ...prev]); addedScouts++;
+            setShortlist(prev => [s, ...prev]);
+            addedScouts++;
             try { await supabase.from('shortlist').insert([s]); } catch(e){}
           }
         } catch (jsonErr) {}
@@ -436,7 +458,8 @@ function App() {
       try { await supabase.from('club_messages').insert([sysMsg]); } catch(e) {}
 
     } catch (e) { 
-      console.error(e); setUploadProgressText("❌ Errore durante l'archiviazione.");
+      console.error(e); 
+      setUploadProgressText("❌ Errore durante l'archiviazione dei documenti.");
     } finally { 
       setTimeout(() => { setIsUploading(false); setUploadProgressText(''); }, 3500);
       if(genericUploadRef.current) genericUploadRef.current.value = "";
@@ -699,6 +722,7 @@ function App() {
                       <Database size={18} /> {isUploading ? '⏳ Archiviazione...' : 'Carica Finanze/Partite/Scout'}
                     </button>
                     {uploadProgressText && <div style={{ fontSize: '12px', color: '#fbbf24', marginTop: '8px', fontWeight: 'bold', textAlign: 'center' }}>{uploadProgressText}</div>}
+                    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '8px', lineHeight: '1.4', fontStyle: 'italic' }}>*Seleziona più foto. Il Vice capirà se sono bilanci, report di mercato o Data Hub e li salverà nei database.*</div>
                   </div>
                   
                   {/* STUDIO TATTICA / COVERCIANO */}
