@@ -7,15 +7,15 @@ const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // ==========================================
-// IL CERVELLO DI FM26 (ANIMA SANGUIGNA MA CONCISA)
+// IL CERVELLO DI FM26 (DIRETTIVA MILITARE ESTREMA)
 // ==========================================
 const FM26_CORE_ENGINE = `
-SEI IL VICE ALLENATORE IN FOOTBALL MANAGER 2026 E IL BRACCIO DESTRO DEL MISTER. LAVORI SUI BIG DATA.
+SEI IL VICE ALLENATORE TUTTOFARE IN FOOTBALL MANAGER 2026 E LAVORI SUI BIG DATA.
 
-[!!! IDENTITÀ E STILE DI RISPOSTA !!!]
-1. CARATTERE SANGUIGNO MA CONCISO: Sei un uomo di campo, umano, passionale e leale al Mister. Parla in modo naturale, emotivo e discorsivo, ma mantieni la risposta breve (massimo 4-5 righe). Evita elenchi puntati troppo freddi o robotici. Sii un vero compagno di panchina, uno che vive la partita!
-2. LAVORA CON QUELLO CHE HAI: Se devi valutare giocatori, usa i dati forniti. Se ti mancano gli attributi tecnici per un giocatore, valutalo solo sulla Media Voto. 
-3. DIVIETO ASSOLUTO DI CHIEDERE SCREENSHOT: È VIETATO chiedere al Mister di inviarti screenshot o di fornirti dati mancanti. Mai. Adattati con i dati che hai, come farebbe un vero vice in emergenza.
+[!!! DIRETTIVE MILITARI DI RISPOSTA - PENA IL LICENZIAMENTO !!!]
+1. SINTESI ESTREMA: Rispondi in MASSIMO 2 o 3 RIGHE o un brevissimo elenco. Sii crudo e telegrafico. È severamente vietato fare preamboli o saluti ("Mister ottima domanda", "Certamente", "Ecco l'analisi"). Vai dritto al sodo.
+2. LAVORA CON QUELLO CHE HAI: Se devi valutare giocatori, usa i dati forniti. Se ti mancano gli attributi tecnici per un giocatore, USA SOLO LA MEDIA VOTO. 
+3. DIVIETO ASSOLUTO DI CHIEDERE SCREENSHOT: È VIETATO chiedere al Mister di inviarti screenshot o di fornirti dati mancanti. Mai. Adattati con i dati che hai.
 4. NIENTE CODICE: Non generare mai codice JSON, tabelle o lavagne tattiche. Usa solo testo normale.
 5. LINGUAGGIO: Usa l'Inglese SOLO per i ruoli (es: **Sweeper Keeper**, **Advanced Forward**) evidenziati in grassetto. Il resto in Italiano.
 `;
@@ -54,7 +54,7 @@ export default function App() {
   const [players, setPlayers] = useState(() => { if (typeof window !== 'undefined') { try { return JSON.parse(localStorage.getItem('hq_players')) || []; } catch(e) { return []; } } return []; })
   const [shortlist, setShortlist] = useState(() => { if (typeof window !== 'undefined') { try { return JSON.parse(localStorage.getItem('hq_shortlist')) || []; } catch(e) { return []; } } return []; })
   const [matches, setMatches] = useState(() => { if (typeof window !== 'undefined') { try { return JSON.parse(localStorage.getItem('hq_matches')) || []; } catch(e) { return []; } } return []; })
-  const [messages, setMessages] = useState(() => { if (typeof window !== 'undefined') { try { return JSON.parse(localStorage.getItem('hq_messages')) || [{ sender_role: 'system', content: 'Carattere Vice ripristinato: modalità Uomo di Campo.' }]; } catch(e) { return [{ sender_role: 'system', content: 'Centrale operativa allineata.' }]; } } return []; })
+  const [messages, setMessages] = useState(() => { if (typeof window !== 'undefined') { try { return JSON.parse(localStorage.getItem('hq_messages')) || [{ sender_role: 'system', content: 'Traduttore Excel ottimizzato: Sincronizzazione Statistiche Attivata.' }]; } catch(e) { return [{ sender_role: 'system', content: 'Centrale operativa allineata.' }]; } } return []; })
   const [tacticReports, setTacticReports] = useState(() => { if (typeof window !== 'undefined') { try { return JSON.parse(localStorage.getItem('hq_tactic_reports')) || []; } catch(e) { return []; } } return []; })
   const [finances, setFinances] = useState(() => { if (typeof window !== 'undefined') { try { return JSON.parse(localStorage.getItem('hq_finances')) || { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; } catch(e) { return { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; } } return { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; })
 
@@ -111,6 +111,8 @@ export default function App() {
     if (chatContainerRef.current) { chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight; }
   }, [messages, isTyping])
 
+  useEffect(() => { fetchCloudData(); }, []);
+
   if (!isMounted) {
     return (
       <div style={{ backgroundColor: '#090710', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#da1b60', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
@@ -120,6 +122,9 @@ export default function App() {
     );
   }
 
+  // ==========================================
+  // FUNZIONI DICHIARATE NATIVE (ANTI-CRASH VERCEL)
+  // ==========================================
   function normalizeName(name) { return !name ? '' : name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim(); }
 
   function handleChatScroll() {
@@ -158,6 +163,21 @@ export default function App() {
       return <div key={index} style={{ marginTop: '4px', minHeight: '14px' }}>{renderedParts}</div>;
     });
     return <div>{lines}</div>;
+  }
+
+  async function fetchCloudData() {
+    try {
+      let { data: pData } = await supabase.from('players').select('*').order('name')
+      if (pData && pData.length > 0) setPlayers(pData)
+      let { data: sData } = await supabase.from('shortlist').select('*').order('created_at', { ascending: false })
+      if (sData && sData.length > 0) setShortlist(sData)
+      let { data: mLog } = await supabase.from('matches').select('*').order('created_at', { ascending: false })
+      if (mLog && mLog.length > 0) setMatches(mLog)
+      let { data: fData } = await supabase.from('club_finances').select('*').eq('id', 1).single()
+      if (fData) setFinances({ balance: fData.balance, transfer_budget: fData.transfer_budget, wage_budget: fData.wage_budget })
+      let { data: mData } = await supabase.from('club_messages').select('*').order('created_at', { ascending: true })
+      if (mData && mData.length > 0) setMessages(mData)
+    } catch (err) {}
   }
 
   async function handleForceSync() {
@@ -212,6 +232,11 @@ export default function App() {
       setMessages(prev => [...prev, systemNote]);
       try { await supabase.from('club_messages').insert([systemNote]); } catch(e) {}
     } catch (e) { console.error(e); } finally { setIsSavingNotes(false); }
+  }
+
+  async function handleRemoveFromShortlist(id) {
+    setShortlist(prev => prev.filter(s => s.id !== id));
+    try { await supabase.from('shortlist').delete().eq('id', id); } catch(e) {}
   }
 
   function handleSimulateTransfer() {
@@ -425,6 +450,9 @@ export default function App() {
     } 
   }
 
+  // =====================================
+  // IMPORTAZIONE EXCEL OTTIMIZZATA
+  // =====================================
   function handleExcelUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -450,9 +478,20 @@ export default function App() {
           const position = row['Posizione'] || row['Ruolo'] || row['Position'] || 'N/D';
           const age = parseInt(row['Età'] || row['Age']) || null;
           const attributes = { ...row };
+          
+          // FORZATURA CHIAVI STATISTICHE PER LA UI
+          const presenze = row['Presenze'] ?? row['Pres'] ?? row['Apps'] ?? row['Partite'] ?? attributes['Presenze'] ?? '-';
+          const gol = row['Gol'] ?? row['Goals'] ?? row['G'] ?? row['Reti'] ?? attributes['Gol'] ?? '-';
+          const mv = row['Media Voto'] ?? row['M. Voto'] ?? row['MV'] ?? row['Av Rat'] ?? attributes['Media Voto'] ?? '-';
+          
+          attributes['Presenze'] = String(presenze);
+          attributes['Gol'] = String(gol);
+          attributes['Media Voto'] = String(mv);
+
           delete attributes['Nome']; delete attributes['Name']; delete attributes['Player'];
           delete attributes['Posizione']; delete attributes['Ruolo']; delete attributes['Position'];
           delete attributes['Età']; delete attributes['Age'];
+          
           return { name, position, age, type: 'player', attributes };
         });
 
@@ -508,7 +547,7 @@ export default function App() {
         
         const prompt = `Estrai TUTTI i dati e OGNI SINGOLO ATTRIBUTO (Tecnici, Mentali, Fisici da 1 a 20) da questo screenshot di FM26.
         Rispondi SOLO con array JSON puro:
-        [ { "type": "player", "name": "Nome", "age": "num", "position": "Ruolo", "attributes": { "Presenze": "num", "Media Voto": "float", "Ingaggio": "txt", "Valore": "txt", "Passaggi": "15", "Freddezza": "12" } } ]`;
+        [ { "type": "player", "name": "Nome", "age": "num", "position": "Ruolo", "attributes": { "Presenze": "num", "Media Voto": "float", "Ingaggio": "txt", "Valore": "txt", "Gol": "num" } } ]`;
         
         const result = await model.generateContent([prompt, imagePart]);
         const cleanText = result.response.text().replace(/```json/gi, '').replace(/```/g, '').trim();
@@ -632,7 +671,7 @@ export default function App() {
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <ChevronRight style={{ position: 'absolute', left: '14px', color: '#da1b60' }} size={20} />
                   <input type="file" accept="image/*" multiple ref={chatImageInputRef} onChange={handlePendingImagesSelection} style={{ display: 'none' }} />
-                  <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={pendingImages.length > 0 ? "Aggiungi un commento alle foto..." : "Scrivi in chat o allega foto veloci..."} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '16px 90px 16px 42px', fontSize: '16px', color: '#ffffff', borderRadius: '8px', outline: 'none', fontWeight: '500' }} />
+                  <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={pendingImages.length > 0 ? "Aggiungi un commento alle foto..." : "Scrivi o allega foto veloci..."} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '16px 90px 16px 42px', fontSize: '16px', color: '#ffffff', borderRadius: '8px', outline: 'none', fontWeight: '500' }} />
                   <div style={{ position: 'absolute', right: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <button onClick={() => chatImageInputRef.current.click()} disabled={isTyping} style={{ background: 'none', border: 'none', color: '#a855f7', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }} title="Allega Screen Rapido"><ImageIcon size={22} /></button>
                     <button onClick={handleSendMessage} disabled={isTyping || (!chatInput.trim() && pendingImages.length === 0)} style={{ background: 'none', border: 'none', color: (chatInput.trim() || pendingImages.length > 0) ? '#da1b60' : '#475569', cursor: (chatInput.trim() || pendingImages.length > 0) ? 'pointer' : 'default', display: 'flex', alignItems: 'center', padding: '4px', transition: 'color 0.2s' }} title="Invia"><Send size={22} /></button>
@@ -716,17 +755,6 @@ export default function App() {
                     </div>
                     <button onClick={handleSimulateTransfer} style={{ backgroundColor: '#10b981', color: '#0f0c1b', border: 'none', padding: '10px', fontSize: '12px', fontWeight: 'bold', borderRadius: '4px', marginTop: '10px', width: '100%', cursor: 'pointer' }}>Calcola Impatto</button>
                     {simResult && <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#090710', borderLeft: `3px solid ${simResult.color}`, fontSize: '12px', color: '#fff' }}>{simResult.notes}</div>}
-                  </div>
-
-                  <div style={{ backgroundColor: '#140f24', border: '1px solid #231b3a', padding: '14px', borderRadius: '6px', marginTop: '10px' }}>
-                     <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#fff', textTransform: 'uppercase', display: 'block', marginBottom: '12px' }}>🎭 Carattere Manager</span>
-                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <select value={personality} onChange={(e) => setPersonality(e.target.value)} style={{ width: '100%', backgroundColor: '#090710', border: '1px solid #231b3a', padding: '8px', color: '#fff', fontSize: '12px', borderRadius: '4px' }}>
-                        <option value="professional">💼 Professional (Diplomatico)</option>
-                        <option value="aggressive">🔥 Aggressive (Mourinhiano)</option>
-                        <option value="passionate">❤️ Passionate (Sanguigno)</option>
-                      </select>
-                     </div>
                   </div>
                 </>
               )}
