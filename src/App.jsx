@@ -20,7 +20,7 @@ Sei il Vice Allenatore del club in Football Manager 2026. Sei il braccio destro 
 5. TERMINOLOGIA: Usa i nomi dei ruoli in inglese (es: **Box to Box Midfielder**, **Inverted Winger**), ma discuti in italiano.
 `;
 
-function getRolePrompt(role, clubName, clubVision, clubHistory, finances, squadContext, shortlistContext, matchesContext, tacticalFocus, tacticReports) {
+const getRolePrompt = (role, clubName, clubVision, clubHistory, finances, squadContext, shortlistContext, matchesContext, tacticalFocus, tacticReports) => {
   const baseRules = FM26_CORE_ENGINE + `\nCLUB ATTUALE: ${clubName.toUpperCase()}.\n`;
   
   const savedTacticsSummary = tacticReports && tacticReports.length > 0 
@@ -35,9 +35,10 @@ DATI ROSA ATTUALE (Non chiedere altri dati oltre questi): ${JSON.stringify(squad
 `;
 
   return baseRules + contextData;
-}
+};
 
 export default function App() {
+  // 1. STATI E VARIABILI
   const [isMounted, setIsMounted] = useState(false);
   const [activeRoom, setActiveRoom] = useState('vice') 
   const [dbSubTab, setDbSubTab] = useState('first_team') 
@@ -56,7 +57,7 @@ export default function App() {
   const [players, setPlayers] = useState(() => { if (typeof window !== 'undefined') { try { return JSON.parse(localStorage.getItem('hq_players')) || []; } catch(e) { return []; } } return []; })
   const [shortlist, setShortlist] = useState(() => { if (typeof window !== 'undefined') { try { return JSON.parse(localStorage.getItem('hq_shortlist')) || []; } catch(e) { return []; } } return []; })
   const [matches, setMatches] = useState(() => { if (typeof window !== 'undefined') { try { return JSON.parse(localStorage.getItem('hq_matches')) || []; } catch(e) { return []; } } return []; })
-  const [messages, setMessages] = useState(() => { if (typeof window !== 'undefined') { try { return JSON.parse(localStorage.getItem('hq_messages')) || [{ sender_role: 'system', content: 'Cervello tattico sbloccato. Sezione Storia Club integrata correttamente.' }]; } catch(e) { return [{ sender_role: 'system', content: 'Centrale operativa allineata.' }]; } } return []; })
+  const [messages, setMessages] = useState(() => { if (typeof window !== 'undefined') { try { return JSON.parse(localStorage.getItem('hq_messages')) || [{ sender_role: 'system', content: 'Architettura rigorosa antiproiettile caricata con successo.' }]; } catch(e) { return [{ sender_role: 'system', content: 'Centrale operativa allineata.' }]; } } return []; })
   const [tacticReports, setTacticReports] = useState(() => { if (typeof window !== 'undefined') { try { return JSON.parse(localStorage.getItem('hq_tactic_reports')) || []; } catch(e) { return []; } } return []; })
   const [finances, setFinances] = useState(() => { if (typeof window !== 'undefined') { try { return JSON.parse(localStorage.getItem('hq_finances')) || { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; } catch(e) { return { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; } } return { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; })
 
@@ -81,6 +82,7 @@ export default function App() {
   const [isTyping, setIsTyping] = useState(false)
   const [chatInput, setChatInput] = useState('')
 
+  // 2. REFERENCES
   const fileInputRef = useRef(null)
   const excelInputRef = useRef(null)
   const genericUploadRef = useRef(null)
@@ -88,6 +90,7 @@ export default function App() {
   const chatImageInputRef = useRef(null) 
   const chatContainerRef = useRef(null)
 
+  // 3. EFFECTS
   useEffect(() => {
     setIsMounted(true); 
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
@@ -114,28 +117,45 @@ export default function App() {
     if (chatContainerRef.current) { chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight; }
   }, [messages, isTyping])
 
-  if (!isMounted) {
-    return (
-      <div style={{ backgroundColor: '#090710', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#da1b60', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-        <h1 style={{ fontWeight: '900', textTransform: 'uppercase', fontSize: '24px' }}>Avvio Segreteria...</h1>
-        <p style={{ color: '#64748b' }}>Sincronizzazione Database in corso</p>
-      </div>
-    );
-  }
+  useEffect(() => { fetchCloudData(); }, []);
 
-  function normalizeName(name) { return !name ? '' : name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim(); }
+  // 4. METODI BASE (Definiti rigorosamente in ordine per Vercel)
+  const normalizeName = (name) => { return !name ? '' : name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim(); };
 
-  function handleChatScroll() {
+  const handleChatScroll = () => {
     if (!chatContainerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
     if (scrollHeight - scrollTop - clientHeight > 100) { setShowScrollBottom(true); } else { setShowScrollBottom(false); }
-  }
+  };
 
-  function scrollToBottom() {
+  const scrollToBottom = () => {
     if (chatContainerRef.current) { chatContainerRef.current.scrollTo({ top: chatContainerRef.current.scrollHeight, behavior: 'smooth' }); }
-  }
+  };
 
-  function formatMessageContent(text) {
+  const handlePendingImagesSelection = (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const filesArray = Array.from(e.target.files);
+      setPendingImages(prev => [...prev, ...filesArray]);
+    }
+    if (chatImageInputRef.current) chatImageInputRef.current.value = "";
+  };
+
+  const removePendingImage = (index) => { setPendingImages(prev => prev.filter((_, i) => i !== index)); };
+
+  const handleSidebarClick = (room) => { setActiveRoom(room); setMobileViewTab('chat'); };
+  
+  const handleSelectPlayer = (player, event) => {
+    if (event.target.closest('button')) return; 
+    if (!player) return;
+    setSelectedProfile(player); setEditingNotes(player.notes || '');
+  };
+
+  const handleSort = (field) => {
+    if (sortField === field) { setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc'); } 
+    else { setSortField(field); setSortDirection('asc'); }
+  };
+
+  const formatMessageContent = (text) => {
     if (!text) return null;
     let displayString = text;
     const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/i) || text.match(/```json([\s\S]*?)```/i);
@@ -161,9 +181,10 @@ export default function App() {
       return <div key={index} style={{ marginTop: '4px', minHeight: '14px' }}>{renderedParts}</div>;
     });
     return <div>{lines}</div>;
-  }
+  };
 
-  async function fetchCloudData() {
+  // 5. METODI ASINCRONI E CLOUD
+  const fetchCloudData = async () => {
     try {
       let { data: pData } = await supabase.from('players').select('*').order('name')
       if (pData && pData.length > 0) setPlayers(pData)
@@ -176,9 +197,9 @@ export default function App() {
       let { data: mData } = await supabase.from('club_messages').select('*').order('created_at', { ascending: true })
       if (mData && mData.length > 0) setMessages(mData)
     } catch (err) {}
-  }
+  };
 
-  async function handleForceSync() {
+  const handleForceSync = async () => {
     try {
       const safePlayers = Array.isArray(players) ? players : [];
       if (safePlayers.length === 0) { alert("Nessun giocatore in memoria sul PC da inviare al cloud."); return; }
@@ -192,9 +213,9 @@ export default function App() {
       }
       alert("✅ Sincronizzazione Cloud completata!");
     } catch (e) { alert("Errore durante la sincronizzazione."); } finally { setIsUploading(false); }
-  }
+  };
 
-  async function handleClearAllData() {
+  const handleClearAllData = async () => {
     if (window.confirm("Vuoi azzerare la sede societaria e ricominciare da zero? ATTENZIONE: Questo cancellerà tutta la memoria dello staff.")) {
       setPlayers([]); setShortlist([]); setMatches([]); setTacticReports([]);
       setMessages([{ sender_role: 'system', content: 'Database azzerato. Memoria dello staff pulita.' }]);
@@ -202,25 +223,17 @@ export default function App() {
       setSelectedProfile(null); localStorage.clear();
       try { await supabase.from('players').delete().neq('id', 0); await supabase.from('shortlist').delete().neq('id', 0); await supabase.from('matches').delete().neq('id', 0); await supabase.from('club_messages').delete().neq('id', 0); } catch(e) {}
     }
-  }
+  };
 
-  function handleSidebarClick(room) { setActiveRoom(room); setMobileViewTab('chat'); }
-  
-  function handleSelectPlayer(player, event) {
-    if (event.target.closest('button')) return; 
-    if (!player) return;
-    setSelectedProfile(player); setEditingNotes(player.notes || '');
-  }
-
-  async function handleDeletePlayer(id) {
+  const handleDeletePlayer = async (id) => {
     if (window.confirm("Eliminare definitivamente il giocatore dall'archivio?")) {
       setPlayers(prev => prev.filter(p => p.id !== id));
       try { await supabase.from('players').delete().eq('id', id); } catch(e) {}
       if (selectedProfile && selectedProfile.id === id) setSelectedProfile(null);
     }
-  }
+  };
 
-  async function handleSavePlayerNotes() {
+  const handleSavePlayerNotes = async () => {
     if (!selectedProfile) return; setIsSavingNotes(true);
     try {
       const updatedPlayers = players.map(p => p.id === selectedProfile.id ? { ...p, notes: editingNotes } : p);
@@ -230,9 +243,19 @@ export default function App() {
       setMessages(prev => [...prev, systemNote]);
       try { await supabase.from('club_messages').insert([systemNote]); } catch(e) {}
     } catch (e) { console.error(e); } finally { setIsSavingNotes(false); }
-  }
+  };
 
-  async function handleSendMessage() {
+  const handleSimulateTransfer = () => {
+    const cost = parseFloat(simCost) || 0; const weeklyWage = parseFloat(simWage) || 0; const years = parseInt(simYears) || 1;
+    const annualAmortization = cost / years; const annualWageCost = weeklyWage * 52; const totalAnnualImpact = annualAmortization + annualWageCost;
+    let status = 'APPROVATO'; let color = '#34d399'; let notes = `Operazione sostenibile. Impatto annuo: €${totalAnnualImpact.toLocaleString()}.`;
+    if (cost > finances.transfer_budget) { status = 'BLOCCATO'; color = '#ef4444'; notes = `Fondi insufficienti nel budget trasferimenti.`; }
+    else if (weeklyWage > (finances.wage_budget * 0.3)) { status = 'RISCHIO SPOGLIATOIO'; color = '#ffaa00'; notes = `L'ingaggio supera il 30% del tetto salariale.`; }
+    setSimResult({ status, color, annualAmortization, annualWageCost, notes });
+  };
+
+  // 6. METODI DI INTELLIGENZA ARTIFICIALE
+  const handleSendMessage = async () => {
     if (!chatInput.trim() && pendingImages.length === 0) return;
     
     const currentInputText = chatInput.trim(); 
@@ -281,17 +304,16 @@ export default function App() {
       setMessages(prev => [...prev, aiMessageObj]);
       try { await supabase.from('club_messages').insert([aiMessageObj]); } catch(e) {}
     } catch (error) { console.error(error); } finally { setIsTyping(false); }
-  }
+  };
 
-  async function handleAnalyzeExternalTactic() {
+  const handleAnalyzeExternalTactic = async () => {
     if (!externalTacticInput.trim()) return; setIsTyping(true); if (isMobile) setMobileViewTab('chat');
     const inputBuffer = externalTacticInput; setExternalTacticInput('');
     try {
       const safePlayers = Array.isArray(players) ? players : [];
       const squadContext = safePlayers.map(p => ({ nome: p?.name, ruoli: p?.position, stats: p?.attributes || {} }));
       const instructionPrompt = getRolePrompt('vice', clubName, clubVision, clubHistory, finances, squadContext, [], [], tacticalFocus, tacticReports) + 
-      `\n\n[!!! ECCEZIONE ALLA REGOLA DELLA SINTESI !!!]
-      STUDIA QUESTA TATTICA O GUIDA: """${inputBuffer}""". 
+      `\n\nSTUDIA QUESTA TATTICA O GUIDA: """${inputBuffer}""". 
       Fai un riassunto dei movimenti, poi adattala alla nostra rosa attuale usando i nostri dati e dimmi chiaramente se possiamo giocarla o no.
       Inizia la risposta con TITOLO: [Nome breve della tattica]`;
       
@@ -303,9 +325,9 @@ export default function App() {
       setTacticReports(prev => [{ title: cleanTitle, content: outputText, id: Date.now() }, ...prev]); 
       try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e) {}
     } catch (error) { console.error(error); } finally { setIsTyping(false); }
-  }
+  };
 
-  async function handleTacticImagesUpload(event) {
+  const handleTacticImagesUpload = async (event) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
     setIsTyping(true);
@@ -324,8 +346,7 @@ export default function App() {
       const squadContext = safePlayers.map(p => ({ nome: p?.name, ruoli: p?.position, stats: p?.attributes || {} }));
       
       const instructionPrompt = getRolePrompt('vice', clubName, clubVision, clubHistory, finances, squadContext, [], [], tacticalFocus, tacticReports) + 
-      `\n\n[!!! ECCEZIONE ALLA REGOLA DELLA SINTESI !!!]
-      Il Mister ti ha inviato gli SCREENSHOT della tattica.
+      `\n\nIl Mister ti ha inviato gli SCREENSHOT della tattica.
       1. Estrai Modulo, Ruoli esatti e Istruzioni.
       2. Adattala alla rosa incrociando attributi e medie voto che hai in memoria.
       Inizia con TITOLO: [Nome del Modulo]`;
@@ -343,16 +364,16 @@ export default function App() {
       setTacticReports(prev => [{ title: cleanTitle, content: outputText, id: Date.now() }, ...prev]); 
       try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e) {}
     } catch (error) { console.error(error); } finally { setIsTyping(false); if (tacticImageUploadRef.current) tacticImageUploadRef.current.value = ""; }
-  }
+  };
 
-  function handleDeleteTacticReport(id) {
+  const handleDeleteTacticReport = (id) => {
     if (window.confirm("Vuoi eliminare questa tattica dall'archivio? Il Vice non la ricorderà più.")) {
       setTacticReports(prev => prev.filter(t => t.id !== id));
       if (selectedTacticReport && selectedTacticReport.id === id) { setSelectedTacticReport(null); }
     }
-  }
+  };
 
-  async function handleGenericDocsUpload(event) {
+  const handleGenericDocsUpload = async (event) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
     
@@ -367,7 +388,9 @@ export default function App() {
         setUploadProgressText(`⏳ Archiviazione documento ${i + 1} di ${files.length}...`);
         const file = files[i];
         const imageBase64 = await new Promise((resolve) => {
-          const reader = new FileReader(); reader.onloadend = () => resolve(reader.result.split(',')[1]); reader.readAsDataURL(file);
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result.split(',')[1]);
+          reader.readAsDataURL(file);
         });
         const imagePart = { inlineData: { data: imageBase64, mimeType: file.type } };
 
@@ -412,9 +435,9 @@ export default function App() {
       setTimeout(() => { setIsUploading(false); setUploadProgressText(''); }, 3500);
       if(genericUploadRef.current) genericUploadRef.current.value = "";
     } 
-  }
+  };
 
-  function handleExcelUpload(event) {
+  const handleExcelUpload = (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
@@ -440,7 +463,6 @@ export default function App() {
           const age = parseInt(row['Età'] || row['Age']) || null;
           const attributes = { ...row };
           
-          // MAPPA UNIVERSALE DELLE STATISTICHE PER LA UI DI APPRENDIMENTO AUTOMATICO
           const presenze = row['Presenze'] ?? row['Pres'] ?? row['Apps'] ?? row['Partite'] ?? attributes['Presenze'] ?? '-';
           const gol = row['Gol'] ?? row['Goals'] ?? row['G'] ?? row['Reti'] ?? attributes['Gol'] ?? '-';
           const mv = row['Media Voto'] ?? row['M. Voto'] ?? row['MV'] ?? row['Av Rat'] ?? attributes['Media Voto'] ?? '-';
@@ -476,21 +498,22 @@ export default function App() {
         } catch(e) {}
 
         setUploadProgressText(`✅ Excel caricato! Aggiornati ${updatedCount} profili nel Database.`);
-        const sysMsg = { sender_role: 'system', content: `✅ Database Aggiornato tramite File Excel. Sincronizzati ${updatedCount} giocatori.` };
+        const sysMsg = { sender_role: 'system', content: `✅ Database Aggiornato tramite File Excel. Importati/Aggiornati ${updatedCount} giocatori.` };
         setMessages(prev => [...prev, sysMsg]);
         try { await supabase.from('club_messages').insert([sysMsg]); } catch(e) {}
       } catch (error) {
-        console.error(error); setUploadProgressText("❌ Errore file Excel.");
-      } platformFinally: {
+        console.error("Errore lettura Excel:", error);
+        setUploadProgressText("❌ Errore file Excel.");
+      } finally {
         setTimeout(() => { setIsUploading(false); setUploadProgressText(''); }, 3500);
         if(excelInputRef.current) excelInputRef.current.value = "";
       }
     };
     reader.onerror = () => { setUploadProgressText("❌ Errore di lettura."); setIsUploading(false); };
     reader.readAsBinaryString(file);
-  }
+  };
 
-  async function handleImageUploadOCR(event) {
+  const handleImageUploadOCR = async (event) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
     setIsUploading(true); let totalExtracted = 0;
@@ -543,8 +566,8 @@ export default function App() {
         } catch (jsonErr) {}
       }
       
-      setUploadProgressText(`✅ Scansione completata!`);
-      const systemNote = { sender_role: 'system', content: `✅ Database Aggiornato tramite screenshot.` };
+      setUploadProgressText(`✅ Scansione completata! Aggiornati ${totalExtracted} profili.`);
+      const systemNote = { sender_role: 'system', content: `✅ Database Aggiornato: estratti dati da ${files.length} screenshot.` };
       setMessages(prev => [...prev, systemNote]);
       try { await supabase.from('club_messages').insert([systemNote]); } catch(e) {}
     } catch (e) { 
@@ -553,9 +576,10 @@ export default function App() {
       setTimeout(() => { setIsUploading(false); setUploadProgressText(''); }, 3500);
       if(fileInputRef.current) fileInputRef.current.value = "";
     } 
-  }
+  };
 
-  function renderChatWindow() {
+  // 7. FUNZIONI DI RENDER VISIVO
+  const renderChatWindow = () => {
     const safeMessages = Array.isArray(messages) ? messages : [];
     const visibleMessages = safeMessages.filter(msg => {
       if (!msg || !msg.sender_role) return false;
@@ -631,7 +655,7 @@ export default function App() {
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <ChevronRight style={{ position: 'absolute', left: '14px', color: '#da1b60' }} size={20} />
                   <input type="file" accept="image/*" multiple ref={chatImageInputRef} onChange={handlePendingImagesSelection} style={{ display: 'none' }} />
-                  <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={pendingImages.length > 0 ? "Aggiungi un commento alle foto..." : "Scrivi in chat o allega foto veloci..."} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '16px 90px 16px 42px', fontSize: '16px', color: '#ffffff', borderRadius: '8px', outline: 'none', fontWeight: '500' }} />
+                  <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={pendingImages.length > 0 ? "Aggiungi un commento alle foto..." : "Scrivi o allega foto veloci..."} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '16px 90px 16px 42px', fontSize: '16px', color: '#ffffff', borderRadius: '8px', outline: 'none', fontWeight: '500' }} />
                   <div style={{ position: 'absolute', right: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <button onClick={() => chatImageInputRef.current.click()} disabled={isTyping} style={{ background: 'none', border: 'none', color: '#a855f7', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }} title="Allega Screen Rapido"><ImageIcon size={22} /></button>
                     <button onClick={handleSendMessage} disabled={isTyping || (!chatInput.trim() && pendingImages.length === 0)} style={{ background: 'none', border: 'none', color: (chatInput.trim() || pendingImages.length > 0) ? '#da1b60' : '#475569', cursor: (chatInput.trim() || pendingImages.length > 0) ? 'pointer' : 'default', display: 'flex', alignItems: 'center', padding: '4px', transition: 'color 0.2s' }} title="Invia"><Send size={22} /></button>
@@ -652,7 +676,6 @@ export default function App() {
                     <textarea value={clubVision} onChange={(e) => setClubVision(e.target.value)} placeholder="Voglio creare un ecosistema stile Barcellona..." style={{ width: '100%', height: '80px', backgroundColor: '#090710', border: '1px solid #231b3a', padding: '12px', color: '#ffffff', fontSize: '14px', resize: 'none', borderRadius: '6px', boxSizing: 'border-box', lineHeight: '1.5' }} />
                   </div>
 
-                  {/* NUOVA SEZIONE INSERIMENTO STORIA CLUB */}
                   <div style={{ backgroundColor: '#140f24', border: '1px solid #231b3a', padding: '16px', borderRadius: '6px', marginTop: '10px' }}>
                     <label style={{ fontSize: '12px', color: '#e2e8f0', textTransform: 'uppercase', display: 'block', marginBottom: '8px', fontWeight: '900' }}>📜 Storia e Albo d'Oro del Club</label>
                     <textarea value={clubHistory} onChange={(e) => setClubHistory(e.target.value)} placeholder="Incolla o scrivi la storia del Sora, i campionati vinti, i piazzamenti storici e le leggende del club..." style={{ width: '100%', height: '100px', backgroundColor: '#090710', border: '1px solid #231b3a', padding: '12px', color: '#ffffff', fontSize: '14px', resize: 'vertical', borderRadius: '6px', boxSizing: 'border-box', lineHeight: '1.5' }} />
@@ -730,9 +753,9 @@ export default function App() {
         </div>
       </div>
     );
-  }
+  };
 
-  function renderMasterDatabase() {
+  const renderMasterDatabase = () => {
     const safePlayers = Array.isArray(players) ? players : [];
     const safeShortlist = Array.isArray(shortlist) ? shortlist : [];
     const safeMatches = Array.isArray(matches) ? matches : [];
@@ -775,13 +798,13 @@ export default function App() {
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
             <input type="file" accept=".xlsx, .xlsm" ref={excelInputRef} onChange={handleExcelUpload} style={{ display: 'none' }} />
-            <button onClick={() => excelInputRef.current.click()} disabled={isUploading} style={{ backgroundColor: '#10b981', color: '#0f0b1b', border: 'none', padding: '10px 16px', fontSize: '12px', fontWeight: 'bold', borderRadius: '6px', cursor: isUploading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <button onClick={() => excelInputRef.current.click()} disabled={isUploading} style={{ backgroundColor: '#10b981', color: '#0f0c1b', border: 'none', padding: '10px 16px', fontSize: '12px', fontWeight: 'bold', borderRadius: '6px', cursor: isUploading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
                <FileSpreadsheet size={16} /> Excel (.xlsm/.xlsx)
             </button>
 
             <input type="file" accept="image/*" multiple ref={fileInputRef} onChange={handleImageUploadOCR} style={{ display: 'none' }} />
             <button onClick={() => fileInputRef.current.click()} disabled={isUploading} style={{ backgroundColor: isUploading ? '#fbbf24' : '#da1b60', color: isUploading ? '#0f0c1b' : '#fff', border: 'none', padding: '10px 20px', fontSize: '12px', fontWeight: 'bold', borderRadius: '6px', cursor: isUploading ? 'not-allowed' : 'pointer' }}>
-              {isUploading ? '⏳ SCANSIONE...' : 'Carica Foto Rosa'}
+              {isUploading ? '⏳ SCANSIONE...' : 'Carica Foto Rosa (Multiplo)'}
             </button>
             {safePlayers.length > 0 && <button onClick={handleClearAllData} style={{ backgroundColor: 'transparent', border: '2px solid #ef4444', color: '#ef4444', padding: '10px 16px', fontSize: '12px', fontWeight: 'bold', borderRadius: '6px', cursor: 'pointer' }}>Azzera</button>}
           </div>
@@ -862,7 +885,7 @@ export default function App() {
         </div>
       </div>
     );
-  }
+  };
 
   const navContainerStyle = isMobile ? { position: 'fixed', bottom: 0, left: 0, right: 0, height: '70px', width: '100%', backgroundColor: '#140f24', borderTop: '2px solid #231b3a', display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '0 10px', gap: '14px', overflowX: 'auto', zIndex: 1000 } : { width: '90px', backgroundColor: '#140f24', borderRight: '2px solid #231b3a', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '20px', gap: '16px', zIndex: 10 };
   const navButtonStyle = (room, color) => ({ background: activeRoom === room ? '#271e44' : 'none', border: activeRoom === room ? `2px solid ${color}` : '2px solid transparent', color: activeRoom === room ? color : '#475569', padding: '10px', borderRadius: '10px', cursor: 'pointer', flexShrink: 0 });
