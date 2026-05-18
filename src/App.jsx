@@ -70,7 +70,7 @@ function App() {
   const [players, setPlayers] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_players')) || []; } catch(e) { return []; } })
   const [shortlist, setShortlist] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_shortlist')) || []; } catch(e) { return []; } })
   const [matches, setMatches] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_matches')) || []; } catch(e) { return []; } })
-  const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_messages')) || [{ sender_role: 'system', content: 'Aggiornamento Segreteria: Scanner multi-documento attivato e modulo Coverciano per lo studio tattiche installato.' }]; } catch(e) { return [{ sender_role: 'system', content: 'Centrale operativa allineata.' }]; } })
+  const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_messages')) || [{ sender_role: 'system', content: 'Aggiornamento Segreteria: Modulo di apprendimento tattico visivo installato.' }]; } catch(e) { return [{ sender_role: 'system', content: 'Centrale operativa allineata.' }]; } })
   const [tacticReports, setTacticReports] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_tactic_reports')) || []; } catch(e) { return []; } })
   const [finances, setFinances] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_finances')) || { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; } catch(e) { return { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; } })
 
@@ -86,8 +86,6 @@ function App() {
   const [simResult, setSimResult] = useState(null)
   
   const [externalTacticInput, setExternalTacticInput] = useState('')
-  const [dsTacticInput, setDsTacticInput] = useState('')
-  
   const [selectedProfile, setSelectedProfile] = useState(null) 
   const [selectedTacticReport, setSelectedTacticReport] = useState(null)
   const [editingNotes, setEditingNotes] = useState('')
@@ -96,17 +94,10 @@ function App() {
   const [isUploading, setIsUploading] = useState(false)
   const [isTyping, setIsTyping] = useState(false)
   const [chatInput, setChatInput] = useState('')
-  const [cloudStatus, setCloudStatus] = useState('online') 
 
   const fileInputRef = useRef(null)
-  const genericUploadRef = useRef(null) // RIFERIMENTO PER IL NUOVO SCANNER GENERICO
-  const pressInputRef = useRef(null)
-  const youthInputRef = useRef(null)
-  const financeInputRef = useRef(null)
-  const analystInputRef = useRef(null)
-  const scoutInputRef = useRef(null)
-  const vicePreMatchRef = useRef(null)
-  const viceTacticInputRef = useRef(null)
+  const genericUploadRef = useRef(null)
+  const tacticImageUploadRef = useRef(null) // RIFERIMENTO PER APPRENDIMENTO TATTICO VISIVO
   const chatImageInputRef = useRef(null) 
   const chatContainerRef = useRef(null)
 
@@ -255,8 +246,8 @@ function App() {
     const cost = parseFloat(simCost) || 0; const weeklyWage = parseFloat(simWage) || 0; const years = parseInt(simYears) || 1;
     const annualAmortization = cost / years; const annualWageCost = weeklyWage * 52; const totalAnnualImpact = annualAmortization + annualWageCost;
     let status = 'APPROVATO'; let color = '#34d399'; let notes = `Operazione sostenibile. Impatto annuo: €${totalAnnualImpact.toLocaleString()}.`;
-    if (cost > finances.transfer_budget) { status = 'BLOCCATO'; color = '#ef4444'; notes = `Fondi insufficienti nel budget.`; }
-    else if (weeklyWage > (finances.wage_budget * 0.3)) { status = 'RISCHIO SPOGLIATOIO'; color = '#ffaa00'; notes = `Ingaggio troppo alto (>30%).`; }
+    if (cost > finances.transfer_budget) { status = 'BLOCCATO'; color = '#ef4444'; notes = `Fondi insufficienti nel budget trasferimenti.`; }
+    else if (weeklyWage > (finances.wage_budget * 0.3)) { status = 'RISCHIO SPOGLIATOIO'; color = '#ffaa00'; notes = `L'ingaggio supera il 30% del tetto salariale.`; }
     setSimResult({ status, color, annualAmortization, annualWageCost, notes });
   };
 
@@ -326,26 +317,10 @@ function App() {
     } catch (error) { console.error(error); } finally { setIsTyping(false); }
   };
 
-  const handlePreMatchAnalysis = async (event) => {
-    const file = event.target.files[0]; if (!file) return; setIsTyping(true); if (isMobile) setMobileViewTab('chat');
-    try {
-      const reader = new FileReader(); reader.onloadend = async () => {
-        const imagePart = { inlineData: { data: reader.result.split(',')[1], mimeType: file.type } };
-        const safePlayers = Array.isArray(players) ? players : [];
-        const squadContext = safePlayers.map(p => ({ nome: p?.name, ruoli: p?.position, stats: p?.attributes || {} }));
-        const instructionPrompt = getRolePrompt('vice', clubName, clubVision, finances, squadContext, [], [], tacticalFocus, tacticReports) + 
-        `\n\nIL MISTER TI HA DATO LO SCREEN DELL'AVVERSARIO. FAI UN BRIEFING PRE-PARTITA FM26 molto sintetico in base alla Tattica in Archivio.`;
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        const result = await model.generateContent([instructionPrompt, imagePart]); const output = result.response.text();
-        const userMsg = { sender_role: `user:vice`, content: `📷 Mister ha appeso alla lavagna lo schieramento degli avversari.` };
-        const aiMsg = { sender_role: 'vice', content: output }; setMessages(prev => [...prev, userMsg, aiMsg]);
-        try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e) {}
-      }; reader.readAsDataURL(file);
-    } catch (err) { console.error(err); } finally { setIsTyping(false); }
-  };
-
-  // NUOVO SISTEMA: ANALISI TATTICA PROFONDA E DETTAGLIATA
+  // =====================================
+  // APPRENDIMENTO TATTICO TESTUALE E VISIVO (COVERCIANO)
+  // =====================================
   const handleAnalyzeExternalTactic = async () => {
     if (!externalTacticInput.trim()) return; setIsTyping(true); if (isMobile) setMobileViewTab('chat');
     const inputBuffer = externalTacticInput; setExternalTacticInput('');
@@ -368,11 +343,64 @@ function App() {
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(instructionPrompt); const outputText = result.response.text();
       const cleanTitle = (outputText.match(/TITOLO:\s*(.*)/i)?.[1] || `Tattica del ${new Date().toLocaleDateString()}`).replace('[', '').replace(']', '').trim();
-      const userMsg = { sender_role: `user:vice`, content: `📋 Studia e memorizza questa nuova tattica/guida dettagliata.` };
+      const userMsg = { sender_role: `user:vice`, content: `📋 Studia e memorizza questa nuova tattica dal testo fornito.` };
       const aiMsg = { sender_role: 'vice', content: outputText }; setMessages(prev => [...prev, userMsg, aiMsg]);
       setTacticReports(prev => [{ title: cleanTitle, content: outputText, id: Date.now() }, ...prev]); 
       try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e) {}
     } catch (error) { console.error(error); } finally { setIsTyping(false); }
+  };
+
+  const handleTacticImagesUpload = async (event) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    setIsTyping(true);
+    if (isMobile) setMobileViewTab('chat');
+
+    try {
+      const imageParts = await Promise.all(Array.from(files).map(file => {
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => { resolve({ inlineData: { data: reader.result.split(',')[1], mimeType: file.type } }); };
+          reader.readAsDataURL(file);
+        });
+      }));
+
+      const safePlayers = Array.isArray(players) ? players : [];
+      const squadContext = safePlayers.map(p => ({ nome: p?.name, ruoli: p?.position, stats: p?.attributes || {} }));
+      
+      const instructionPrompt = getRolePrompt('vice', clubName, clubVision, finances, squadContext, [], [], tacticalFocus, tacticReports) + 
+      `\n\n[!!! ECCEZIONE ALLA REGOLA DELLA SINTESI !!!]
+      Per questa specifica richiesta, DEVI ESSERE DETTAGLIATO E DESCRITTIVO. Niente sintesi estrema.
+      
+      Il Mister ti ha inviato gli SCREENSHOT DELLA SUA TATTICA DI GIOCO su FM26.
+      Fai esattamente questo analizzando le immagini allegate:
+      1. Estrai il Modulo (es. 4-2-3-1), i Ruoli esatti e i Compiti assegnati.
+      2. Estrai le istruzioni di squadra (In Possesso, Transizione, Non In Possesso) visibili.
+      3. Scrivi un riassunto dettagliato di come funziona questa tattica e come si muoveranno i giocatori.
+      4. ADATTALA AL NOSTRO CLUB (${clubName}), incrociando spietatamente i ruoli estratti con gli attributi 1-20 e le medie voto della NOSTRA ROSA attuale.
+      5. Dì chiaramente al Mister se la rosa attuale è in grado di giocarla.
+      
+      Inizia SEMPRE la risposta con TITOLO: [Nome del Modulo intuito, es. 4-2-3-1 Dominio]`;
+
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const promptArray = [instructionPrompt, ...imageParts];
+      
+      const result = await model.generateContent(promptArray);
+      const outputText = result.response.text();
+      
+      const cleanTitle = (outputText.match(/TITOLO:\s*(.*)/i)?.[1] || `Tattica Visiva del ${new Date().toLocaleDateString()}`).replace('[', '').replace(']', '').trim();
+      const userMsg = { sender_role: `user:vice`, content: `📷 [Allegati ${files.length} screen tattici] Studia e memorizza questa tattica dalle immagini.` };
+      const aiMsg = { sender_role: 'vice', content: outputText }; 
+      setMessages(prev => [...prev, userMsg, aiMsg]);
+      setTacticReports(prev => [{ title: cleanTitle, content: outputText, id: Date.now() }, ...prev]); 
+      
+      try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e) {}
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsTyping(false);
+      if (tacticImageUploadRef.current) tacticImageUploadRef.current.value = "";
+    }
   };
 
   const handleDeleteTacticReport = (id) => {
@@ -382,7 +410,7 @@ function App() {
     }
   };
 
-  // NUOVO SISTEMA: ARCHIVIAZIONE DOCUMENTI GENERICI (MULTI-UPLOAD)
+  // ARCHIVIAZIONE DOCUMENTI GENERICI (MULTI-UPLOAD)
   const handleGenericDocsUpload = async (event) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
@@ -642,14 +670,23 @@ function App() {
                       <Database size={18} /> {isUploading ? '⏳ Archiviazione...' : 'Carica Finanze/Partite/Scout'}
                     </button>
                     {uploadProgressText && <div style={{ fontSize: '12px', color: '#fbbf24', marginTop: '8px', fontWeight: 'bold', textAlign: 'center' }}>{uploadProgressText}</div>}
-                    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '8px', lineHeight: '1.4', fontStyle: 'italic' }}>*Seleziona più foto contemporaneamente. Il Vice capirà se sono bilanci, report di mercato o Data Hub e li salverà nei database corretti.*</div>
+                    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '8px', lineHeight: '1.4', fontStyle: 'italic' }}>*Seleziona più foto. Il Vice capirà se sono bilanci, report di mercato o Data Hub e li salverà nei database.*</div>
                   </div>
                   
                   {/* STUDIO TATTICA / COVERCIANO */}
                   <div style={{ backgroundColor: '#140f24', border: '1px solid #231b3a', padding: '14px', borderRadius: '6px', marginTop: '10px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#fff', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>🧠 Studio Tattica (Modalità Coverciano)</span>
-                    <textarea value={externalTacticInput} onChange={(e) => setExternalTacticInput(e.target.value)} placeholder="Incolla l'intero testo di una guida tattica o di un articolo. Il Vice farà un'analisi profonda incrociando i requisiti con gli attributi dei nostri giocatori..." style={{ width: '94%', height: '250px', backgroundColor: '#090710', border: '1px solid #231b3a', padding: '12px', color: '#ffffff', fontSize: '14px', resize: 'vertical', borderRadius: '6px' }} />
-                    <button onClick={handleAnalyzeExternalTactic} disabled={isTyping || !externalTacticInput.trim()} style={{ backgroundColor: '#22d3ee', color: '#0f0b1b', border: 'none', padding: '14px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer', width: '100%', marginTop: '8px' }}>Esegui Analisi Tattica Profonda</button>
+                    <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#fff', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>🧠 Apprendimento Tattico (Coverciano)</span>
+                    
+                    <textarea value={externalTacticInput} onChange={(e) => setExternalTacticInput(e.target.value)} placeholder="Incolla il testo di una guida tattica..." style={{ width: '94%', height: '100px', backgroundColor: '#090710', border: '1px solid #231b3a', padding: '12px', color: '#ffffff', fontSize: '14px', resize: 'vertical', borderRadius: '6px', marginBottom: '8px' }} />
+                    <button onClick={handleAnalyzeExternalTactic} disabled={isTyping || !externalTacticInput.trim()} style={{ backgroundColor: '#22d3ee', color: '#0f0b1b', border: 'none', padding: '10px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer', width: '100%', marginBottom: '12px' }}>Studia Tattica da Testo</button>
+                    
+                    <div style={{ borderTop: '1px dashed #231b3a', margin: '12px 0' }}></div>
+                    <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '8px', textAlign: 'center' }}>OPPURE CARICA GLI SCREENSHOT DAL GIOCO</span>
+                    
+                    <input type="file" accept="image/*" multiple ref={tacticImageUploadRef} onChange={handleTacticImagesUpload} style={{ display: 'none' }} />
+                    <button onClick={() => tacticImageUploadRef.current.click()} disabled={isTyping} style={{ backgroundColor: '#a855f7', color: '#fff', border: 'none', padding: '10px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                      <ImageIcon size={16} /> Studia Tattica da Screenshot
+                    </button>
                   </div>
 
                   {/* ARCHIVIO TATTICHE CON TASTO ELIMINA */}
@@ -768,7 +805,7 @@ function App() {
             </div>
           ) : dbSubTab === 'shortlist' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {safeShortlist.length === 0 ? <div style={{ color: '#475569', textAlign: 'center', padding: '40px' }}>Lista desideri vuota. Il Vice la aggiornerà quando archivi uno screen di un giocatore esterno.</div> : safeShortlist.map((s, i) => (
+              {safeShortlist.length === 0 ? <div style={{ color: '#475569', textAlign: 'center', padding: '40px' }}>Lista desideri vuota. Il Vice la aggiornerà appena valuterà i tuoi screen di mercato.</div> : safeShortlist.map((s, i) => (
                 <div key={s?.id || i} style={{ backgroundColor: '#140f24', border: '2px solid #f43f5e', padding: '16px', borderRadius: '8px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                     <span style={{ fontSize: '18px', fontWeight: '900', color: '#fff' }}>{s?.name || 'Sconosciuto'}</span>
@@ -781,7 +818,7 @@ function App() {
             </div>
           ) : dbSubTab === 'matches' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {safeMatches.length === 0 ? <div style={{ color: '#475569', textAlign: 'center', padding: '40px' }}>Nessuna partita a referto. Manda gli screen del Data Hub allo scanner societario per archiviarle.</div> : safeMatches.map((m, i) => (
+              {safeMatches.length === 0 ? <div style={{ color: '#475569', textAlign: 'center', padding: '40px' }}>Nessuna partita a referto. Manda gli screen del Data Hub in chat per archiviarle.</div> : safeMatches.map((m, i) => (
                 <div key={m?.id || i} style={{ backgroundColor: '#140f24', border: '2px solid #3b82f6', padding: '16px', borderRadius: '8px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                     <span style={{ fontSize: '18px', fontWeight: '900', color: '#fff' }}>SORA vs {m?.opponent?.toUpperCase() || 'SQUADRA AVV.'}</span>
@@ -909,6 +946,7 @@ function App() {
               <span style={{ color: '#ffffff', fontWeight: '900' }}>{selectedProfile?.age || 'N/D'}</span>
             </div>
             
+            {/* ELENCO DINAMICO DI TUTTI GLI ATTRIBUTI TROVATI */}
             {selectedProfile?.attributes && Object.entries(selectedProfile.attributes).map(([key, val]) => {
                const numVal = parseInt(val);
                let valColor = '#34d399'; 
