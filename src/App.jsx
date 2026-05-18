@@ -2,54 +2,43 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabaseClient'
 import { MessageSquare, Database, Send, Users, Sliders, TrendingUp, ImageIcon, X, Briefcase, ChevronRight, HelpCircle, Award, Activity, Search, Trash2, ChevronDown, FileSpreadsheet } from 'lucide-react'
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import * as XLSX from 'xlsx' // <-- LA NUOVA LIBRERIA EXCEL
+import * as XLSX from 'xlsx' 
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // ==========================================
-// IL CERVELLO DI FM26
+// IL CERVELLO DI FM26 (DIRETTIVA MILITARE: ZERO SCUSE)
 // ==========================================
 const FM26_CORE_ENGINE = `
-IL TUO CERVELLO È BASATO SUL MOTORE DI GIOCO DI FOOTBALL MANAGER 2026 E SUI BIG DATA.
-Sei uno staff umano, discorsivo ma tecnicamente e statisticamente ineccepibile. 
+IL TUO CERVELLO È BASATO SUL MOTORE DI GIOCO DI FOOTBALL MANAGER 2026. Sei il Vice Allenatore e fai le veci di tutto lo staff.
 
-[!!! REGOLA DELLA SINTESI ASSOLUTA !!!]
-Rispondi in modo ESTREMAMENTE CONCISO in chat. Vai dritto al punto. Usa al massimo 3-4 righe. Niente preamboli. NESSUNA LAVAGNA TATTICA.
-
-[!!! REGOLA DEGLI ATTRIBUTI E DEI DATI !!!]
-Valuta i giocatori in base ai DATI ROSA ATTUALE forniti o alle IMMAGINI allegate. Usa gli attributi da 1 a 20 per giustificare le tue scelte. NON chiedere al Mister di inviarti screenshot se hai già i dati. 
-
-[!!! REGOLA LINGUISTICA CRITICA !!!]
-- I RUOLI DEI GIOCATORI devono essere ESCLUSIVAMENTE IN INGLESE (es: **Box To Box Midfielder**, **Advanced Forward**).
-- I COMPITI (es: **Difendere**, **Sostenere**, **Attaccare**) e LE ISTRUZIONI DI SQUADRA devono essere in ITALIANO.
-- EVIDENZIA SEMPRE in **GRASSETTO** i termini tattici.
+[!!! DIRETTIVE MILITARI DI RISPOSTA - PENA IL LICENZIAMENTO !!!]
+1. SINTESI ESTREMA: Rispondi in MASSIMO 3 o 4 RIGHE. Sii secco, crudo e telegrafico. È severamente vietato fare preamboli ("Mister ottima domanda", "Certamente Mister"). Vai dritto alla tattica.
+2. LAVORA CON QUELLO CHE HAI: Se devi valutare un giocatore e nel database vedi solo la sua "Media Voto" ma ti mancano gli attributi tecnici (es. Passaggi, Visione), VALUTALO SOLO SULLA MEDIA VOTO.
+3. DIVIETO DI CHIEDERE SCREENSHOT: È ASSOLUTAMENTE VIETATO chiedere al Mister di inviarti screenshot o dirti dati mancanti. Piuttosto che chiedere dati, arrangiati con quelli che vedi.
+4. NESSUNA LAVAGNA: Non generare mai codice JSON, tabelle o lavagne tattiche.
+5. LINGUAGGIO: Usa l'Inglese SOLO per i ruoli (es: **Sweeper Keeper**, **Advanced Forward**) evidenziati in grassetto. Il resto in Italiano.
 `;
 
 const getRolePrompt = (role, clubName, clubVision, finances, squadContext, shortlistContext, matchesContext, tacticalFocus, tacticReports) => {
-  const baseRules = FM26_CORE_ENGINE + `\nSEI UN PROFESSIONISTA DEL CLUB: ${clubName.toUpperCase()}.\n`;
+  const baseRules = FM26_CORE_ENGINE + `\nSEI IL VICE ALLENATORE DEL CLUB: ${clubName.toUpperCase()}.\n`;
   
   const savedTacticsSummary = tacticReports && tacticReports.length > 0 
     ? tacticReports.map(t => `${t.title}: ${t.content.substring(0, 250)}...`).join(' | ') 
     : 'Nessuna tattica specifica assimilata in archivio.';
 
   const contextData = `
-🎯 VISIONE SOCIETARIA A LUNGO TERMINE: "${clubVision}"
-📋 TATTICHE ASSIMILATE DAL MISTER (Il nostro Playbook): ${savedTacticsSummary}
-DATI ROSA ATTUALE: ${JSON.stringify(squadContext.slice(0, 40))}
+🎯 PROGETTO SOCIETARIO: "${clubVision}"
+📋 TATTICHE ASSIMILATE: ${savedTacticsSummary}
+DATI ROSA ATTUALE (Non chiedere altri dati oltre questi): ${JSON.stringify(squadContext.slice(0, 40))}
 `;
 
-  if (role === 'vice') return baseRules + `RUOLO: VICE ALLENATORE E TATTICO DI FM26. Uomo di campo, sanguigno ma iper-sintetico. Discuti di tattica basandoti sui numeri reali dei giocatori e sulle TATTICHE ASSIMILATE che il Mister ti ha fatto studiare.` + contextData;
-  if (role === 'ds') return baseRules + `RUOLO: DIRETTORE SPORTIVO. Cinico, focalizzato su bilanci e plusvalenze. Valuta esuberi e acquisti basandoti rigidamente sulle TATTICHE ASSIMILATE dal mister, sugli attributi e Media Voto.` + contextData;
-  if (role === 'scout') return baseRules + `RUOLO: CAPO OSSERVATORE. Valuta se i giocatori negli screen hanno gli attributi adatti al Progetto e alle TATTICHE ASSIMILATE.` + `\nSHORTLIST: ${JSON.stringify(shortlistContext)}` + contextData;
-  if (role === 'cfo') return baseRules + `RUOLO: CFO FINANZE. La cassa è di €${finances?.balance || 0}. Controlla che le spese siano in linea col Progetto.` + contextData;
-  if (role === 'analyst') return baseRules + `RUOLO: MATCH ANALYST. Nerd dei dati. Analizza xG, Passaggi Chiave e zone di calore in 2 righe rispetto alle tattiche che usiamo.` + contextData;
-  
   return baseRules + contextData;
 };
 
 function App() {
-  const [activeRoom, setActiveRoom] = useState('board') 
+  const [activeRoom, setActiveRoom] = useState('vice') 
   const [dbSubTab, setDbSubTab] = useState('first_team') 
   const [sortField, setSortField] = useState('name')
   const [sortDirection, setSortDirection] = useState('asc')
@@ -71,7 +60,7 @@ function App() {
   const [players, setPlayers] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_players')) || []; } catch(e) { return []; } })
   const [shortlist, setShortlist] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_shortlist')) || []; } catch(e) { return []; } })
   const [matches, setMatches] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_matches')) || []; } catch(e) { return []; } })
-  const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_messages')) || [{ sender_role: 'system', content: 'Modulo di importazione file Excel (.xlsx / .xlsm) attivato.' }]; } catch(e) { return [{ sender_role: 'system', content: 'Centrale operativa allineata.' }]; } })
+  const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_messages')) || [{ sender_role: 'system', content: 'Protocollo Tolleranza Zero attivato: il Vice risponderà in 3 righe, senza mai chiedere screenshot.' }]; } catch(e) { return [{ sender_role: 'system', content: 'Centrale operativa allineata.' }]; } })
   const [tacticReports, setTacticReports] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_tactic_reports')) || []; } catch(e) { return []; } })
   const [finances, setFinances] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_finances')) || { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; } catch(e) { return { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; } })
 
@@ -87,7 +76,6 @@ function App() {
   const [simResult, setSimResult] = useState(null)
   
   const [externalTacticInput, setExternalTacticInput] = useState('')
-  const [dsTacticInput, setDsTacticInput] = useState('')
   
   const [selectedProfile, setSelectedProfile] = useState(null) 
   const [selectedTacticReport, setSelectedTacticReport] = useState(null)
@@ -99,7 +87,7 @@ function App() {
   const [chatInput, setChatInput] = useState('')
 
   const fileInputRef = useRef(null)
-  const excelInputRef = useRef(null) // <--- RIFERIMENTO PER IL FILE EXCEL
+  const excelInputRef = useRef(null)
   const genericUploadRef = useRef(null)
   const tacticImageUploadRef = useRef(null) 
   const chatImageInputRef = useRef(null) 
@@ -190,7 +178,7 @@ function App() {
   const handleForceSync = async () => {
     try {
       const safePlayers = Array.isArray(players) ? players : [];
-      if (safePlayers.length === 0) { alert("Nessun giocatore in memoria."); return; }
+      if (safePlayers.length === 0) { alert("Nessun giocatore in memoria sul PC."); return; }
       setIsUploading(true);
       for (const p of safePlayers) {
         const toInsert = { name: p.name || 'Sconosciuto', age: parseInt(p.age) ? parseInt(p.age) : null, position: p.position || 'N/D', type: p.type || 'player', attributes: p.attributes || {}, notes: p.notes || '' };
@@ -204,9 +192,9 @@ function App() {
   };
 
   const handleClearAllData = async () => {
-    if (window.confirm("Vuoi azzerare la sede societaria e ricominciare da zero?")) {
+    if (window.confirm("Vuoi azzerare la sede societaria e ricominciare da zero? ATTENZIONE: Questo cancellerà tutta la memoria dello staff.")) {
       setPlayers([]); setShortlist([]); setMatches([]); setTacticReports([]);
-      setMessages([{ sender_role: 'system', content: 'Centrale resettata con successo. Sede pulita.' }]);
+      setMessages([{ sender_role: 'system', content: 'Database azzerato. Memoria dello staff pulita.' }]);
       setFinances({ balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }); 
       setSelectedProfile(null); localStorage.clear();
       try { await supabase.from('players').delete().neq('id', 0); await supabase.from('shortlist').delete().neq('id', 0); await supabase.from('matches').delete().neq('id', 0); await supabase.from('club_messages').delete().neq('id', 0); } catch(e) {}
@@ -280,7 +268,7 @@ function App() {
     
     let displayMsg = currentInputText;
     if (imagesToSend.length > 0) {
-      displayMsg = currentInputText ? `📷 [${imagesToSend.length} Immagini allegate] ${currentInputText}` : `📷 [${imagesToSend.length} Immagini allegate] Analizzate questi screen.`;
+      displayMsg = currentInputText ? `📷 [${imagesToSend.length} Immagini allegate] ${currentInputText}` : `📷 [${imagesToSend.length} Immagini allegate] Analizza.`;
     }
 
     const userRole = `user:${activeRoom}`; 
@@ -298,7 +286,7 @@ function App() {
       let instructionPrompt = getRolePrompt(activeRoom, clubName, clubVision, finances, squadContext, shortlistContext, matchesContext, tacticalFocus, tacticReports);
 
       if (imagesToSend.length > 0) {
-        instructionPrompt += `\n\nIL MISTER TI HA ALLEGATO ${imagesToSend.length} IMMAGINI E DICE: "${currentInputText || 'Analizza queste immagini basandoti sul tuo ruolo e sulle nostre Tattiche in archivio.'}"`;
+        instructionPrompt += `\n\nIL MISTER TI HA ALLEGATO ${imagesToSend.length} IMMAGINI E DICE: "${currentInputText || 'Analizza basandoti sul database.'}"`;
       } else {
         instructionPrompt += `\n\nIL MISTER TI DICE: "${currentInputText}"`;
       }
@@ -315,16 +303,12 @@ function App() {
       const promptArray = [instructionPrompt, ...imageParts];
       
       const result = await model.generateContent(promptArray);
-      const aiMessageObj = { sender_role: activeRoom, content: result.response.text() };
+      const aiMessageObj = { sender_role: 'vice', content: result.response.text() };
       setMessages(prev => [...prev, aiMessageObj]);
       try { await supabase.from('club_messages').insert([aiMessageObj]); } catch(e) {}
     } catch (error) { console.error(error); } finally { setIsTyping(false); }
   };
 
-
-  // =====================================
-  // APPRENDIMENTO TATTICO TESTUALE E VISIVO
-  // =====================================
   const handleAnalyzeExternalTactic = async () => {
     if (!externalTacticInput.trim()) return; setIsTyping(true); if (isMobile) setMobileViewTab('chat');
     const inputBuffer = externalTacticInput; setExternalTacticInput('');
@@ -333,21 +317,15 @@ function App() {
       const squadContext = safePlayers.map(p => ({ nome: p?.name, ruoli: p?.position, stats: p?.attributes || {} }));
       const instructionPrompt = getRolePrompt('vice', clubName, clubVision, finances, squadContext, [], [], tacticalFocus, tacticReports) + 
       `\n\n[!!! ECCEZIONE ALLA REGOLA DELLA SINTESI !!!]
-      Per questa specifica richiesta, DEVI ESSERE DETTAGLIATO E DESCRITTIVO. Niente sintesi estrema.
-      
-      STUDIA QUESTA NUOVA TATTICA O GUIDA CHE TI HA PASSATO IL MISTER: """${inputBuffer}""". 
-      Fai esattamente questo:
-      1. Scrivi un bel riassunto e una spiegazione tattica profonda di questa scelta.
-      2. Spiega come dovrebbero muoversi i giocatori in campo (fase di possesso e non).
-      3. ADATTALA AL NOSTRO CLUB (${clubName}), incrociando spietatamente i ruoli richiesti dalla tattica con gli attributi 1-20 e le medie voto della NOSTRA ROSA attuale.
-      4. Dì chiaramente al Mister se, al momento, SIAMO IN GRADO di giocare così, o se ci mancano i giocatori giusti (elenca i ruoli scoperti).
-      
-      Inizia la risposta SEMPRE con TITOLO: [Nome breve della tattica]`;
+      Per questa richiesta DEVI ESSERE DESCRITTIVO E DETTAGLIATO. 
+      STUDIA QUESTA NUOVA TATTICA O IDEA DEL MISTER: """${inputBuffer}""". 
+      Fai un riassunto dei movimenti tattici, poi adattala in base ai giocatori in rosa elencando apertamente chi può farla e chi no.
+      Inizia la risposta con TITOLO: [Nome breve della tattica]`;
       
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(instructionPrompt); const outputText = result.response.text();
       const cleanTitle = (outputText.match(/TITOLO:\s*(.*)/i)?.[1] || `Tattica del ${new Date().toLocaleDateString()}`).replace('[', '').replace(']', '').trim();
-      const userMsg = { sender_role: `user:vice`, content: `📋 Studia e memorizza questa nuova tattica dal testo fornito.` };
+      const userMsg = { sender_role: `user:vice`, content: `📋 Studia e memorizza questa idea/tattica: "${inputBuffer.substring(0,30)}..."` };
       const aiMsg = { sender_role: 'vice', content: outputText }; setMessages(prev => [...prev, userMsg, aiMsg]);
       setTacticReports(prev => [{ title: cleanTitle, content: outputText, id: Date.now() }, ...prev]); 
       try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e) {}
@@ -374,17 +352,10 @@ function App() {
       
       const instructionPrompt = getRolePrompt('vice', clubName, clubVision, finances, squadContext, [], [], tacticalFocus, tacticReports) + 
       `\n\n[!!! ECCEZIONE ALLA REGOLA DELLA SINTESI !!!]
-      Per questa specifica richiesta, DEVI ESSERE DETTAGLIATO E DESCRITTIVO. Niente sintesi estrema.
-      
-      Il Mister ti ha inviato gli SCREENSHOT DELLA SUA TATTICA DI GIOCO su FM26.
-      Fai esattamente questo analizzando le immagini allegate:
-      1. Estrai il Modulo (es. 4-2-3-1), i Ruoli esatti e i Compiti assegnati.
-      2. Estrai le istruzioni di squadra (In Possesso, Transizione, Non In Possesso) visibili.
-      3. Scrivi un riassunto dettagliato di come funziona questa tattica e come si muoveranno i giocatori.
-      4. ADATTALA AL NOSTRO CLUB (${clubName}), incrociando spietatamente i ruoli estratti con gli attributi 1-20 e le medie voto della NOSTRA ROSA attuale.
-      5. Dì chiaramente al Mister se la rosa attuale è in grado di giocarla.
-      
-      Inizia SEMPRE la risposta con TITOLO: [Nome del Modulo intuito, es. 4-2-3-1 Dominio]`;
+      Sii DESCRITTIVO. Il Mister ti ha inviato SCREENSHOT DELLA SUA TATTICA DI GIOCO su FM26.
+      1. Estrai il Modulo, i Ruoli esatti e le Istruzioni di squadra visibili.
+      2. Adattala alla rosa attuale incrociando i dati e le medie voto.
+      Inizia con TITOLO: [Nome del Modulo]`;
 
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const promptArray = [instructionPrompt, ...imageParts];
@@ -399,12 +370,7 @@ function App() {
       setTacticReports(prev => [{ title: cleanTitle, content: outputText, id: Date.now() }, ...prev]); 
       
       try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e) {}
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsTyping(false);
-      if (tacticImageUploadRef.current) tacticImageUploadRef.current.value = "";
-    }
+    } catch (error) { console.error(error); } finally { setIsTyping(false); if (tacticImageUploadRef.current) tacticImageUploadRef.current.value = ""; }
   };
 
   const handleDeleteTacticReport = (id) => {
@@ -421,7 +387,6 @@ function App() {
     
     setIsUploading(true);
     let addedMatches = 0; let addedScouts = 0; let updatedFinances = false;
-    
     setUploadProgressText(`⏳ Analisi di ${files.length} documenti societari...`);
 
     try {
@@ -431,17 +396,14 @@ function App() {
         setUploadProgressText(`⏳ Archiviazione documento ${i + 1} di ${files.length}...`);
         const file = files[i];
         const imageBase64 = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result.split(',')[1]);
-          reader.readAsDataURL(file);
+          const reader = new FileReader(); reader.onloadend = () => resolve(reader.result.split(',')[1]); reader.readAsDataURL(file);
         });
         const imagePart = { inlineData: { data: imageBase64, mimeType: file.type } };
 
         const prompt = `Analizza questa immagine di Football Manager 2026. Capisci da solo di cosa si tratta e restituisci SOLO un JSON puro, senza formattazione Markdown.
-        Formati ammessi (scegli quello giusto):
-        1. Se sono Finanze: { "type": "finance", "balance": numero, "transfer_budget": numero, "wage_budget": numero }
-        2. Se è una Partita (Data Hub o Post-gara): { "type": "match", "opponent": "nome squadra avversaria", "result": "es. 2-1", "xg_team": numero_xg_nostro, "xg_opp": numero_xg_avversari, "analysis": "breve riassunto" }
-        3. Se è il Profilo di un Giocatore da Scoutare (non in rosa): { "type": "scout", "name": "nome", "position": "ruolo", "verdict": "ACQUISTARE o EVITARE", "analysis": "breve analisi" }
+        1. Se Finanze: { "type": "finance", "balance": numero, "transfer_budget": numero, "wage_budget": numero }
+        2. Se Partita: { "type": "match", "opponent": "nome avversaria", "result": "es. 2-1", "xg_team": num, "xg_opp": num, "analysis": "breve" }
+        3. Se Giocatore (Scout): { "type": "scout", "name": "nome", "position": "ruolo", "verdict": "ACQUISTARE o EVITARE", "analysis": "breve" }
         `;
         
         const result = await model.generateContent([prompt, imagePart]);
@@ -458,13 +420,11 @@ function App() {
             updatedFinances = true;
           } else if (parsed.type === 'match') {
             const m = { opponent: parsed.opponent || 'Avversario', result: parsed.result || '-', xg_team: parsed.xg_team || '-', xg_opp: parsed.xg_opp || '-', analysis: parsed.analysis || '' };
-            setMatches(prev => [m, ...prev]);
-            addedMatches++;
+            setMatches(prev => [m, ...prev]); addedMatches++;
             try { await supabase.from('matches').insert([m]); } catch(e){}
           } else if (parsed.type === 'scout') {
             const s = { name: parsed.name || 'Sconosciuto', position: parsed.position || '-', verdict: parsed.verdict || 'VAGLIATO', analysis: parsed.analysis || '' };
-            setShortlist(prev => [s, ...prev]);
-            addedScouts++;
+            setShortlist(prev => [s, ...prev]); addedScouts++;
             try { await supabase.from('shortlist').insert([s]); } catch(e){}
           }
         } catch (jsonErr) {}
@@ -476,17 +436,14 @@ function App() {
       try { await supabase.from('club_messages').insert([sysMsg]); } catch(e) {}
 
     } catch (e) { 
-      console.error(e); 
-      setUploadProgressText("❌ Errore durante l'archiviazione dei documenti.");
+      console.error(e); setUploadProgressText("❌ Errore durante l'archiviazione.");
     } finally { 
       setTimeout(() => { setIsUploading(false); setUploadProgressText(''); }, 3500);
       if(genericUploadRef.current) genericUploadRef.current.value = "";
     } 
   };
 
-  // =====================================
-  // NUOVO SISTEMA: LETTORE EXCEL MASSIVO
-  // =====================================
+  // EXCEL UPLOAD
   const handleExcelUpload = (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -501,52 +458,31 @@ function App() {
         const workbook = XLSX.read(data, { type: 'binary' });
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
-        
-        // Converte l'Excel in un Array di Oggetti JSON
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
         
-        if (jsonData.length === 0) {
-          setUploadProgressText("❌ Errore: Il file Excel sembra vuoto.");
-          setIsUploading(false);
-          return;
-        }
+        if (jsonData.length === 0) { setUploadProgressText("❌ Errore: Excel vuoto."); setIsUploading(false); return; }
 
         let updatedCount = 0;
-
-        // Trasforma ogni riga dell'Excel nel formato della nostra App
         const newPlayers = jsonData.map(row => {
-          // Cerchiamo le colonne chiave in modo flessibile
           const name = row['Nome'] || row['Name'] || row['Player'] || 'Sconosciuto';
           const position = row['Posizione'] || row['Ruolo'] || row['Position'] || 'N/D';
           const age = parseInt(row['Età'] || row['Age']) || null;
-          
-          // Tutto il resto lo mettiamo dentro "attributes"
           const attributes = { ...row };
           delete attributes['Nome']; delete attributes['Name']; delete attributes['Player'];
           delete attributes['Posizione']; delete attributes['Ruolo']; delete attributes['Position'];
           delete attributes['Età']; delete attributes['Age'];
-
           return { name, position, age, type: 'player', attributes };
         });
 
-        // Aggiorna lo stato dei giocatori fonendolo con quelli esistenti
         setPlayers(prev => {
           const list = Array.isArray(prev) ? [...prev] : []; 
           newPlayers.forEach(np => {
             const idx = list.findIndex(x => normalizeName(x?.name) === normalizeName(np.name));
-            if (idx >= 0) { 
-              list[idx] = { ...list[idx], ...np, attributes: { ...(list[idx]?.attributes || {}), ...(np.attributes || {}) } }; 
-              updatedCount++;
-            } 
-            else { 
-              list.push(np); 
-              updatedCount++;
-            }
-          }); 
-          return list;
+            if (idx >= 0) { list[idx] = { ...list[idx], ...np, attributes: { ...(list[idx]?.attributes || {}), ...(np.attributes || {}) } }; updatedCount++; } 
+            else { list.push(np); updatedCount++; }
+          }); return list;
         });
 
-        // Aggiorna Supabase
         try {
           let { data: dbPlayers } = await supabase.from('players').select('*');
           const safeDbPlayers = Array.isArray(dbPlayers) ? dbPlayers : [];
@@ -564,19 +500,80 @@ function App() {
 
       } catch (error) {
         console.error("Errore lettura Excel:", error);
-        setUploadProgressText("❌ Errore durante l'elaborazione del file Excel.");
+        setUploadProgressText("❌ Errore file Excel.");
       } finally {
         setTimeout(() => { setIsUploading(false); setUploadProgressText(''); }, 3500);
         if(excelInputRef.current) excelInputRef.current.value = "";
       }
     };
-
-    reader.onerror = () => {
-      setUploadProgressText("❌ Errore di lettura del file.");
-      setIsUploading(false);
-    };
-
+    reader.onerror = () => { setUploadProgressText("❌ Errore di lettura."); setIsUploading(false); };
     reader.readAsBinaryString(file);
+  };
+
+  // OCR DATABASE MASSIVO GIOCATORI DELLA ROSA
+  const handleImageUploadOCR = async (event) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    setIsUploading(true); let totalExtracted = 0;
+    setUploadProgressText(`⏳ Inizio scansione di ${files.length} immagini...`);
+
+    try {
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        setUploadProgressText(`⏳ Analisi foto ${i + 1} di ${files.length} in corso...`);
+        const imageBase64 = await new Promise((resolve) => { const reader = new FileReader(); reader.onloadend = () => resolve(reader.result.split(',')[1]); reader.readAsDataURL(file); });
+        const imagePart = { inlineData: { data: imageBase64, mimeType: file.type } };
+        
+        const prompt = `Estrai TUTTI i dati e OGNI SINGOLO ATTRIBUTO (Tecnici, Mentali, Fisici da 1 a 20) da questo screenshot di FM26.
+        Rispondi SOLO con array JSON puro:
+        [ { "type": "player", "name": "Nome", "age": "num", "position": "Ruolo", "attributes": { "Presenze": "num", "Media Voto": "float", "Ingaggio": "txt", "Valore": "txt", "Passaggi": "15", "Freddezza": "12" } } ]`;
+        
+        const result = await model.generateContent([prompt, imagePart]);
+        const cleanText = result.response.text().replace(/```json/gi, '').replace(/```/g, '').trim();
+        
+        try {
+          const extractedData = JSON.parse(cleanText);
+          if (Array.isArray(extractedData)) {
+            totalExtracted += extractedData.length;
+            const sanitizedData = extractedData.map(p => {
+              const ageVal = parseInt(p?.age);
+              return { name: p?.name || 'Sconosciuto', position: p?.position || 'N/D', age: isNaN(ageVal) ? null : ageVal, type: p?.type || 'player', attributes: p?.attributes || {} };
+            });
+
+            setPlayers(prev => {
+              const list = Array.isArray(prev) ? [...prev] : []; 
+              sanitizedData.forEach(np => {
+                const idx = list.findIndex(x => normalizeName(x?.name) === normalizeName(np.name));
+                if (idx >= 0) { list[idx] = { ...list[idx], ...np, attributes: { ...(list[idx]?.attributes || {}), ...(np.attributes || {}) } }; } 
+                else { list.push(np); }
+              }); return list;
+            });
+
+            try {
+              let { data: dbPlayers } = await supabase.from('players').select('*');
+              const safeDbPlayers = Array.isArray(dbPlayers) ? dbPlayers : [];
+              for (const p of sanitizedData) {
+                const match = safeDbPlayers.find(x => normalizeName(x?.name) === normalizeName(p.name));
+                if (match) { await supabase.from('players').update({ age: p.age, position: p.position, attributes: { ...(match.attributes || {}), ...p.attributes } }).eq('id', match.id); } 
+                else { await supabase.from('players').insert([p]); }
+              }
+            } catch(e) {}
+          }
+        } catch (jsonErr) {}
+      }
+      
+      setUploadProgressText(`✅ Scansione completata! Aggiornati ${totalExtracted} profili.`);
+      const systemNote = { sender_role: 'system', content: `✅ Database Aggiornato: estratti dati da ${files.length} screenshot. (${totalExtracted} giocatori).` };
+      setMessages(prev => [...prev, systemNote]);
+      try { await supabase.from('club_messages').insert([systemNote]); } catch(e) {}
+    } catch (e) { 
+      console.error(e); setUploadProgressText("❌ Errore durante la scansione delle immagini.");
+    } finally { 
+      setTimeout(() => { setIsUploading(false); setUploadProgressText(''); }, 3500);
+      if(fileInputRef.current) fileInputRef.current.value = "";
+    } 
   };
 
   // 11. COMPONENTI DI RENDER
@@ -586,7 +583,7 @@ function App() {
       if (!msg || !msg.sender_role) return false;
       if (msg.sender_role === 'system') return true;
       if (activeRoom === 'board') return msg.sender_role === 'board' || msg.sender_role === 'user:board' || msg.sender_role === 'user';
-      return msg.sender_role === 'vice' || msg.sender_role === 'user:vice' || msg.sender_role === 'ds' || msg.sender_role === 'user:ds'; 
+      return msg.sender_role === 'vice' || msg.sender_role === 'user:vice'; 
     });
 
     return (
@@ -595,7 +592,7 @@ function App() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <MessageSquare size={24} color="#da1b60" /> 
             <h2 style={{ fontSize: isMobile ? '16px' : '22px', color: '#ffffff', margin: 0, textTransform: 'uppercase', fontWeight: '900' }}>
-              {activeRoom === 'board' ? '🏛️ DIRETTA PLENARIA' : `🧠 VICE ALLENATORE (TUTTOFARE)`}
+              {activeRoom === 'board' ? '🏛️ DIRETTA PLENARIA' : `🧠 VICE ALLENATORE`}
             </h2>
           </div>
         </div>
@@ -656,7 +653,7 @@ function App() {
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <ChevronRight style={{ position: 'absolute', left: '14px', color: '#da1b60' }} size={20} />
                   <input type="file" accept="image/*" multiple ref={chatImageInputRef} onChange={handlePendingImagesSelection} style={{ display: 'none' }} />
-                  <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={pendingImages.length > 0 ? "Aggiungi un commento alle foto..." : "Scrivi o allega foto veloci..."} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '16px 90px 16px 42px', fontSize: '16px', color: '#ffffff', borderRadius: '8px', outline: 'none', fontWeight: '500' }} />
+                  <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={pendingImages.length > 0 ? "Aggiungi un commento alle foto..." : "Scrivi in chat o allega foto veloci..."} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '16px 90px 16px 42px', fontSize: '16px', color: '#ffffff', borderRadius: '8px', outline: 'none', fontWeight: '500' }} />
                   <div style={{ position: 'absolute', right: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <button onClick={() => chatImageInputRef.current.click()} disabled={isTyping} style={{ background: 'none', border: 'none', color: '#a855f7', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }} title="Allega Screen Rapido"><ImageIcon size={22} /></button>
                     <button onClick={handleSendMessage} disabled={isTyping || (!chatInput.trim() && pendingImages.length === 0)} style={{ background: 'none', border: 'none', color: (chatInput.trim() || pendingImages.length > 0) ? '#da1b60' : '#475569', cursor: (chatInput.trim() || pendingImages.length > 0) ? 'pointer' : 'default', display: 'flex', alignItems: 'center', padding: '4px', transition: 'color 0.2s' }} title="Invia"><Send size={22} /></button>
@@ -702,7 +699,6 @@ function App() {
                       <Database size={18} /> {isUploading ? '⏳ Archiviazione...' : 'Carica Finanze/Partite/Scout'}
                     </button>
                     {uploadProgressText && <div style={{ fontSize: '12px', color: '#fbbf24', marginTop: '8px', fontWeight: 'bold', textAlign: 'center' }}>{uploadProgressText}</div>}
-                    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '8px', lineHeight: '1.4', fontStyle: 'italic' }}>*Seleziona più foto. Il Vice capirà se sono bilanci, report di mercato o Data Hub e li salverà nei database.*</div>
                   </div>
                   
                   {/* STUDIO TATTICA / COVERCIANO */}
@@ -713,7 +709,6 @@ function App() {
                     <button onClick={handleAnalyzeExternalTactic} disabled={isTyping || !externalTacticInput.trim()} style={{ backgroundColor: '#22d3ee', color: '#0f0b1b', border: 'none', padding: '10px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer', width: '100%', marginBottom: '12px' }}>Studia Tattica da Testo</button>
                     
                     <div style={{ borderTop: '1px dashed #231b3a', margin: '12px 0' }}></div>
-                    <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '8px', textAlign: 'center' }}>OPPURE CARICA GLI SCREENSHOT DAL GIOCO</span>
                     
                     <input type="file" accept="image/*" multiple ref={tacticImageUploadRef} onChange={handleTacticImagesUpload} style={{ display: 'none' }} />
                     <button onClick={() => tacticImageUploadRef.current.click()} disabled={isTyping} style={{ backgroundColor: '#a855f7', color: '#fff', border: 'none', padding: '10px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
@@ -724,7 +719,7 @@ function App() {
                   {/* ARCHIVIO TATTICHE CON TASTO ELIMINA */}
                   <div style={{ marginTop: '15px', backgroundColor: '#140f24', padding: '14px', borderRadius: '8px', border: '1px solid #231b3a' }}>
                     <span style={{ fontSize: '11px', color: '#22d3ee', fontWeight: 'bold', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>📂 Archivio Tattiche Studiate:</span>
-                    {(!Array.isArray(tacticReports) || tacticReports.length === 0) ? <div style={{ fontSize: '12px', color: '#475569', fontStyle: 'italic' }}>Nessun report salvato nell'accesso rapido.</div> : (
+                    {(!Array.isArray(tacticReports) || tacticReports.length === 0) ? <div style={{ fontSize: '12px', color: '#475569', fontStyle: 'italic' }}>Nessun report salvato.</div> : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {tacticReports.map((rep, idx) => (
                           <div key={rep?.id || idx} style={{ display: 'flex', gap: '6px' }}>
@@ -740,10 +735,10 @@ function App() {
 
                   {/* SIMULATORE FINANZIARIO */}
                   <div style={{ backgroundColor: '#140f24', border: '1px solid #231b3a', padding: '14px', borderRadius: '6px', marginTop: '10px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#fff', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>💰 Simulatore di Ammortamento</span>
+                    <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#fff', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>💰 Simulatore Ammortamento</span>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      <input type="number" value={simCost} onChange={(e) => setSimCost(e.target.value)} placeholder="Costo Cartellino" style={{ width: '45%', backgroundColor: '#090710', border: '1px solid #231b3a', padding: '8px', color: '#fff', fontSize: '12px', borderRadius: '4px' }} />
-                      <input type="number" value={simWage} onChange={(e) => setSimWage(e.target.value)} placeholder="Stipendio" style={{ width: '45%', backgroundColor: '#090710', border: '1px solid #231b3a', padding: '8px', color: '#fff', fontSize: '12px', borderRadius: '4px' }} />
+                      <input type="number" value={simCost} onChange={(e) => setSimCost(e.target.value)} placeholder="Costo" style={{ width: '45%', backgroundColor: '#090710', border: '1px solid #231b3a', padding: '8px', color: '#fff', fontSize: '12px', borderRadius: '4px' }} />
+                      <input type="number" value={simWage} onChange={(e) => setSimWage(e.target.value)} placeholder="Stip." style={{ width: '45%', backgroundColor: '#090710', border: '1px solid #231b3a', padding: '8px', color: '#fff', fontSize: '12px', borderRadius: '4px' }} />
                     </div>
                     <button onClick={handleSimulateTransfer} style={{ backgroundColor: '#10b981', color: '#0f0c1b', border: 'none', padding: '10px', fontSize: '12px', fontWeight: 'bold', borderRadius: '4px', marginTop: '10px', width: '100%', cursor: 'pointer' }}>Calcola Impatto</button>
                     {simResult && <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#090710', borderLeft: `3px solid ${simResult.color}`, fontSize: '12px', color: '#fff' }}>{simResult.notes}</div>}
@@ -751,17 +746,12 @@ function App() {
 
                   {/* CARATTERE MISTER */}
                   <div style={{ backgroundColor: '#140f24', border: '1px solid #231b3a', padding: '14px', borderRadius: '6px', marginTop: '10px' }}>
-                     <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#fff', textTransform: 'uppercase', display: 'block', marginBottom: '12px' }}>🎭 Il Tuo Carattere da Manager</span>
+                     <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#fff', textTransform: 'uppercase', display: 'block', marginBottom: '12px' }}>🎭 Carattere Manager</span>
                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       <select value={personality} onChange={(e) => setPersonality(e.target.value)} style={{ width: '100%', backgroundColor: '#090710', border: '1px solid #231b3a', padding: '8px', color: '#fff', fontSize: '12px', borderRadius: '4px' }}>
                         <option value="professional">💼 Professional (Diplomatico)</option>
                         <option value="aggressive">🔥 Aggressive (Mourinhiano)</option>
                         <option value="passionate">❤️ Passionate (Sanguigno)</option>
-                      </select>
-                      <select value={tacticalFocus} onChange={(e) => setTacticalFocus(e.target.value)} style={{ width: '100%', backgroundColor: '#090710', border: '1px solid #231b3a', padding: '8px', color: '#fff', fontSize: '12px', borderRadius: '4px' }}>
-                        <option value="purist">Bel Gioco Purista (Zemaniano)</option>
-                        <option value="pragmatic">Risultatista (Corto Muso / 1-0)</option>
-                        <option value="nerd">Algoritmico (xG Nerd)</option>
                       </select>
                      </div>
                   </div>
@@ -816,18 +806,12 @@ function App() {
             <button onClick={() => setDbSubTab('matches')} style={{ padding: '8px 16px', border: 'none', fontSize: '13px', fontWeight: 'bold', backgroundColor: dbSubTab === 'matches' ? '#3b82f6' : 'transparent', color: '#fff', borderRadius: '4px', flexShrink: 0, cursor: 'pointer' }}>🏆 Storico ({safeMatches.length})</button>
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
-            {/* NUOVO TASTO EXCEL */}
             <input type="file" accept=".xlsx, .xlsm" ref={excelInputRef} onChange={handleExcelUpload} style={{ display: 'none' }} />
             <button onClick={() => excelInputRef.current.click()} disabled={isUploading} style={{ backgroundColor: '#10b981', color: '#0f0c1b', border: 'none', padding: '10px 16px', fontSize: '12px', fontWeight: 'bold', borderRadius: '6px', cursor: isUploading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-               <FileSpreadsheet size={16} /> Carica File Excel (.xlsm/.xlsx)
+               <FileSpreadsheet size={16} /> Excel (.xlsm/.xlsx)
             </button>
 
             <input type="file" accept="image/*" multiple ref={fileInputRef} onChange={handleImageUploadOCR} style={{ display: 'none' }} />
-            
-            {!isMobile && safePlayers.length > 0 && (
-              <button onClick={handleForceSync} disabled={isUploading} style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none', padding: '10px 16px', fontSize: '12px', fontWeight: 'bold', borderRadius: '6px', cursor: 'pointer' }}>{isUploading ? 'Sincro...' : '☁️ Forza Sincro Cloud'}</button>
-            )}
-
             <button onClick={() => fileInputRef.current.click()} disabled={isUploading} style={{ backgroundColor: isUploading ? '#fbbf24' : '#da1b60', color: isUploading ? '#0f0c1b' : '#fff', border: 'none', padding: '10px 20px', fontSize: '12px', fontWeight: 'bold', borderRadius: '6px', cursor: isUploading ? 'not-allowed' : 'pointer' }}>
               {isUploading ? '⏳ SCANSIONE...' : 'Carica Foto Rosa (Multiplo)'}
             </button>
@@ -912,26 +896,11 @@ function App() {
     );
   }
 
-  // 12. STRUTTURA PRINCIPALE E FLYOUT MODALI
-  const navContainerStyle = isMobile ? {
-    position: 'fixed', bottom: 0, left: 0, right: 0, height: '70px', width: '100%',
-    backgroundColor: '#140f24', borderTop: '2px solid #231b3a', display: 'flex',
-    flexDirection: 'row', alignItems: 'center', padding: '0 10px', gap: '14px', overflowX: 'auto', zIndex: 1000
-  } : {
-    width: '90px', backgroundColor: '#140f24', borderRight: '2px solid #231b3a',
-    display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '20px', gap: '16px', zIndex: 10
-  };
-
-  const navButtonStyle = (room, color) => ({
-    background: activeRoom === room ? '#271e44' : 'none',
-    border: activeRoom === room ? `2px solid ${color}` : '2px solid transparent',
-    color: activeRoom === room ? color : '#475569', padding: '10px', borderRadius: '10px', cursor: 'pointer', flexShrink: 0
-  });
+  const navContainerStyle = isMobile ? { position: 'fixed', bottom: 0, left: 0, right: 0, height: '70px', width: '100%', backgroundColor: '#140f24', borderTop: '2px solid #231b3a', display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '0 10px', gap: '14px', overflowX: 'auto', zIndex: 1000 } : { width: '90px', backgroundColor: '#140f24', borderRight: '2px solid #231b3a', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '20px', gap: '16px', zIndex: 10 };
+  const navButtonStyle = (room, color) => ({ background: activeRoom === room ? '#271e44' : 'none', border: activeRoom === room ? `2px solid ${color}` : '2px solid transparent', color: activeRoom === room ? color : '#475569', padding: '10px', borderRadius: '10px', cursor: 'pointer', flexShrink: 0 });
 
   return (
     <div style={{ display: 'flex', height: '100vh', flexDirection: isMobile ? 'column' : 'row', backgroundColor: '#090710', color: '#cbd5e1', fontFamily: 'system-ui, -apple-system, sans-serif', overflow: 'hidden' }}>
-      
-      {/* BARRA NAVIGAZIONE VERTICALE / ORIZZONTALE (SEMPLIFICATA) */}
       <div style={navContainerStyle}>
         {!isMobile && <div style={{ width: '52px', height: '52px', backgroundColor: '#da1b60', display: 'flex', alignItems: 'center', color: '#fff', fontWeight: '900', fontSize: '22px', borderRadius: '10px', justifyContent: 'center' }}>FM</div>}
         <button onClick={() => handleSidebarClick('board')} style={navButtonStyle('board', '#a855f7')} title="Direzione e Progetto"><Users size={22} /></button>
@@ -945,7 +914,6 @@ function App() {
         {activeRoom === 'database' && renderMasterDatabase()}
       </div>
 
-      {/* FLYOUT MODALE: REFERTO TATTICO */}
       {selectedTacticReport && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(5, 3, 10, 0.95)', zIndex: 99999, display: 'flex', padding: isMobile ? '10px' : '40px' }}>
           <div style={{ margin: 'auto', width: '100%', maxWidth: '800px', backgroundColor: '#140f24', border: '3px solid #22d3ee', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
@@ -963,7 +931,6 @@ function App() {
         </div>
       )}
 
-      {/* FLYOUT: FASCICOLO CALCIATORE E NOTE EDITABILI */}
       {selectedProfile && (
         <div style={{ position: 'fixed', right: isMobile ? '10px' : '25px', bottom: isMobile ? '80px' : '25px', left: isMobile ? '10px' : 'auto', width: isMobile ? 'calc(100% - 20px)' : '340px', backgroundColor: '#140f24', border: '3px solid #da1b60', padding: '16px', borderRadius: '12px', boxShadow: '0 30px 60px rgba(0,0,0,0.9)', zIndex: 5000, boxSizing: 'border-box' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #231b3a', paddingBottom: '10px', marginBottom: '12px', alignItems: 'center' }}>
@@ -976,15 +943,12 @@ function App() {
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '350px', overflowY: 'auto', paddingRight: '4px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', padding: '8px 12px', backgroundColor: '#090710', borderRadius: '6px' }}>
-              <span style={{ color: '#94a3b8' }}>Ruolo</span>
-              <span style={{ color: '#22d3ee', fontWeight: '900' }}>{selectedProfile?.position || 'N/D'}</span>
+              <span style={{ color: '#94a3b8' }}>Ruolo</span><span style={{ color: '#22d3ee', fontWeight: '900' }}>{selectedProfile?.position || 'N/D'}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', padding: '8px 12px', backgroundColor: '#090710', borderRadius: '6px' }}>
-              <span style={{ color: '#94a3b8' }}>Età</span>
-              <span style={{ color: '#ffffff', fontWeight: '900' }}>{selectedProfile?.age || 'N/D'}</span>
+              <span style={{ color: '#94a3b8' }}>Età</span><span style={{ color: '#ffffff', fontWeight: '900' }}>{selectedProfile?.age || 'N/D'}</span>
             </div>
             
-            {/* ELENCO DINAMICO DI TUTTI GLI ATTRIBUTI TROVATI */}
             {selectedProfile?.attributes && Object.entries(selectedProfile.attributes).map(([key, val]) => {
                const numVal = parseInt(val);
                let valColor = '#34d399'; 
@@ -994,8 +958,7 @@ function App() {
                }
                return (
                  <div key={key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '6px 12px', backgroundColor: '#090710', borderRadius: '4px', borderBottom: '1px solid #140f24' }}>
-                   <span style={{ color: '#cbd5e1' }}>{key}</span>
-                   <span style={{ color: valColor, fontWeight: '900' }}>{String(val)}</span>
+                   <span style={{ color: '#cbd5e1' }}>{key}</span><span style={{ color: valColor, fontWeight: '900' }}>{String(val)}</span>
                  </div>
                );
             })}
