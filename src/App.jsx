@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabaseClient'
-import { MessageSquare, Database, Send, Users, Sliders, TrendingUp, ImageIcon, X, Briefcase, ChevronRight, HelpCircle, Award, Activity, Search, Trash2, ChevronDown } from 'lucide-react'
+import { MessageSquare, Database, Send, Users, Sliders, TrendingUp, ImageIcon, X, Briefcase, ChevronRight, HelpCircle, Award, Activity, Search, Trash2, ChevronDown, FileSpreadsheet } from 'lucide-react'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import * as XLSX from 'xlsx' // <-- LA NUOVA LIBRERIA EXCEL
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // ==========================================
-// IL CERVELLO DI FM26 (MEMORIA TATTICA PERMANENTE)
+// IL CERVELLO DI FM26
 // ==========================================
 const FM26_CORE_ENGINE = `
 IL TUO CERVELLO È BASATO SUL MOTORE DI GIOCO DI FOOTBALL MANAGER 2026 E SUI BIG DATA.
@@ -70,7 +71,7 @@ function App() {
   const [players, setPlayers] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_players')) || []; } catch(e) { return []; } })
   const [shortlist, setShortlist] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_shortlist')) || []; } catch(e) { return []; } })
   const [matches, setMatches] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_matches')) || []; } catch(e) { return []; } })
-  const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_messages')) || [{ sender_role: 'system', content: 'Aggiornamento Segreteria: Modulo di apprendimento tattico visivo installato.' }]; } catch(e) { return [{ sender_role: 'system', content: 'Centrale operativa allineata.' }]; } })
+  const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_messages')) || [{ sender_role: 'system', content: 'Modulo di importazione file Excel (.xlsx / .xlsm) attivato.' }]; } catch(e) { return [{ sender_role: 'system', content: 'Centrale operativa allineata.' }]; } })
   const [tacticReports, setTacticReports] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_tactic_reports')) || []; } catch(e) { return []; } })
   const [finances, setFinances] = useState(() => { try { return JSON.parse(localStorage.getItem('hq_finances')) || { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; } catch(e) { return { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; } })
 
@@ -86,6 +87,8 @@ function App() {
   const [simResult, setSimResult] = useState(null)
   
   const [externalTacticInput, setExternalTacticInput] = useState('')
+  const [dsTacticInput, setDsTacticInput] = useState('')
+  
   const [selectedProfile, setSelectedProfile] = useState(null) 
   const [selectedTacticReport, setSelectedTacticReport] = useState(null)
   const [editingNotes, setEditingNotes] = useState('')
@@ -96,8 +99,9 @@ function App() {
   const [chatInput, setChatInput] = useState('')
 
   const fileInputRef = useRef(null)
+  const excelInputRef = useRef(null) // <--- RIFERIMENTO PER IL FILE EXCEL
   const genericUploadRef = useRef(null)
-  const tacticImageUploadRef = useRef(null) // RIFERIMENTO PER APPRENDIMENTO TATTICO VISIVO
+  const tacticImageUploadRef = useRef(null) 
   const chatImageInputRef = useRef(null) 
   const chatContainerRef = useRef(null)
 
@@ -319,7 +323,7 @@ function App() {
 
 
   // =====================================
-  // APPRENDIMENTO TATTICO TESTUALE E VISIVO (COVERCIANO)
+  // APPRENDIMENTO TATTICO TESTUALE E VISIVO
   // =====================================
   const handleAnalyzeExternalTactic = async () => {
     if (!externalTacticInput.trim()) return; setIsTyping(true); if (isMobile) setMobileViewTab('chat');
@@ -480,71 +484,99 @@ function App() {
     } 
   };
 
-  // OCR DATABASE MASSIVO GIOCATORI DELLA ROSA
-  const handleImageUploadOCR = async (event) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-    setIsUploading(true); let totalExtracted = 0;
-    setUploadProgressText(`⏳ Inizio scansione di ${files.length} immagini...`);
+  // =====================================
+  // NUOVO SISTEMA: LETTORE EXCEL MASSIVO
+  // =====================================
+  const handleExcelUpload = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
 
-    try {
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    setIsUploading(true);
+    setUploadProgressText(`⏳ Lettura del file Excel in corso...`);
 
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        setUploadProgressText(`⏳ Analisi foto ${i + 1} di ${files.length} in corso...`);
-        const imageBase64 = await new Promise((resolve) => { const reader = new FileReader(); reader.onloadend = () => resolve(reader.result.split(',')[1]); reader.readAsDataURL(file); });
-        const imagePart = { inlineData: { data: imageBase64, mimeType: file.type } };
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const data = e.target.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
         
-        const prompt = `Estrai TUTTI i dati e OGNI SINGOLO ATTRIBUTO (Tecnici, Mentali, Fisici da 1 a 20) da questo screenshot di FM26.
-        Estrai: Età, Presenze, Gol, Assist, Media Voto, Valore, Ingaggio e TUTTI gli attributi specifici.
-        Rispondi SOLO con array JSON puro:
-        [ { "type": "player", "name": "Nome", "age": "num", "position": "Ruolo", "attributes": { "Presenze": "num", "Media Voto": "float", "Ingaggio": "txt", "Valore": "txt", "Passaggi": "15", "Freddezza": "12" } } ]`;
+        // Converte l'Excel in un Array di Oggetti JSON
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
         
-        const result = await model.generateContent([prompt, imagePart]);
-        const cleanText = result.response.text().replace(/```json/gi, '').replace(/```/g, '').trim();
-        
+        if (jsonData.length === 0) {
+          setUploadProgressText("❌ Errore: Il file Excel sembra vuoto.");
+          setIsUploading(false);
+          return;
+        }
+
+        let updatedCount = 0;
+
+        // Trasforma ogni riga dell'Excel nel formato della nostra App
+        const newPlayers = jsonData.map(row => {
+          // Cerchiamo le colonne chiave in modo flessibile
+          const name = row['Nome'] || row['Name'] || row['Player'] || 'Sconosciuto';
+          const position = row['Posizione'] || row['Ruolo'] || row['Position'] || 'N/D';
+          const age = parseInt(row['Età'] || row['Age']) || null;
+          
+          // Tutto il resto lo mettiamo dentro "attributes"
+          const attributes = { ...row };
+          delete attributes['Nome']; delete attributes['Name']; delete attributes['Player'];
+          delete attributes['Posizione']; delete attributes['Ruolo']; delete attributes['Position'];
+          delete attributes['Età']; delete attributes['Age'];
+
+          return { name, position, age, type: 'player', attributes };
+        });
+
+        // Aggiorna lo stato dei giocatori fonendolo con quelli esistenti
+        setPlayers(prev => {
+          const list = Array.isArray(prev) ? [...prev] : []; 
+          newPlayers.forEach(np => {
+            const idx = list.findIndex(x => normalizeName(x?.name) === normalizeName(np.name));
+            if (idx >= 0) { 
+              list[idx] = { ...list[idx], ...np, attributes: { ...(list[idx]?.attributes || {}), ...(np.attributes || {}) } }; 
+              updatedCount++;
+            } 
+            else { 
+              list.push(np); 
+              updatedCount++;
+            }
+          }); 
+          return list;
+        });
+
+        // Aggiorna Supabase
         try {
-          const extractedData = JSON.parse(cleanText);
-          if (Array.isArray(extractedData)) {
-            totalExtracted += extractedData.length;
-            const sanitizedData = extractedData.map(p => {
-              const ageVal = parseInt(p?.age);
-              return { name: p?.name || 'Sconosciuto', position: p?.position || 'N/D', age: isNaN(ageVal) ? null : ageVal, type: p?.type || 'player', attributes: p?.attributes || {} };
-            });
-
-            setPlayers(prev => {
-              const list = Array.isArray(prev) ? [...prev] : []; 
-              sanitizedData.forEach(np => {
-                const idx = list.findIndex(x => normalizeName(x?.name) === normalizeName(np.name));
-                if (idx >= 0) { list[idx] = { ...list[idx], ...np, attributes: { ...(list[idx]?.attributes || {}), ...(np.attributes || {}) } }; } 
-                else { list.push(np); }
-              }); return list;
-            });
-
-            try {
-              let { data: dbPlayers } = await supabase.from('players').select('*');
-              const safeDbPlayers = Array.isArray(dbPlayers) ? dbPlayers : [];
-              for (const p of sanitizedData) {
-                const match = safeDbPlayers.find(x => normalizeName(x?.name) === normalizeName(p.name));
-                if (match) { await supabase.from('players').update({ age: p.age, position: p.position, attributes: { ...(match.attributes || {}), ...p.attributes } }).eq('id', match.id); } 
-                else { await supabase.from('players').insert([p]); }
-              }
-            } catch(e) {}
+          let { data: dbPlayers } = await supabase.from('players').select('*');
+          const safeDbPlayers = Array.isArray(dbPlayers) ? dbPlayers : [];
+          for (const p of newPlayers) {
+            const match = safeDbPlayers.find(x => normalizeName(x?.name) === normalizeName(p.name));
+            if (match) { await supabase.from('players').update({ age: p.age, position: p.position, attributes: { ...(match.attributes || {}), ...p.attributes } }).eq('id', match.id); } 
+            else { await supabase.from('players').insert([p]); }
           }
-        } catch (jsonErr) {}
+        } catch(e) {}
+
+        setUploadProgressText(`✅ Excel caricato! Aggiornati ${updatedCount} profili nel Database.`);
+        const sysMsg = { sender_role: 'system', content: `✅ Database Aggiornato tramite File Excel. Importati/Aggiornati ${updatedCount} giocatori.` };
+        setMessages(prev => [...prev, sysMsg]);
+        try { await supabase.from('club_messages').insert([sysMsg]); } catch(e) {}
+
+      } catch (error) {
+        console.error("Errore lettura Excel:", error);
+        setUploadProgressText("❌ Errore durante l'elaborazione del file Excel.");
+      } finally {
+        setTimeout(() => { setIsUploading(false); setUploadProgressText(''); }, 3500);
+        if(excelInputRef.current) excelInputRef.current.value = "";
       }
-      
-      setUploadProgressText(`✅ Scansione completata! Aggiornati ${totalExtracted} profili.`);
-      const systemNote = { sender_role: 'system', content: `✅ Database Aggiornato: estratti dati da ${files.length} screenshot. (${totalExtracted} giocatori).` };
-      setMessages(prev => [...prev, systemNote]);
-      try { await supabase.from('club_messages').insert([systemNote]); } catch(e) {}
-    } catch (e) { 
-      console.error(e); setUploadProgressText("❌ Errore durante la scansione delle immagini.");
-    } finally { 
-      setTimeout(() => { setIsUploading(false); setUploadProgressText(''); }, 3500);
-      if(fileInputRef.current) fileInputRef.current.value = "";
-    } 
+    };
+
+    reader.onerror = () => {
+      setUploadProgressText("❌ Errore di lettura del file.");
+      setIsUploading(false);
+    };
+
+    reader.readAsBinaryString(file);
   };
 
   // 11. COMPONENTI DI RENDER
@@ -624,7 +656,7 @@ function App() {
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <ChevronRight style={{ position: 'absolute', left: '14px', color: '#da1b60' }} size={20} />
                   <input type="file" accept="image/*" multiple ref={chatImageInputRef} onChange={handlePendingImagesSelection} style={{ display: 'none' }} />
-                  <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={pendingImages.length > 0 ? "Aggiungi un commento alle foto..." : "Scrivi in chat o allega foto veloci..."} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '16px 90px 16px 42px', fontSize: '16px', color: '#ffffff', borderRadius: '8px', outline: 'none', fontWeight: '500' }} />
+                  <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={pendingImages.length > 0 ? "Aggiungi un commento alle foto..." : "Scrivi o allega foto veloci..."} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '16px 90px 16px 42px', fontSize: '16px', color: '#ffffff', borderRadius: '8px', outline: 'none', fontWeight: '500' }} />
                   <div style={{ position: 'absolute', right: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <button onClick={() => chatImageInputRef.current.click()} disabled={isTyping} style={{ background: 'none', border: 'none', color: '#a855f7', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }} title="Allega Screen Rapido"><ImageIcon size={22} /></button>
                     <button onClick={handleSendMessage} disabled={isTyping || (!chatInput.trim() && pendingImages.length === 0)} style={{ background: 'none', border: 'none', color: (chatInput.trim() || pendingImages.length > 0) ? '#da1b60' : '#475569', cursor: (chatInput.trim() || pendingImages.length > 0) ? 'pointer' : 'default', display: 'flex', alignItems: 'center', padding: '4px', transition: 'color 0.2s' }} title="Invia"><Send size={22} /></button>
@@ -784,6 +816,12 @@ function App() {
             <button onClick={() => setDbSubTab('matches')} style={{ padding: '8px 16px', border: 'none', fontSize: '13px', fontWeight: 'bold', backgroundColor: dbSubTab === 'matches' ? '#3b82f6' : 'transparent', color: '#fff', borderRadius: '4px', flexShrink: 0, cursor: 'pointer' }}>🏆 Storico ({safeMatches.length})</button>
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
+            {/* NUOVO TASTO EXCEL */}
+            <input type="file" accept=".xlsx, .xlsm" ref={excelInputRef} onChange={handleExcelUpload} style={{ display: 'none' }} />
+            <button onClick={() => excelInputRef.current.click()} disabled={isUploading} style={{ backgroundColor: '#10b981', color: '#0f0c1b', border: 'none', padding: '10px 16px', fontSize: '12px', fontWeight: 'bold', borderRadius: '6px', cursor: isUploading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+               <FileSpreadsheet size={16} /> Carica File Excel (.xlsm/.xlsx)
+            </button>
+
             <input type="file" accept="image/*" multiple ref={fileInputRef} onChange={handleImageUploadOCR} style={{ display: 'none' }} />
             
             {!isMobile && safePlayers.length > 0 && (
