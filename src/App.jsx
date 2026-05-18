@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabaseClient'
 import { MessageSquare, Database, Send, Users, Sliders, TrendingUp, ImageIcon, X, Briefcase, ChevronRight, HelpCircle, Award, Activity, Search, Trash2, ChevronDown, FileSpreadsheet } from 'lucide-react'
 import { GoogleGenerativeAI } from '@google/generative-ai'
-// IMPORTANTE: Abbiamo rimosso l'import di XLSX qui in alto per evitare il crash di Vercel!
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
@@ -21,7 +20,7 @@ SEI IL VICE ALLENATORE TUTTOFARE IN FOOTBALL MANAGER 2026 E LAVORI SUI BIG DATA.
 5. LINGUAGGIO: Usa l'Inglese SOLO per i ruoli (es: **Sweeper Keeper**, **Advanced Forward**) evidenziati in grassetto. Il resto in Italiano.
 `;
 
-const getRolePrompt = (role, clubName, clubVision, finances, squadContext, shortlistContext, matchesContext, tacticalFocus, tacticReports) => {
+function getRolePrompt(role, clubName, clubVision, finances, squadContext, shortlistContext, matchesContext, tacticalFocus, tacticReports) {
   const baseRules = FM26_CORE_ENGINE + `\nCLUB ATTUALE: ${clubName.toUpperCase()}.\n`;
   
   const savedTacticsSummary = tacticReports && tacticReports.length > 0 
@@ -35,9 +34,9 @@ DATI ROSA ATTUALE (Non chiedere altri dati oltre questi): ${JSON.stringify(squad
 `;
 
   return baseRules + contextData;
-};
+}
 
-function App() {
+export default function App() {
   const [isMounted, setIsMounted] = useState(false);
   const [activeRoom, setActiveRoom] = useState('vice') 
   const [dbSubTab, setDbSubTab] = useState('first_team') 
@@ -49,20 +48,13 @@ function App() {
   const [pendingImages, setPendingImages] = useState([]);
   const [uploadProgressText, setUploadProgressText] = useState('')
 
-  useEffect(() => {
-    setIsMounted(true); 
-    const handleResize = () => setIsMobile(window.innerWidth <= 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-  
   const [clubName, setClubName] = useState(() => { if (typeof window !== 'undefined') { return localStorage.getItem('hq_club_name') || 'Sora' } return 'Sora' })
   const [clubVision, setClubVision] = useState(() => { if (typeof window !== 'undefined') { return localStorage.getItem('hq_club_vision') || 'Nessun obiettivo a lungo termine impostato.' } return '' }) 
   
   const [players, setPlayers] = useState(() => { if (typeof window !== 'undefined') { try { return JSON.parse(localStorage.getItem('hq_players')) || []; } catch(e) { return []; } } return []; })
   const [shortlist, setShortlist] = useState(() => { if (typeof window !== 'undefined') { try { return JSON.parse(localStorage.getItem('hq_shortlist')) || []; } catch(e) { return []; } } return []; })
   const [matches, setMatches] = useState(() => { if (typeof window !== 'undefined') { try { return JSON.parse(localStorage.getItem('hq_matches')) || []; } catch(e) { return []; } } return []; })
-  const [messages, setMessages] = useState(() => { if (typeof window !== 'undefined') { try { return JSON.parse(localStorage.getItem('hq_messages')) || [{ sender_role: 'system', content: 'Aggiornamento Anti-Crash installato. Sistema operativo.' }]; } catch(e) { return [{ sender_role: 'system', content: 'Centrale operativa allineata.' }]; } } return []; })
+  const [messages, setMessages] = useState(() => { if (typeof window !== 'undefined') { try { return JSON.parse(localStorage.getItem('hq_messages')) || [{ sender_role: 'system', content: 'Architettura blindata. Sistema operativo.' }]; } catch(e) { return [{ sender_role: 'system', content: 'Centrale operativa allineata.' }]; } } return []; })
   const [tacticReports, setTacticReports] = useState(() => { if (typeof window !== 'undefined') { try { return JSON.parse(localStorage.getItem('hq_tactic_reports')) || []; } catch(e) { return []; } } return []; })
   const [finances, setFinances] = useState(() => { if (typeof window !== 'undefined') { try { return JSON.parse(localStorage.getItem('hq_finances')) || { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; } catch(e) { return { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; } } return { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; })
 
@@ -94,7 +86,14 @@ function App() {
   const chatImageInputRef = useRef(null) 
   const chatContainerRef = useRef(null)
 
-  useEffect(() => { if (isMounted) { localStorage.setItem('hq_players', JSON.stringify(players)) } }, [players, isMounted])
+  useEffect(() => {
+    setIsMounted(true); 
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => { if (isMounted) localStorage.setItem('hq_players', JSON.stringify(players)) }, [players, isMounted])
   useEffect(() => { if (isMounted) localStorage.setItem('hq_shortlist', JSON.stringify(shortlist)) }, [shortlist, isMounted])
   useEffect(() => { if (isMounted) localStorage.setItem('hq_matches', JSON.stringify(matches)) }, [matches, isMounted])
   useEffect(() => { if (isMounted) localStorage.setItem('hq_tactic_reports', JSON.stringify(tacticReports)) }, [tacticReports, isMounted])
@@ -123,19 +122,22 @@ function App() {
     );
   }
 
-  const normalizeName = (name) => { return !name ? '' : name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim(); };
+  // ==========================================
+  // FUNZIONI DICHIARATE NATIVE (ANTI-CRASH VERCEL)
+  // ==========================================
+  function normalizeName(name) { return !name ? '' : name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim(); }
 
-  const handleChatScroll = () => {
+  function handleChatScroll() {
     if (!chatContainerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
     if (scrollHeight - scrollTop - clientHeight > 100) { setShowScrollBottom(true); } else { setShowScrollBottom(false); }
-  };
+  }
 
-  const scrollToBottom = () => {
+  function scrollToBottom() {
     if (chatContainerRef.current) { chatContainerRef.current.scrollTo({ top: chatContainerRef.current.scrollHeight, behavior: 'smooth' }); }
-  };
+  }
 
-  const formatMessageContent = (text) => {
+  function formatMessageContent(text) {
     if (!text) return null;
     let displayString = text;
     const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/i) || text.match(/```json([\s\S]*?)```/i);
@@ -161,9 +163,9 @@ function App() {
       return <div key={index} style={{ marginTop: '4px', minHeight: '14px' }}>{renderedParts}</div>;
     });
     return <div>{lines}</div>;
-  };
+  }
 
-  const fetchCloudData = async () => {
+  async function fetchCloudData() {
     try {
       let { data: pData } = await supabase.from('players').select('*').order('name')
       if (pData && pData.length > 0) setPlayers(pData)
@@ -176,9 +178,9 @@ function App() {
       let { data: mData } = await supabase.from('club_messages').select('*').order('created_at', { ascending: true })
       if (mData && mData.length > 0) setMessages(mData)
     } catch (err) {}
-  };
+  }
 
-  const handleForceSync = async () => {
+  async function handleForceSync() {
     try {
       const safePlayers = Array.isArray(players) ? players : [];
       if (safePlayers.length === 0) { alert("Nessun giocatore in memoria sul PC da inviare al cloud."); return; }
@@ -192,9 +194,9 @@ function App() {
       }
       alert("✅ Sincronizzazione Cloud completata!");
     } catch (e) { alert("Errore durante la sincronizzazione."); } finally { setIsUploading(false); }
-  };
+  }
 
-  const handleClearAllData = async () => {
+  async function handleClearAllData() {
     if (window.confirm("Vuoi azzerare la sede societaria e ricominciare da zero? ATTENZIONE: Questo cancellerà tutta la memoria dello staff.")) {
       setPlayers([]); setShortlist([]); setMatches([]); setTacticReports([]);
       setMessages([{ sender_role: 'system', content: 'Database azzerato. Memoria dello staff pulita.' }]);
@@ -202,25 +204,25 @@ function App() {
       setSelectedProfile(null); localStorage.clear();
       try { await supabase.from('players').delete().neq('id', 0); await supabase.from('shortlist').delete().neq('id', 0); await supabase.from('matches').delete().neq('id', 0); await supabase.from('club_messages').delete().neq('id', 0); } catch(e) {}
     }
-  };
+  }
 
-  const handleSidebarClick = (room) => { setActiveRoom(room); setMobileViewTab('chat'); };
+  function handleSidebarClick(room) { setActiveRoom(room); setMobileViewTab('chat'); }
   
-  const handleSelectPlayer = (player, event) => {
+  function handleSelectPlayer(player, event) {
     if (event.target.closest('button')) return; 
     if (!player) return;
     setSelectedProfile(player); setEditingNotes(player.notes || '');
-  };
+  }
 
-  const handleDeletePlayer = async (id) => {
+  async function handleDeletePlayer(id) {
     if (window.confirm("Eliminare definitivamente il giocatore dall'archivio?")) {
       setPlayers(prev => prev.filter(p => p.id !== id));
       try { await supabase.from('players').delete().eq('id', id); } catch(e) {}
       if (selectedProfile && selectedProfile.id === id) setSelectedProfile(null);
     }
-  };
+  }
 
-  const handleSavePlayerNotes = async () => {
+  async function handleSavePlayerNotes() {
     if (!selectedProfile) return; setIsSavingNotes(true);
     try {
       const updatedPlayers = players.map(p => p.id === selectedProfile.id ? { ...p, notes: editingNotes } : p);
@@ -230,38 +232,38 @@ function App() {
       setMessages(prev => [...prev, systemNote]);
       try { await supabase.from('club_messages').insert([systemNote]); } catch(e) {}
     } catch (e) { console.error(e); } finally { setIsSavingNotes(false); }
-  };
+  }
 
-  const handleRemoveFromShortlist = async (id) => {
+  async function handleRemoveFromShortlist(id) {
     setShortlist(prev => prev.filter(s => s.id !== id));
     try { await supabase.from('shortlist').delete().eq('id', id); } catch(e) {}
-  };
+  }
 
-  const handleSimulateTransfer = () => {
+  function handleSimulateTransfer() {
     const cost = parseFloat(simCost) || 0; const weeklyWage = parseFloat(simWage) || 0; const years = parseInt(simYears) || 1;
     const annualAmortization = cost / years; const annualWageCost = weeklyWage * 52; const totalAnnualImpact = annualAmortization + annualWageCost;
     let status = 'APPROVATO'; let color = '#34d399'; let notes = `Operazione sostenibile. Impatto annuo: €${totalAnnualImpact.toLocaleString()}.`;
     if (cost > finances.transfer_budget) { status = 'BLOCCATO'; color = '#ef4444'; notes = `Fondi insufficienti nel budget trasferimenti.`; }
     else if (weeklyWage > (finances.wage_budget * 0.3)) { status = 'RISCHIO SPOGLIATOIO'; color = '#ffaa00'; notes = `L'ingaggio supera il 30% del tetto salariale.`; }
     setSimResult({ status, color, annualAmortization, annualWageCost, notes });
-  };
+  }
 
-  const handleSort = (field) => {
+  function handleSort(field) {
     if (sortField === field) { setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc'); } 
     else { setSortField(field); setSortDirection('asc'); }
-  };
+  }
 
-  const handlePendingImagesSelection = (e) => {
+  function handlePendingImagesSelection(e) {
     if (e.target.files && e.target.files.length > 0) {
       const filesArray = Array.from(e.target.files);
       setPendingImages(prev => [...prev, ...filesArray]);
     }
     if (chatImageInputRef.current) chatImageInputRef.current.value = "";
-  };
+  }
 
-  const removePendingImage = (index) => { setPendingImages(prev => prev.filter((_, i) => i !== index)); };
+  function removePendingImage(index) { setPendingImages(prev => prev.filter((_, i) => i !== index)); }
 
-  const handleSendMessage = async () => {
+  async function handleSendMessage() {
     if (!chatInput.trim() && pendingImages.length === 0) return;
     
     const currentInputText = chatInput.trim(); 
@@ -271,7 +273,7 @@ function App() {
     
     let displayMsg = currentInputText;
     if (imagesToSend.length > 0) {
-      displayMsg = currentInputText ? `📷 [${imagesToSend.length} Immagini allegate] ${currentInputText}` : `📷 [${imagesToSend.length} Immagini allegate] Analizza.`;
+      displayMsg = currentInputText ? `📷 [${imagesToSend.length} Immagini allegate] ${currentInputText}` : `📷 [${imagesToSend.length} Immagini allegate] Analizzate questi screen.`;
     }
 
     const userRole = `user:${activeRoom}`; 
@@ -310,9 +312,9 @@ function App() {
       setMessages(prev => [...prev, aiMessageObj]);
       try { await supabase.from('club_messages').insert([aiMessageObj]); } catch(e) {}
     } catch (error) { console.error(error); } finally { setIsTyping(false); }
-  };
+  }
 
-  const handleAnalyzeExternalTactic = async () => {
+  async function handleAnalyzeExternalTactic() {
     if (!externalTacticInput.trim()) return; setIsTyping(true); if (isMobile) setMobileViewTab('chat');
     const inputBuffer = externalTacticInput; setExternalTacticInput('');
     try {
@@ -333,9 +335,9 @@ function App() {
       setTacticReports(prev => [{ title: cleanTitle, content: outputText, id: Date.now() }, ...prev]); 
       try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e) {}
     } catch (error) { console.error(error); } finally { setIsTyping(false); }
-  };
+  }
 
-  const handleTacticImagesUpload = async (event) => {
+  async function handleTacticImagesUpload(event) {
     const files = event.target.files;
     if (!files || files.length === 0) return;
     setIsTyping(true);
@@ -374,16 +376,16 @@ function App() {
       
       try { await supabase.from('club_messages').insert([userMsg, aiMsg]); } catch(e) {}
     } catch (error) { console.error(error); } finally { setIsTyping(false); if (tacticImageUploadRef.current) tacticImageUploadRef.current.value = ""; }
-  };
+  }
 
-  const handleDeleteTacticReport = (id) => {
+  function handleDeleteTacticReport(id) {
     if (window.confirm("Vuoi eliminare questa tattica dall'archivio? Il Vice non la ricorderà più.")) {
       setTacticReports(prev => prev.filter(t => t.id !== id));
       if (selectedTacticReport && selectedTacticReport.id === id) { setSelectedTacticReport(null); }
     }
-  };
+  }
 
-  const handleGenericDocsUpload = async (event) => {
+  async function handleGenericDocsUpload(event) {
     const files = event.target.files;
     if (!files || files.length === 0) return;
     
@@ -446,12 +448,9 @@ function App() {
       setTimeout(() => { setIsUploading(false); setUploadProgressText(''); }, 3500);
       if(genericUploadRef.current) genericUploadRef.current.value = "";
     } 
-  };
+  }
 
-  // =====================================
-  // IMPORTAZIONE EXCEL (IMPORT DINAMICO ANTI-CRASH VERCEL)
-  // =====================================
-  const handleExcelUpload = (event) => {
+  function handleExcelUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
 
@@ -461,14 +460,12 @@ function App() {
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        // IMPORT DINAMICO: Salva la compilazione su Vercel!
-        const XLSX = await import('xlsx');
-        
+        const xlsxModule = await import('xlsx');
         const data = e.target.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
+        const workbook = xlsxModule.read(data, { type: 'binary' });
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        const jsonData = xlsxModule.utils.sheet_to_json(worksheet);
         
         if (jsonData.length === 0) { setUploadProgressText("❌ Errore: Excel vuoto."); setIsUploading(false); return; }
 
@@ -503,11 +500,10 @@ function App() {
           }
         } catch(e) {}
 
-        setUploadProgressText(`✅ Excel caricato! Aggiornati ${updatedCount} profili nel Database.`);
+        setUploadProgressText(`✅ Excel caricato! Aggiornati ${updatedCount} profili.`);
         const sysMsg = { sender_role: 'system', content: `✅ Database Aggiornato tramite File Excel. Importati/Aggiornati ${updatedCount} giocatori.` };
         setMessages(prev => [...prev, sysMsg]);
         try { await supabase.from('club_messages').insert([sysMsg]); } catch(e) {}
-
       } catch (error) {
         console.error("Errore lettura Excel:", error);
         setUploadProgressText("❌ Errore file Excel.");
@@ -518,9 +514,9 @@ function App() {
     };
     reader.onerror = () => { setUploadProgressText("❌ Errore di lettura."); setIsUploading(false); };
     reader.readAsBinaryString(file);
-  };
+  }
 
-  const handleImageUploadOCR = async (event) => {
+  async function handleImageUploadOCR(event) {
     const files = event.target.files;
     if (!files || files.length === 0) return;
     setIsUploading(true); let totalExtracted = 0;
@@ -537,7 +533,7 @@ function App() {
         
         const prompt = `Estrai TUTTI i dati e OGNI SINGOLO ATTRIBUTO (Tecnici, Mentali, Fisici da 1 a 20) da questo screenshot di FM26.
         Rispondi SOLO con array JSON puro:
-        [ { "type": "player", "name": "Nome", "age": "num", "position": "Ruolo", "attributes": { "Presenze": "num", "Media Voto": "float", "Ingaggio": "txt", "Valore": "txt", "Passaggi": "15", "Freddezza": "12" } } ]`;
+        [ { "type": "player", "name": "Nome", "age": "num", "position": "Ruolo", "attributes": { "Presenze": "num", "Media Voto": "float", "Ingaggio": "txt", "Valore": "txt", "Passaggi": "15" } } ]`;
         
         const result = await model.generateContent([prompt, imagePart]);
         const cleanText = result.response.text().replace(/```json/gi, '').replace(/```/g, '').trim();
@@ -583,9 +579,8 @@ function App() {
       setTimeout(() => { setIsUploading(false); setUploadProgressText(''); }, 3500);
       if(fileInputRef.current) fileInputRef.current.value = "";
     } 
-  };
+  }
 
-  // 11. COMPONENTI DI RENDER
   function renderChatWindow() {
     const safeMessages = Array.isArray(messages) ? messages : [];
     const visibleMessages = safeMessages.filter(msg => {
@@ -662,7 +657,7 @@ function App() {
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <ChevronRight style={{ position: 'absolute', left: '14px', color: '#da1b60' }} size={20} />
                   <input type="file" accept="image/*" multiple ref={chatImageInputRef} onChange={handlePendingImagesSelection} style={{ display: 'none' }} />
-                  <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={pendingImages.length > 0 ? "Aggiungi un commento alle foto..." : "Scrivi in chat o allega foto veloci..."} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '16px 90px 16px 42px', fontSize: '16px', color: '#ffffff', borderRadius: '8px', outline: 'none', fontWeight: '500' }} />
+                  <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={pendingImages.length > 0 ? "Aggiungi un commento alle foto..." : "Scrivi o allega foto veloci..."} style={{ width: '100%', backgroundColor: '#090710', border: '2px solid #231b3a', padding: '16px 90px 16px 42px', fontSize: '16px', color: '#ffffff', borderRadius: '8px', outline: 'none', fontWeight: '500' }} />
                   <div style={{ position: 'absolute', right: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <button onClick={() => chatImageInputRef.current.click()} disabled={isTyping} style={{ background: 'none', border: 'none', color: '#a855f7', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }} title="Allega Screen Rapido"><ImageIcon size={22} /></button>
                     <button onClick={handleSendMessage} disabled={isTyping || (!chatInput.trim() && pendingImages.length === 0)} style={{ background: 'none', border: 'none', color: (chatInput.trim() || pendingImages.length > 0) ? '#da1b60' : '#475569', cursor: (chatInput.trim() || pendingImages.length > 0) ? 'pointer' : 'default', display: 'flex', alignItems: 'center', padding: '4px', transition: 'color 0.2s' }} title="Invia"><Send size={22} /></button>
@@ -681,7 +676,6 @@ function App() {
                   <div style={{ backgroundColor: '#1d1433', border: '2px solid #a855f7', padding: '16px', borderRadius: '6px' }}>
                     <label style={{ fontSize: '12px', color: '#e2e8f0', textTransform: 'uppercase', display: 'block', marginBottom: '8px', fontWeight: '900' }}>🎯 Progetto e Visione a Lungo Termine</label>
                     <textarea value={clubVision} onChange={(e) => setClubVision(e.target.value)} placeholder="Voglio creare un ecosistema stile Barcellona..." style={{ width: '100%', height: '100px', backgroundColor: '#090710', border: '1px solid #231b3a', padding: '12px', color: '#ffffff', fontSize: '14px', resize: 'none', borderRadius: '6px', boxSizing: 'border-box', lineHeight: '1.5' }} />
-                    <div style={{ fontSize: '11px', color: '#a855f7', marginTop: '8px', fontStyle: 'italic' }}>*Il Vice leggerà questo manifesto in background per consigliarti al meglio.*</div>
                   </div>
                   <div style={{ backgroundColor: '#140f24', border: '1px solid #231b3a', padding: '14px', borderRadius: '6px' }}>
                     <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px', fontWeight: 'bold' }}>Club Attuale in FM</label>
@@ -979,5 +973,3 @@ function App() {
     </div>
   )
 }
-
-export default App
