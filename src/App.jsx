@@ -489,7 +489,8 @@ export default function App() {
         setMessages(prev => [...prev, sysMsg]);
         try { await supabase.from('club_messages').insert([sysMsg]); } catch(e) {}
       } catch (error) {
-        console.error(error); setUploadProgressText("❌ Errore file Excel.");
+        console.error("Errore lettura Excel:", error);
+        setUploadProgressText("❌ Errore file Excel.");
       } finally {
         setTimeout(() => { setIsUploading(false); setUploadProgressText(''); }, 3500);
         if(excelInputRef.current) excelInputRef.current.value = "";
@@ -564,10 +565,6 @@ export default function App() {
     } 
   }
 
-  // ==========================================
-  // IL NUOVO DESIGN GEMINI iOS STYLE
-  // ==========================================
-
   function renderChatWindow() {
     const safeMessages = Array.isArray(messages) ? messages : [];
     const visibleMessages = safeMessages.filter(msg => {
@@ -579,7 +576,6 @@ export default function App() {
 
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#0E0E0F', width: '100%', height: '100%', position: 'relative' }}>
-        {/* Header pulito stile iOS */}
         <div style={{ height: '70px', padding: '0 24px', display: 'flex', alignItems: 'center', backgroundColor: '#0E0E0F', justifyContent: 'space-between', borderBottom: '1px solid #1E1F22' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <Sparkles size={22} color="#A8C7FA" /> 
@@ -598,7 +594,6 @@ export default function App() {
 
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden', flexDirection: isMobile ? 'column' : 'row', position: 'relative' }}>
           
-          {/* Area Chat */}
           {(!isMobile || mobileViewTab === 'chat') && (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: '#0E0E0F', position: 'relative' }}>
               <div ref={chatContainerRef} onScroll={handleChatScroll} style={{ flex: 1, padding: isMobile ? '16px' : '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '100px' }}>
@@ -640,7 +635,6 @@ export default function App() {
                 </button>
               )}
 
-              {/* Barra Input Fluttuante Stile iOS */}
               <div style={{ position: 'absolute', bottom: isMobile ? '20px' : '30px', left: '50%', transform: 'translateX(-50%)', width: isMobile ? '92%' : '80%', maxWidth: '800px', zIndex: 60 }}>
                 {pendingImages.length > 0 && (
                   <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', overflowX: 'auto', padding: '8px', backgroundColor: '#1E1F22', borderRadius: '16px' }}>
@@ -667,7 +661,6 @@ export default function App() {
             </div>
           )}
 
-          {/* Area Strumenti */}
           {(!isMobile || mobileViewTab === 'tools') && (
             <div style={{ width: isMobile ? '100%' : '400px', backgroundColor: '#0E0E0F', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', borderLeft: isMobile ? 'none' : '1px solid #1E1F22', boxSizing: 'border-box', overflowY: 'auto' }}>
               
@@ -796,11 +789,17 @@ export default function App() {
             <button onClick={() => setDbSubTab('matches')} style={{ padding: '8px 16px', border: 'none', fontSize: '13px', backgroundColor: dbSubTab === 'matches' ? '#A8C7FA' : '#1E1F22', color: dbSubTab === 'matches' ? '#0E0E0F' : '#E3E3E3', borderRadius: '20px', flexShrink: 0, cursor: 'pointer' }}>Storico ({safeMatches.length})</button>
           </div>
 
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <input type="file" accept=".xlsx, .xlsm" ref={excelInputRef} onChange={handleExcelUpload} style={{ display: 'none' }} />
             <button onClick={() => excelInputRef.current.click()} disabled={isUploading} style={{ backgroundColor: '#282A2C', color: '#A8C7FA', border: 'none', padding: '8px 16px', fontSize: '12px', borderRadius: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
                <FileSpreadsheet size={14} /> Importa Excel
             </button>
+            
+            <input type="file" accept="image/*" multiple ref={fileInputRef} onChange={handleImageUploadOCR} style={{ display: 'none' }} />
+            <button onClick={() => fileInputRef.current.click()} disabled={isUploading} style={{ backgroundColor: '#282A2C', color: '#A8C7FA', border: 'none', padding: '8px 16px', fontSize: '12px', borderRadius: '20px', cursor: isUploading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <ImageIcon size={14} /> {isUploading ? 'Scansione...' : 'Foto Rosa'}
+            </button>
+
             {safePlayers.length > 0 && <button onClick={handleClearAllData} style={{ backgroundColor: 'transparent', border: '1px solid #F28B82', color: '#F28B82', padding: '8px 16px', fontSize: '12px', borderRadius: '20px', cursor: 'pointer' }}>Azzera DB</button>}
           </div>
 
@@ -841,7 +840,7 @@ export default function App() {
             </div>
           ) : (
             <div style={{ backgroundColor: '#1E1F22', borderRadius: '16px', overflowX: 'auto', width: '100%' }}>
-              {sortedList.length === 0 ? <div style={{ textAlign: 'center', padding: '40px', color: '#8E918F' }}>Nessun giocatore. Importa un Excel.</div> : (
+              {sortedList.length === 0 ? <div style={{ textAlign: 'center', padding: '40px', color: '#8E918F' }}>Nessun giocatore. Importa un Excel o scansiona le foto.</div> : (
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '700px' }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid #282A2C' }}>
