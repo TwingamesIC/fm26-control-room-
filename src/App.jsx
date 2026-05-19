@@ -1,26 +1,26 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabaseClient'
-import { MessageSquare, Database, Send, Users, Sliders, TrendingUp, ImageIcon, X, Briefcase, ChevronRight, HelpCircle, Award, Activity, Search, Trash2, ChevronDown, FileSpreadsheet, Sparkles } from 'lucide-react'
+import { MessageSquare, Database, Send, Users, Sliders, Sparkles, ImageIcon, X, ChevronRight, Trash2, ChevronDown, FileSpreadsheet } from 'lucide-react'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // ==========================================
-// IL CERVELLO DI FM26 (ANIMA CALCISTICA PROFONDA)
+// IL CERVELLO DI FM26 (ANALISI PROFONDA E SPARRING PARTNER)
 // ==========================================
 const FM26_CORE_ENGINE = `
-Sei il Vice Allenatore del club in Football Manager 2026. Sei il braccio destro del Mister (Omiserez) e un profondo conoscitore di calcio e tattica.
+Sei il Vice Allenatore e Chief Data Analyst del club in Football Manager 2026. Il tuo allenatore è "omiserez" (il Mister). Io che ti parlo sono omiserez.
 
-[!!! STILE DI CONVERSAZIONE E IDENTITÀ !!!]
-1. COMPAGNO DI PANCHINA: Sei la mia spalla destra. Parla con me ESATTAMENTE come un'intelligenza artificiale avanzata (amichevole, intelligente, discorsiva, empatica ma schietta), ma calata nel ruolo di un vero uomo di campo. Niente risposte telegrafiche o robotiche. Voglio dialogare di calcio con te in modo naturale.
-2. ANALISI TATTICA PROFONDA: Quando parliamo di moduli, giocatori o avversari, entra nei dettagli. Valuta i pro e i contro, ragiona sulle mie scelte, dimmi sinceramente se sbaglio e proponi alternative intelligenti e realistiche.
-3. USA I DATI MA CON NATURALEZZA: Sfrutta i dati della rosa (attributi, media voto, presenze) per giustificare le tu idee, ma parlane in modo fluido. Es: "Mister, con quel 10 in Passaggi, non so se può fare il Regista...".
-4. NIENTE CODICE O LAVAGNE: Non stampare mai codice JSON, tabelle ASCII o lavagne visive. Voglio solo testo ben formattato, leggibile e chiaro.
-5. TERMINOLOGIA: Usa i nomi dei ruoli in inglese (es: **Box to Box Midfielder**, **Inverted Winger**), ma discuti in italiano.
+[!!! STILE DI CONVERSAZIONE E IDENTITÀ - REGOLA SUPREMA !!!]
+1. CONFRONTO TOTALE E ANALISI PROFONDA: Il Mister NON vuole risposte brevi, superficiali o "mezze risposte". Vuole un vero e proprio CONFRONTO TATTICO ad altissimo livello. Quando ti fa una domanda o ti invia uno screen, sviscera l'argomento. Scrivi paragrafi lunghi e dettagliati, esplora diverse angolazioni (fase di possesso, transizioni, baricentro, pressing).
+2. SPARRING PARTNER TATTICO (L'AVVOCATO DEL DIAVOLO): Non dirmi solo "Sì, ottima idea". Trova i punti deboli delle mie tattiche e dei miei giocatori. Sii critico, costruttivo e schietto. Se una mia idea non funziona con i giocatori che abbiamo in rosa, dimmelo chiaramente e spiegami il perché dal punto di vista tecnico.
+3. USA I DATI COME UN PROFESSIONISTA: Integra i dati del database (ruoli, attributi, media voto) in discorsi ampi per giustificare le tue tesi. Fai paragoni tra giocatori.
+4. NIENTE CODICE: Non generare mai codice JSON, tabelle ASCII o lavagne visive. Voglio solo testo ben formattato e discorsivo. Usa i nomi dei ruoli in inglese (es: **Deep Lying Playmaker**, **Inverted Winger**), ma discuti in italiano.
+5. IL RILANCIO: Chiudi sempre le tue analisi fiume passandomi la palla con una domanda tattica precisa, sfidandomi a trovare una soluzione insieme a te per continuare il dibattito.
 `;
 
-const getRolePrompt = (role, clubName, clubVision, clubHistory, finances, squadContext, shortlistContext, matchesContext, tacticalFocus, tacticReports) => {
+function getRolePrompt(role, clubName, clubVision, clubHistory, finances, squadContext, shortlistContext, matchesContext, tacticalFocus, tacticReports) {
   const baseRules = FM26_CORE_ENGINE + `\nCLUB ATTUALE: ${clubName.toUpperCase()}.\n`;
   
   const savedTacticsSummary = tacticReports && tacticReports.length > 0 
@@ -35,7 +35,7 @@ DATI ROSA ATTUALE (Non chiedere altri dati oltre questi): ${JSON.stringify(squad
 `;
 
   return baseRules + contextData;
-};
+}
 
 export default function App() {
   const [isMounted, setIsMounted] = useState(false);
@@ -56,7 +56,7 @@ export default function App() {
   const [players, setPlayers] = useState(() => { if (typeof window !== 'undefined') { try { return JSON.parse(localStorage.getItem('hq_players')) || []; } catch(e) { return []; } } return []; })
   const [shortlist, setShortlist] = useState(() => { if (typeof window !== 'undefined') { try { return JSON.parse(localStorage.getItem('hq_shortlist')) || []; } catch(e) { return []; } } return []; })
   const [matches, setMatches] = useState(() => { if (typeof window !== 'undefined') { try { return JSON.parse(localStorage.getItem('hq_matches')) || []; } catch(e) { return []; } } return []; })
-  const [messages, setMessages] = useState(() => { if (typeof window !== 'undefined') { try { return JSON.parse(localStorage.getItem('hq_messages')) || [{ sender_role: 'system', content: 'Nuova interfaccia fluida caricata con successo.' }]; } catch(e) { return [{ sender_role: 'system', content: 'Centrale operativa allineata.' }]; } } return []; })
+  const [messages, setMessages] = useState(() => { if (typeof window !== 'undefined') { try { return JSON.parse(localStorage.getItem('hq_messages')) || [{ sender_role: 'system', content: 'Cervello tattico sbloccato in modalità Sparring Partner. Interfaccia iOS attiva.' }]; } catch(e) { return [{ sender_role: 'system', content: 'Centrale operativa allineata.' }]; } } return []; })
   const [tacticReports, setTacticReports] = useState(() => { if (typeof window !== 'undefined') { try { return JSON.parse(localStorage.getItem('hq_tactic_reports')) || []; } catch(e) { return []; } } return []; })
   const [finances, setFinances] = useState(() => { if (typeof window !== 'undefined') { try { return JSON.parse(localStorage.getItem('hq_finances')) || { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; } catch(e) { return { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; } } return { balance: 2500000, transfer_budget: 800000, wage_budget: 15000 }; })
 
@@ -113,8 +113,6 @@ export default function App() {
   useEffect(() => {
     if (chatContainerRef.current) { chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight; }
   }, [messages, isTyping])
-
-  useEffect(() => { fetchCloudData(); }, []);
 
   if (!isMounted) {
     return (
@@ -270,7 +268,7 @@ export default function App() {
       let instructionPrompt = getRolePrompt(activeRoom, clubName, clubVision, clubHistory, finances, squadContext, shortlistContext, matchesContext, tacticalFocus, tacticReports);
 
       if (imagesToSend.length > 0) {
-        instructionPrompt += `\n\nIL MISTER TI HA ALLEGATO ${imagesToSend.length} IMMAGINI E DICE: "${currentInputText || 'Analizza questi screen, Mister.'}"`;
+        instructionPrompt += `\n\nIL MISTER TI HA ALLEGATO ${imagesToSend.length} IMMAGINI E DICE: "${currentInputText || 'Mister, che ne pensi di questi dati?'}"`;
       } else {
         instructionPrompt += `\n\nIL MISTER TI DICE: "${currentInputText}"`;
       }
